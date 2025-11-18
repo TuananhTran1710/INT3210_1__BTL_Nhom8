@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "915428406364",
+    "project_id": "wink-89742",
+    "storage_bucket": "wink-89742.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:915428406364:android:db06e89df1bdc30dcd2299",
+        "android_client_info": {
+          "package_name": "com.example.wink"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABarB6ZL_36FF2YcpR6QDI7zKTDJBEaGc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
