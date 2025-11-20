@@ -4,21 +4,27 @@ import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.FakeAuthRepositoryImpl
 import dagger.Binds
 import dagger.Module
+import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @Module
 @InstallIn(SingletonComponent::class)
-abstract class AppModule {
-    // Dùng @Binds để báo Hilt biết
-    // khi ai đó yêu cầu AuthRepository
-    // thì hãy cung cấp một FakeAuthRepositoryImpl
-    @Binds
+object AppModule {
+    // Cung cấp FirebaseAuth
+    @Provides
     @Singleton
-    abstract fun bindAuthRepository(
-        impl: FakeAuthRepositoryImpl
-    ): AuthRepository
+    fun provideFirebaseAuth(): FirebaseAuth {
+        return FirebaseAuth.getInstance()
+    }
 
-    // Thêm các repository khác ở đây (ví dụ: RizzRepository, ChatRepository...)
+    // Cung cấp FirebaseFirestore
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore {
+        return FirebaseFirestore.getInstance()
+    }
 }
