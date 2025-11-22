@@ -1,6 +1,7 @@
 package com.example.wink.data.repository
 
 import com.example.wink.data.model.User
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import javax.inject.Inject
@@ -26,6 +27,16 @@ class FakeAuthRepositoryImpl @Inject constructor() : AuthRepository {
     }
 
     override suspend fun signup(email: String, pass: String, username: String): AuthResult {
+        delay(1000) // Giả lập đang gửi dữ liệu lên server
+
+        // Tự động đăng nhập luôn sau khi đăng ký thành công
+        _currentUser.value = User(
+            uid = "676767",
+            email = email,
+            username = username,
+            gender = "",
+            preference = ""
+        )
         return Result.success(Unit)
     }
 
