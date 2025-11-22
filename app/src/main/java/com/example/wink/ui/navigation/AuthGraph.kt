@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import com.example.wink.ui.features.login.LoginScreen
+import com.example.wink.ui.features.signup.SignupScreen
 
 fun NavGraphBuilder.authGraph(navController: NavController) {
     navigation(
@@ -15,8 +16,7 @@ fun NavGraphBuilder.authGraph(navController: NavController) {
             LoginScreen(navController = navController)
         }
         composable(Screen.Signup.route) {
-            // SignupScreen(navController = navController)
-            androidx.compose.material3.Text("TODO: Signup Screen")
+            SignupScreen(navController = navController)
         }
         composable(Screen.Onboarding.route) {
             // OnboardingScreen(navController = navController)
