@@ -1,6 +1,8 @@
 package com.example.wink.data.repository
 
+import android.util.Log
 import com.example.wink.data.model.User
+import com.example.wink.ui.features.signup.SignupScreen
 import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -45,9 +47,31 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun signup(email: String, pass: String, username: String): AuthResult {
-        return Result.success(Unit)
+        return try {
+            // 1. Tạo tài khoản trên Firebase
+            firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
+
+            // 2. Cập nhật displayName = username (tuỳ chọn, nhưng giống logic cũ hơn)
+            val user = firebaseAuth.currentUser
+            user?.updateProfile(
+                com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                    .setDisplayName(username)
+                    .build()
+            )?.await()
+
+            // 3. Trả về thành công
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 
     override suspend fun logout() {
+    }
+
+    override suspend fun hasLoggedInUser(): Boolean {
+        val user = firebaseAuth.currentUser
+        Log.d("TestAuth", "currentUser = $user, uid = ${user?.uid}, email = ${user?.email}")
+        return user != null
     }
 }
