@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.profile
 
+import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.util.BaseViewModel
@@ -75,6 +76,8 @@ class ProfileViewModel @Inject constructor(
                 )
             }
         }
+
+        Log.i("user info", "user info: ${uiState.value}")
     }
     private fun loadFriends()  {
         viewModelScope.launch {

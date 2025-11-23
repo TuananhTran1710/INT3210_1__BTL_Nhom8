@@ -11,7 +11,7 @@ import androidx.navigation.NavHostController // Changed from NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.wink.ui.features.navigation.BottomNavItem
-
+import com.example.wink.ui.features.profile.ProfileScreen
 
 
 @Composable
@@ -30,13 +30,7 @@ fun MainNavHost(navController: NavHostController) { // Changed parameter type
             }
         }
         composable(BottomNavItem.Profile.route) {
-            // Placeholder Profile
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "Profile Screen")
-            }
+            ProfileScreen(navController = navController)
         }
     }
 }
