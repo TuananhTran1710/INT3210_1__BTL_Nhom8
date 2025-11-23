@@ -10,6 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import com.example.wink.ui.navigation.Screen
+
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -22,7 +28,20 @@ fun DashboardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Trang chủ") }
+                title = { Text("Trang chủ") },
+                actions = {
+                    // 🔽 NÚT MỚI: điều hướng sang Profile, thêm vào đây
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.Profile.route)
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = "Hồ sơ"
+                        )
+                    }
+                }
             )
         }
     ) { paddingValues ->

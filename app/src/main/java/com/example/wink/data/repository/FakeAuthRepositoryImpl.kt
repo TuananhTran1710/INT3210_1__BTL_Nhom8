@@ -18,7 +18,8 @@ class FakeAuthRepositoryImpl @Inject constructor() : AuthRepository {
                 username = "dangduat",
                 gender = "male",
                 preference = "female",
-                rizzPoints = 67
+                rizzPoints = 67,
+                avatarUrl = ""
             )
             return Result.success(Unit)
         }

@@ -5,6 +5,7 @@ import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import com.example.wink.ui.features.dashboard.DashboardScreen
+import com.example.wink.ui.features.profile.ProfileScreen
 
 fun NavGraphBuilder.mainGraph(navController: NavController) {
     navigation(
@@ -15,7 +16,7 @@ fun NavGraphBuilder.mainGraph(navController: NavController) {
             DashboardScreen(navController = navController)
         }
         composable(Screen.Profile.route) {
-            // ProfileScreen(navController = navController)
+            ProfileScreen(navController = navController)
             androidx.compose.material3.Text("TODO: Profile Screen")
         }
     }

@@ -24,7 +24,8 @@ class AuthRepositoryImpl @Inject constructor(
                     email = firebaseUser.email,
                     username = firebaseUser.displayName ?: "No Name",
                     gender = "",
-                    preference = ""
+                    preference = "",
+                    avatarUrl = ""
                 )
                 // emit(user) - Lưu ý: Flow trong listener cần xử lý callbackFlow,
                 // nhưng để đơn giản bạn có thể dùng firebaseAuth.currentUser trực tiếp trong các hàm khác
