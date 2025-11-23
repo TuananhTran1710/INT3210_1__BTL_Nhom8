@@ -7,5 +7,6 @@ data class User(
     val gender: String, // "male", "female", "other"
     val preference: String, // "female"
     val rizzPoints: Int = 0,
-    val loginStreak: Int = 0
+    val loginStreak: Int = 0,
+    val avatarUrl: String = ""
 )

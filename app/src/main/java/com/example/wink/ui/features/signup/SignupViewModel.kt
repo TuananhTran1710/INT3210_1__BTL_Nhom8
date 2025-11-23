@@ -27,7 +27,7 @@ class SignupViewModel @Inject constructor(
             is SignupEvent.OnConfirmPasswordChanged -> _uiState.update { it.copy(confirmPass = event.pass) }
             SignupEvent.OnSignupClicked -> performSignup()
             SignupEvent.OnLoginNavClicked -> viewModelScope.launch {
-                _navigationEvent.emit(NavigationEvent.NavigateBackToLogin)
+                _navigationEvent.emit(NavigationEvent.NavigateBackToLogin("", ""))
             }
         }
     }
@@ -47,15 +47,20 @@ class SignupViewModel @Inject constructor(
             return
         }
 
-        // 3. Gọi Repository giả
+        // 3. Gọi Repository
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
             val result = authRepository.signup(state.email, state.pass, state.username)
 
             if (result.isSuccess) {
-                // Đăng ký thành công -> Chuyển sang màn Onboarding (chọn giới tính)
-                _navigationEvent.emit(NavigationEvent.NavigateToOnboarding)
+                // Đăng ký thành công -> Chuyển sang màn đăng nhập, tự động điền info
+                _navigationEvent.emit(
+                    NavigationEvent.NavigateBackToLogin(
+                        email = state.email,
+                        pass = state.pass
+                    )
+                )
             } else {
                 _uiState.update { it.copy(isLoading = false, error = "Đăng ký thất bại") }
             }
@@ -64,6 +69,9 @@ class SignupViewModel @Inject constructor(
 
     sealed class NavigationEvent {
         object NavigateToOnboarding : NavigationEvent()
-        object NavigateBackToLogin : NavigationEvent()
+        data class NavigateBackToLogin(
+            val email: String,
+            val pass: String
+        ) : NavigationEvent()
     }
 }
