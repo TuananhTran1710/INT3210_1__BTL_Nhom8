@@ -64,6 +64,9 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.analytics)
+    // Removed the hardcoded navigation-compose dependency: implementation("androidx.navigation:navigation-compose:2.7.0")
+    implementation("androidx.compose.material3:material3:1.2.0")
+    implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -71,6 +74,7 @@ dependencies {
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
+
 }
 
 kapt {
