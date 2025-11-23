@@ -19,7 +19,7 @@ fun NavGraphBuilder.authGraph(navController: NavController) {
             SignupScreen(navController = navController)
         }
         composable(Screen.Onboarding.route) {
-            // OnboardingScreen(navController = navController)
+//            OnboardingScreen(navController = navController)
             androidx.compose.material3.Text("TODO: Onboarding Screen")
         }
     }

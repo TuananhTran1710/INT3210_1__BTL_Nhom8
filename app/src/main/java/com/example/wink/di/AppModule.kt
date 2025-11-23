@@ -1,7 +1,6 @@
 package com.example.wink.di
 
 import com.example.wink.data.repository.AuthRepository
-import com.example.wink.data.repository.FakeAuthRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.Provides

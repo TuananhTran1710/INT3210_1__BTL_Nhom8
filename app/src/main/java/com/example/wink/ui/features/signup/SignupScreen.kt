@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.signup
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -8,6 +9,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -22,7 +24,7 @@ fun SignupScreen(
     viewModel: SignupViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
+    val context = LocalContext.current
     // Xử lý điều hướng
     LaunchedEffect(true) {
         viewModel.navigationEvent.collect { event ->
@@ -35,7 +37,25 @@ fun SignupScreen(
                     }
                 }
                 is SignupViewModel.NavigationEvent.NavigateBackToLogin -> {
-                    navController.popBackStack() // Quay lại màn login
+
+                    // HIỆN TOAST —— y như SignupActivity.this
+                    Toast.makeText(
+                        context,
+                        "Đăng ký thành công!",
+                        Toast.LENGTH_SHORT
+                    ).show()
+
+                    // 1. Gửi email & pass cho back stack entry của Login
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("prefill_email", event.email)
+
+                    navController.previousBackStackEntry
+                        ?.savedStateHandle
+                        ?.set("prefill_pass", event.pass)
+
+                    // 3. Quay lại Login
+                    navController.popBackStack()
                 }
             }
         }

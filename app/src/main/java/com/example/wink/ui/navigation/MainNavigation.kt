@@ -15,7 +15,7 @@ fun NavGraphBuilder.mainGraph(navController: NavController) {
             DashboardScreen(navController = navController)
         }
         composable(Screen.Profile.route) {
-            // ProfileScreen(navController = navController)
+//            ProfileScreen(navController = navController)
             androidx.compose.material3.Text("TODO: Profile Screen")
         }
     }

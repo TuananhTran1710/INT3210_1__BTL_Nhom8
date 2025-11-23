@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.login
 
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.AuthRepository
@@ -14,15 +15,38 @@ import javax.inject.Inject
 
 @HiltViewModel
 class LoginViewModel @Inject constructor(
-    private val authRepository: AuthRepository // Hilt sẽ tự động tiêm FakeAuthRepository
+    private val authRepository: AuthRepository // Hilt sẽ tự động tiêm AuthRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginState())
     val uiState = _uiState.asStateFlow()
 
     // Một "kênh" đặc biệt để gửi tín hiệu điều hướng (navigation) 1 LẦN
-    private val _navigationEvent = MutableSharedFlow<NavigationEvent>()
+//    private val _navigationEvent = MutableSharedFlow<NavigationEvent>()
+//    val navigationEvent = _navigationEvent.asSharedFlow()
+
+    private val _navigationEvent = MutableSharedFlow<NavigationEvent>(replay = 1)
     val navigationEvent = _navigationEvent.asSharedFlow()
+
+
+    init {
+        Log.d("TestAuth", "firebaseAuth = $authRepository")
+        autoLoginIfPossible()
+    }
+
+    private fun autoLoginIfPossible() {
+        viewModelScope.launch {
+            if (authRepository.hasLoggedInUser()) {
+                // ĐÃ có user từ phiên trước → nhảy thẳng Dashboard
+                _navigationEvent.emit(NavigationEvent.NavigateToMain)
+                // Không cần set isCheckingSession = false vì sẽ navigate đi luôn
+            } else {
+                // KHÔNG có user → thôi hiện form login
+                _uiState.update { it.copy(isCheckingSession = false) }
+            }
+        }
+    }
+
 
     fun onEvent(event: LoginEvent) {
         when (event) {
