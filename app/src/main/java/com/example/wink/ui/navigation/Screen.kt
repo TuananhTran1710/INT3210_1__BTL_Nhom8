@@ -7,7 +7,6 @@ sealed class Screen(val route: String) {
     object Login : Screen("login")
     object Signup : Screen("signup")
     object Onboarding : Screen("onboarding") // Màn hình lựa chọn giới tính, gu,.. sau khi đăng ký
-
     // Main Screens
     object Dashboard : Screen("dashboard")
     object Profile : Screen("profile")
