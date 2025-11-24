@@ -15,7 +15,10 @@ import com.example.wink.ui.features.profile.ProfileScreen
 
 
 @Composable
-fun MainNavHost(navController: NavHostController) { // Changed parameter type
+fun MainNavHost(
+    navController: NavHostController, // For bottom navigation
+    mainNavController: NavHostController // For main app navigation (logout)
+) {
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Dashboard.route
@@ -30,7 +33,7 @@ fun MainNavHost(navController: NavHostController) { // Changed parameter type
             }
         }
         composable(BottomNavItem.Profile.route) {
-            ProfileScreen(navController = navController)
+            ProfileScreen(navController = mainNavController) // Use main nav controller for logout
         }
     }
 }

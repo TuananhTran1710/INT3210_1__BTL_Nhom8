@@ -13,13 +13,15 @@ import com.example.wink.ui.features.navigation.MainNavHost
 
 
 @Composable
-fun MainScreen() { // Removed navController parameter, as it will be created internally
-    val navController = rememberNavController() // Create NavHostController
+fun MainScreen(navController: NavHostController) {  // nhận từ ngoài cho logout navigation
+    // Tạo NavController riêng cho bottom navigation
+    val bottomNavController = rememberNavController()
+    
     Scaffold(
-        bottomBar = { MainBottomNavigation(navController) }
+        bottomBar = { MainBottomNavigation(bottomNavController) }
     ) { paddingValues ->
         Box(modifier = Modifier.padding(paddingValues)) {
-            MainNavHost(navController) // Pass the created NavHostController
+            MainNavHost(bottomNavController, mainNavController = navController)   // pass both controllers
         }
     }
 }
