@@ -13,10 +13,7 @@ fun AppNavigation() {
         navController = navController,
         startDestination = startDestination
     ) {
-        // Đồ thị (Graph) cho luồng Đăng nhập/Đăng ký
         authGraph(navController)
-
-        // Đồ thị (Graph) cho các tính năng chính (sau khi đăng nhập)
-        mainGraph(navController)
+        mainGraph(navController)   // navController giờ là NavHostController
     }
 }

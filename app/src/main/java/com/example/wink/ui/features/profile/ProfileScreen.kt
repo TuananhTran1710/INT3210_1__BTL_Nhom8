@@ -25,10 +25,14 @@ fun ProfileScreen(
     LaunchedEffect(state.isLoggedOut) {
         if (state.isLoggedOut) {
             navController.navigate(Screen.Login.route) {
-                popUpTo(Screen.Dashboard.route) { inclusive = true }
+                // clear toàn bộ stack main_graph để không back lại được
+                popUpTo(0) {
+                    inclusive = true
+                }
             }
         }
     }
+
 
     Scaffold(
         topBar = {

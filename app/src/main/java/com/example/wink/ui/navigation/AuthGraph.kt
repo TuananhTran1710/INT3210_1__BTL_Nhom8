@@ -2,12 +2,13 @@ package com.example.wink.ui.navigation
 
 import androidx.navigation.NavController
 import androidx.navigation.NavGraphBuilder
+import androidx.navigation.NavHostController
 import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import com.example.wink.ui.features.login.LoginScreen
 import com.example.wink.ui.features.signup.SignupScreen
 
-fun NavGraphBuilder.authGraph(navController: NavController) {
+fun NavGraphBuilder.authGraph(navController: NavHostController) {
     navigation(
         route = Screen.AUTH_GRAPH_ROUTE,
         startDestination = Screen.Login.route

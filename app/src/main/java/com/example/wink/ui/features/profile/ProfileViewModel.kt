@@ -53,9 +53,30 @@ class ProfileViewModel @Inject constructor(
     private fun refresh () {
 
     }
-    private fun logout () {
+    private fun logout() {
+        viewModelScope.launch {
+            try {
+                // hiển thị loading nếu muốn
+                _uiState.value = _uiState.value.copy(
+                    isLoading = true,
+                    errorMessage = null
+                )
 
+                authRepository.logout()      // <-- gọi repo đăng xuất (Firebase, v.v.)
+
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    isLoggedOut = true        // báo cho UI biết là đã logout
+                )
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(
+                    isLoading = false,
+                    errorMessage = e.message ?: "Đăng xuất thất bại"
+                )
+            }
+        }
     }
+
     private fun addFriend (friendId: String) {
 
     }
