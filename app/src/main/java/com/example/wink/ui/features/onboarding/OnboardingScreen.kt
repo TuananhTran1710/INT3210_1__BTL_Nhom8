@@ -72,7 +72,7 @@ fun OnboardingScreen(
                 if (state.currentPage < 3) {
                     viewModel.onEvent(OnboardingEvent.NextPage)
                 } else {
-                    navController.navigate(Screen.Dashboard.route) {
+                    navController.navigate(Screen.Login.route) {
                         popUpTo(Screen.AUTH_GRAPH_ROUTE) { inclusive = true }
                     }
                 }
