@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.wink.data.model.User
 import com.example.wink.ui.features.signup.SignupScreen
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -13,7 +14,7 @@ import javax.inject.Inject
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth, // Được Hilt tiêm vào từ AppModule
-    // private val firestore: FirebaseFirestore // Sẽ cần cái này để lưu thông tin user chi tiết
+     private val firestore: FirebaseFirestore // Sẽ cần cái này để lưu thông tin user chi tiết
 ) : AuthRepository {
 
     override val currentUser: Flow<User?> = callbackFlow {
@@ -60,20 +61,41 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signup(email: String, pass: String, username: String): AuthResult {
         return try {
-            // 1. Tạo tài khoản trên Firebase
+            // 1. Tạo tài khoản trên Firebase Auth
             firebaseAuth.createUserWithEmailAndPassword(email, pass).await()
 
-            // 2. Cập nhật displayName = username (tuỳ chọn, nhưng giống logic cũ hơn)
-            val user = firebaseAuth.currentUser
-            user?.updateProfile(
+            val firebaseUser = firebaseAuth.currentUser
+
+            // 2. Cập nhật displayName
+            firebaseUser?.updateProfile(
                 com.google.firebase.auth.UserProfileChangeRequest.Builder()
                     .setDisplayName(username)
                     .build()
             )?.await()
 
-            // 3. Trả về thành công
+            // 3. Tạo document user trong Firestore (collection "users")
+            firebaseUser?.let { fbUser ->
+                val userDoc = hashMapOf(
+                    "uid" to fbUser.uid,
+                    "email" to (fbUser.email ?: email),
+                    "username" to username,
+                    "rizzPoints" to 0L,
+                    "friendsList" to emptyList<String>(),
+                    "quizzesFinished" to emptyList<String>(),
+                    "gender" to "",
+                    "preference" to "",
+                    "avatarUrl" to (fbUser.photoUrl?.toString() ?: "")
+                )
+
+                firestore.collection("users")
+                    .document(fbUser.uid)
+                    .set(userDoc)
+                    .await()
+            }
+
             Result.success(Unit)
         } catch (e: Exception) {
+            Log.e("AuthRepository", "Signup error", e)
             Result.failure(e)
         }
     }
