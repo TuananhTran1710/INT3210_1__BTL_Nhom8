@@ -54,13 +54,8 @@ class SignupViewModel @Inject constructor(
             val result = authRepository.signup(state.email, state.pass, state.username)
 
             if (result.isSuccess) {
-                // Đăng ký thành công -> Chuyển sang màn đăng nhập, tự động điền info
-                _navigationEvent.emit(
-                    NavigationEvent.NavigateBackToLogin(
-                        email = state.email,
-                        pass = state.pass
-                    )
-                )
+                // Đăng ký thành công -> Chuyển sang màn Onboarding (chọn giới tính)
+                _navigationEvent.emit(NavigationEvent.NavigateToOnboarding)
             } else {
                 _uiState.update { it.copy(isLoading = false, error = "Đăng ký thất bại") }
             }
