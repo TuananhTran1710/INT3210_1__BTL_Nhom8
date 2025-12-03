@@ -10,6 +10,10 @@ sealed class Screen(val route: String) {
     // Main Screens
     object Dashboard : Screen("dashboard")
     object Profile : Screen("profile")
+    object Explore : Screen("explore")
+    // --- CÁC MÀN HÌNH TÍNH NĂNG (EXPLORE) ---
+    object Tips : Screen("tips_screen")       // Bí kíp
+
     companion object {
         const val AUTH_GRAPH_ROUTE = "auth_graph"
         const val MAIN_GRAPH_ROUTE = "main_graph"

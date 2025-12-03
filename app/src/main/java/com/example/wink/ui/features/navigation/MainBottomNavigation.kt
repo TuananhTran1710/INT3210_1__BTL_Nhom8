@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.navigation.NavController
 import androidx.navigation.compose.currentBackStackEntryAsState
+import com.example.wink.ui.navigation.Screen
 
 @Composable
 fun MainBottomNavigation(navController: NavController) {
@@ -12,9 +13,16 @@ fun MainBottomNavigation(navController: NavController) {
         val navBackStackEntry by navController.currentBackStackEntryAsState()
         val currentRoute = navBackStackEntry?.destination?.route
 
+        val exploreSubRoutes = listOf(
+            Screen.Tips.route,
+        )
+
         bottomNavItems.forEach { item ->
+            val isSelected = currentRoute == item.route ||
+                    (item == BottomNavItem.Explore && exploreSubRoutes.contains(currentRoute))
+
             NavigationBarItem(
-                selected = currentRoute == item.route,
+                selected = isSelected,
                 onClick = {
                     navController.navigate(item.route) {
                         popUpTo(bottomNavItems.first().route) { saveState = true }
@@ -23,7 +31,8 @@ fun MainBottomNavigation(navController: NavController) {
                     }
                 },
                 icon = { Icon(item.icon, contentDescription = item.label) },
-                label = { Text(item.label) }
+                label = { Text(item.label) },
+                alwaysShowLabel = true
             )
         }
     }

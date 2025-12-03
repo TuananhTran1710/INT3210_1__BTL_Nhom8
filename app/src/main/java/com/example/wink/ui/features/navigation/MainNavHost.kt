@@ -10,9 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController // Changed from NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.social.SocialScreen
+import com.example.wink.ui.features.tips.TipsScreen
+import com.example.wink.ui.navigation.Screen
 
 
 @Composable
@@ -38,6 +41,12 @@ fun MainNavHost(
         }
         composable(BottomNavItem.Social.route) {
             SocialScreen(navController = mainNavController)
+        }
+        composable(BottomNavItem.Explore.route) {
+            ExploreScreen(navController = navController)
+        }
+        composable(Screen.Tips.route) {
+            TipsScreen(navController = navController)
         }
     }
 }
