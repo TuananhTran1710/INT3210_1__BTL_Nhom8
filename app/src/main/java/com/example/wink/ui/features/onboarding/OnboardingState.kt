@@ -5,6 +5,7 @@ data class OnboardingState(
 
     val selectedGender: String? = null,          // "male", "female", "other"
     val selectedPreference: String? = null,      // "female", "male", "both"
+    val selectedPersonality: String? = null,
 
     // UI State
     val isLoading: Boolean = false,
