@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
+import com.example.wink.ui.features.dashboard.DashboardScreen
 
 
 @Composable
@@ -24,13 +25,7 @@ fun MainNavHost(
         startDestination = BottomNavItem.Dashboard.route
     ) {
         composable(BottomNavItem.Dashboard.route) {
-            // Placeholder Dashboard
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "Dashboard Screen")
-            }
+            DashboardScreen(navController = mainNavController) // Use main nav controller for navigation
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(navController = mainNavController) // Use main nav controller for logout

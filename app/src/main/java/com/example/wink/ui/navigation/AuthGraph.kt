@@ -7,7 +7,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.navigation
 import com.example.wink.ui.features.login.LoginScreen
 import com.example.wink.ui.features.onboarding.OnboardingScreen
+import com.example.wink.ui.features.profile.UserDetailScreen
 import com.example.wink.ui.features.signup.SignupScreen
+//import com.example.wink.ui.features.explore.ChangeIconScreen
 
 fun NavGraphBuilder.authGraph(navController: NavHostController) {
     navigation(
@@ -23,5 +25,17 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
         composable(Screen.Onboarding.route) {
             OnboardingScreen(navController = navController)
         }
+        composable("user_detail/{userId}") { backStackEntry ->
+            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            UserDetailScreen(
+                userId = userId,
+                onBack = {
+                    navController.popBackStack()
+                }
+            )
+        }
+//        composable(Screen.ChangeIcon.route) {
+//            ChangeIconScreen(navController = navController)
+//        }
     }
 }
