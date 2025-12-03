@@ -2,6 +2,8 @@ package com.example.wink.di
 
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.AuthRepositoryImpl
+import com.example.wink.data.repository.SocialRepository
+import com.example.wink.data.repository.SocialRepositoryImpl
 // import com.example.wink.data.repository.AuthRepositoryImpl // <--- Sau này dùng cái này
 import dagger.Binds
 import dagger.Module
@@ -20,5 +22,9 @@ abstract class RepositoryModule {
     ): AuthRepository
 
     // Sau này thêm các Repository khác vào đây (vẫn dùng abstract fun)
-    // abstract fun bindRizzRepository(...): ...
+    @Binds
+    @Singleton
+    abstract fun bindSocialRepository(
+        impl: SocialRepositoryImpl
+    ): SocialRepository
 }

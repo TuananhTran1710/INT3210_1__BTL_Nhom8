@@ -44,7 +44,7 @@ fun SocialScreen(
     val tabs = listOf("Bảng tin", "Xếp hạng")
 
     // BottomSheetState
-    val sheetState = rememberModalBottomSheetState()
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     // --- BOTTOM SHEET BÌNH LUẬN ---
     if (state.activePostId != null) {
