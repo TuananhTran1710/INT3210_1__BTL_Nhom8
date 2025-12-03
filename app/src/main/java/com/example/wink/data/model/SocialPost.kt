@@ -9,6 +9,6 @@ data class SocialPost(
     val timestamp: Long,
     val likes: Int = 0,
     val comments: Int = 0,
-
-    val isLikedByMe: Boolean = false
+    val isLikedByMe: Boolean = false,
+    val imageUrls: List<String> = emptyList(),
 )

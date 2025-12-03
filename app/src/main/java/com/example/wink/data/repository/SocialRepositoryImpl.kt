@@ -1,5 +1,6 @@
 package com.example.wink.data.repository
 
+import android.net.Uri
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
@@ -7,15 +8,18 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
+import java.util.UUID
 import javax.inject.Inject
 
 class SocialRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val storage: FirebaseStorage
 ) : SocialRepository {
 
     private val currentUserId get() = auth.currentUser?.uid ?: ""
@@ -33,6 +37,8 @@ class SocialRepositoryImpl @Inject constructor(
 
                 val posts = snapshot?.documents?.mapNotNull { doc ->
                     val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
+                    val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+
                     SocialPost(
                         id = doc.id,
                         userId = doc.getString("userId") ?: "",
@@ -42,7 +48,8 @@ class SocialRepositoryImpl @Inject constructor(
                         timestamp = doc.getLong("timestamp") ?: 0L,
                         likes = (doc.getLong("likesCount") ?: 0).toInt(),
                         comments = (doc.getLong("commentsCount") ?: 0).toInt(),
-                        isLikedByMe = likedBy.contains(currentUserId) // Kiểm tra mình đã like chưa
+                        isLikedByMe = likedBy.contains(currentUserId),
+                        imageUrls = images
                     )
                 } ?: emptyList()
 
@@ -52,13 +59,14 @@ class SocialRepositoryImpl @Inject constructor(
     }
 
     // 2. ĐĂNG BÀI
-    override suspend fun createPost(content: String, user: User): Result<Unit> {
+    override suspend fun createPost(content: String, imageUrls: List<String>, user: User): Result<Unit> {
         return try {
             val postMap = hashMapOf(
                 "userId" to user.uid,
                 "username" to user.username,
                 "avatarUrl" to user.avatarUrl,
                 "content" to content,
+                "imageUrls" to imageUrls,
                 "timestamp" to System.currentTimeMillis(),
                 "likesCount" to 0,
                 "commentsCount" to 0,
@@ -171,6 +179,23 @@ class SocialRepositoryImpl @Inject constructor(
                 )
             }
             Result.success(users)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun uploadImage(uri: Uri): Result<String> {
+        return try {
+            // Tạo tên file ngẫu nhiên: images/{uuid}.jpg
+            val filename = UUID.randomUUID().toString()
+            val ref = storage.reference.child("images/$filename.jpg")
+
+            // Upload
+            ref.putFile(uri).await()
+
+            // Lấy URL công khai (Download URL)
+            val downloadUrl = ref.downloadUrl.await()
+            Result.success(downloadUrl.toString())
         } catch (e: Exception) {
             Result.failure(e)
         }

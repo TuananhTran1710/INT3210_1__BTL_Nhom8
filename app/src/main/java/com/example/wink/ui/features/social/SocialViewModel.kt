@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.social
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Comment
@@ -81,15 +82,32 @@ class SocialViewModel @Inject constructor(
     }
     fun onSendPost() {
         val content = _uiState.value.newPostContent
+        val selectedImages = _uiState.value.selectedImageUris
         val user = currentUser
-        if (content.isBlank() || user == null) return
+        if ((content.isBlank() && selectedImages.isEmpty()) || user == null) return
 
         viewModelScope.launch {
+            val uploadedImageUrls = mutableListOf<String>()
+
+            // Dùng async/awaitAll nếu muốn tối ưu
+            for (uri in selectedImages) {
+                val result = socialRepository.uploadImage(uri)
+                result.onSuccess { url ->
+                    uploadedImageUrls.add(url)
+                }
+                // Nếu upload lỗi 1 ảnh, có thể chọn skip hoặc báo lỗi
+            }
             // Gọi Repo tạo post
-            socialRepository.createPost(content, user)
+            socialRepository.createPost(content, uploadedImageUrls, user)
 
             // Reset UI
-            _uiState.update { it.copy(isCreatingPost = false, newPostContent = "") }
+            _uiState.update {
+                it.copy(
+                    isCreatingPost = false,
+                    newPostContent = "",
+                    selectedImageUris = emptyList()
+                )
+            }
         }
     }
 
@@ -152,6 +170,17 @@ class SocialViewModel @Inject constructor(
         viewModelScope.launch {
             socialRepository.sendComment(postId, content, user)
             _uiState.update { it.copy(newCommentContent = "") }
+        }
+    }
+
+    fun onImagesSelected(uris: List<Uri>) {
+        // Thêm ảnh mới vào danh sách đã có
+        _uiState.update { it.copy(selectedImageUris = it.selectedImageUris + uris) }
+    }
+
+    fun onRemoveSelectedImage(uri: Uri) {
+        _uiState.update { state ->
+            state.copy(selectedImageUris = state.selectedImageUris - uri)
         }
     }
 }

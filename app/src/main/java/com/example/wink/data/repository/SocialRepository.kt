@@ -1,5 +1,6 @@
 package com.example.wink.data.repository
 
+import android.net.Uri
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
@@ -10,7 +11,7 @@ interface SocialRepository {
     fun getSocialFeed(): Flow<List<SocialPost>>
 
     // Đăng bài mới
-    suspend fun createPost(content: String, user: User): Result<Unit>
+    suspend fun createPost(content: String, imageUrls: List<String>, user: User): Result<Unit>
 
     // Like / Unlike (trả về like count mới hoặc lỗi)
     suspend fun toggleLike(postId: String, userId: String, currentLikes: List<String>): Result<Unit>
@@ -23,4 +24,5 @@ interface SocialRepository {
 
     // Lấy bảng xếp hạng
     suspend fun getLeaderboard(): Result<List<User>>
+    suspend fun uploadImage(uri: Uri): Result<String>
 }
