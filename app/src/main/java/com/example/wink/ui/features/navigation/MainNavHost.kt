@@ -12,6 +12,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
+import com.example.wink.ui.features.social.SocialScreen
 
 
 @Composable
@@ -34,6 +35,9 @@ fun MainNavHost(
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(navController = mainNavController) // Use main nav controller for logout
+        }
+        composable(BottomNavItem.Social.route) {
+            SocialScreen(navController = mainNavController)
         }
     }
 }
