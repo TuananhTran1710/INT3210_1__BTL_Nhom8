@@ -168,7 +168,7 @@ fun ExploreCard(
                 contentDescription = null,
                 tint = Color.White.copy(alpha = 0.15f),
                 modifier = Modifier
-                    .size(140.dp)
+                    .size(120.dp)
                     .align(Alignment.BottomEnd)
                     .offset(x = 40.dp, y = 40.dp)
             )
@@ -182,7 +182,7 @@ fun ExploreCard(
             ) {
                 Box(
                     modifier = Modifier
-                        .size(44.dp)
+                        .size(56.dp)
                         .clip(CircleShape)
                         .background(Color.White.copy(alpha = 0.25f)),
                     contentAlignment = Alignment.Center
@@ -191,7 +191,7 @@ fun ExploreCard(
                         imageVector = item.icon,
                         contentDescription = null,
                         tint = Color.White,
-                        modifier = Modifier.size(24.dp)
+                        modifier = Modifier.size(36.dp)
                     )
                 }
 
@@ -200,7 +200,7 @@ fun ExploreCard(
                         text = item.title,
                         style = MaterialTheme.typography.titleLarge.copy(
                             fontWeight = FontWeight.Bold,
-                            fontSize = if (item.isFullWidth) 22.sp else 18.sp,
+                            fontSize = if (item.isFullWidth) 22.sp else 20.sp,
                             shadow = textShadow
                         ),
                         color = Color.White
