@@ -14,6 +14,8 @@ import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.social.SocialScreen
+import com.example.wink.ui.features.tips.TipsScreen
+import com.example.wink.ui.navigation.Screen
 
 
 @Composable
@@ -42,6 +44,9 @@ fun MainNavHost(
         }
         composable(BottomNavItem.Explore.route) {
             ExploreScreen(navController = mainNavController)
+        }
+        composable(Screen.Tips.route) {
+            TipsScreen(navController = navController)
         }
     }
 }

@@ -25,6 +25,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.example.wink.ui.navigation.Screen
 
 data class ExploreItem(
     val id: String,
@@ -121,8 +122,10 @@ fun ExploreScreen(
             items(exploreItems, span = { item ->
                 GridItemSpan(if (item.isFullWidth) 2 else 1)
             }) { item ->
-                ExploreCard(item = item) {
-                    // Handle click
+                ExploreCard(item) {
+                    when (item.id) {
+                        "tips" -> navController.navigate(Screen.Tips.route)
+                    }
                 }
             }
 
