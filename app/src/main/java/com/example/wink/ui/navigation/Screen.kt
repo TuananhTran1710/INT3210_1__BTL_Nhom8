@@ -10,6 +10,7 @@ sealed class Screen(val route: String) {
     // Main Screens
     object Dashboard : Screen("dashboard")
     object Profile : Screen("profile")
+    object Friends : Screen("friends")
     companion object {
         const val AUTH_GRAPH_ROUTE = "auth_graph"
         const val MAIN_GRAPH_ROUTE = "main_graph"
