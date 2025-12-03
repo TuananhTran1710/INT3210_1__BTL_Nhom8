@@ -1,14 +1,10 @@
 package com.example.wink.data.model
 
-data class SocialPost(
+data class Comment(
     val id: String,
     val userId: String,
     val username: String,
     val avatarUrl: String?,
     val content: String,
-    val timestamp: Long,
-    val likes: Int = 0,
-    val comments: Int = 0,
-
-    val isLikedByMe: Boolean = false
+    val timestamp: Long
 )

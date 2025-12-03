@@ -2,6 +2,7 @@ package com.example.wink.ui.features.social
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -74,6 +75,88 @@ class SocialViewModel @Inject constructor() : ViewModel() {
                 newPostContent = ""
             )
         }
+    }
+
+    fun onLikeClick(postId: String) {
+        // Update UI ngay lập tức (Optimistic Update)
+        _uiState.update { state ->
+            val updatedList = state.feedList.map { post ->
+                if (post.id == postId) {
+                    val newIsLiked = !post.isLikedByMe
+                    val newCount = if (newIsLiked) post.likes + 1 else post.likes - 1
+                    post.copy(isLikedByMe = newIsLiked, likes = newCount)
+                } else {
+                    post
+                }
+            }
+            state.copy(feedList = updatedList)
+        }
+        // TODO: Gọi Repository để update lên Firestore
+    }
+
+    fun onOpenCommentSheet(postId: String) {
+        // Fake load comments
+        val mockComments = listOf(
+            Comment(
+                "c1",
+                "u5",
+                "Master Love",
+                null,
+                "Bài viết hay quá bro!",
+                System.currentTimeMillis()
+            ),
+            Comment("c2", "u6", "Noob Rizz", null, "Xin bí kíp với ạ", System.currentTimeMillis())
+        )
+
+        _uiState.update {
+            it.copy(
+                activePostId = postId,
+                commentsForActivePost = mockComments,
+                newCommentContent = ""
+            )
+        }
+    }
+
+    fun onDismissCommentSheet() {
+        _uiState.update { it.copy(activePostId = null) }
+    }
+
+    // 3. XỬ LÝ GỬI COMMENT
+    fun onCommentContentChange(text: String) {
+        _uiState.update { it.copy(newCommentContent = text) }
+    }
+
+    fun onSendComment() {
+        val content = _uiState.value.newCommentContent
+        if (content.isBlank()) return
+
+        val newComment = Comment(
+            id = UUID.randomUUID().toString(),
+            userId = currentUser.uid,
+            username = currentUser.username,
+            avatarUrl = null, // currentUser.avatarUrl
+            content = content,
+            timestamp = System.currentTimeMillis()
+        )
+
+        _uiState.update { state ->
+            // 1. Thêm comment vào list hiện tại
+            val newCommentList = state.commentsForActivePost + newComment
+
+            // 2. Update số lượng comment ở FeedList bên ngoài
+            val updatedFeed = state.feedList.map { post ->
+                if (post.id == state.activePostId) {
+                    post.copy(comments = post.comments + 1)
+                } else post
+            }
+
+            state.copy(
+                commentsForActivePost = newCommentList,
+                feedList = updatedFeed,
+                newCommentContent = "" // Reset ô nhập
+            )
+        }
+        // TODO: Gọi API gửi comment
     }
 
     private fun loadData() {

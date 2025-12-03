@@ -10,10 +10,13 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +30,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
 
@@ -38,6 +42,25 @@ fun SocialScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val tabs = listOf("Bảng tin", "Xếp hạng")
+
+    // BottomSheetState
+    val sheetState = rememberModalBottomSheetState()
+
+    // --- BOTTOM SHEET BÌNH LUẬN ---
+    if (state.activePostId != null) {
+        ModalBottomSheet(
+            onDismissRequest = { viewModel.onDismissCommentSheet() },
+            sheetState = sheetState
+        ) {
+            // Nội dung Bottom Sheet
+            CommentSheetContent(
+                comments = state.commentsForActivePost,
+                newComment = state.newCommentContent,
+                onValueChange = { viewModel.onCommentContentChange(it) },
+                onSend = { viewModel.onSendComment() }
+            )
+        }
+    }
 
     // Hộp thoại soạn bài đăng (Hiện lên khi bấm vào thanh nhập liệu)
     if (state.isCreatingPost) {
@@ -67,7 +90,6 @@ fun SocialScreen(
                 }
             }
         }
-        // ĐÃ XÓA FloatingActionButton Ở ĐÂY
     ) { padding ->
         Box(modifier = Modifier.padding(padding).fillMaxSize()) {
             if (state.isLoading) {
@@ -77,7 +99,9 @@ fun SocialScreen(
                     FeedList(
                         posts = state.feedList,
                         onUserClick = { /* TODO */ },
-                        onCreatePostClick = { viewModel.onFabClick() } // Tái sử dụng hàm mở dialog
+                        onCreatePostClick = { viewModel.onFabClick() },
+                        onLikeClick = { postId -> viewModel.onLikeClick(postId) },
+                        onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) }
                     )
                 } else {
                     LeaderboardList(users = state.leaderboardList, onUserClick = { /* TODO */ })
@@ -152,7 +176,9 @@ fun CreatePostInputBar(onClick: () -> Unit) {
 fun FeedList(
     posts: List<SocialPost>,
     onUserClick: (String) -> Unit,
-    onCreatePostClick: () -> Unit // Thêm callback này
+    onCreatePostClick: () -> Unit,
+    onLikeClick: (String) -> Unit,      // Mới
+    onCommentClick: (String) -> Unit    // Mới
 ) {
     LazyColumn {
         // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
@@ -164,7 +190,7 @@ fun FeedList(
 
         // Các bài post bên dưới
         items(posts) { post ->
-            FeedItem(post, onUserClick)
+            FeedItem(post, onUserClick, onLikeClick, onCommentClick)
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
                 thickness = 0.5.dp,
@@ -175,11 +201,16 @@ fun FeedList(
 }
 
 @Composable
-fun FeedItem(post: SocialPost, onUserClick: (String) -> Unit) {
+fun FeedItem(
+    post: SocialPost,
+    onUserClick: (String) -> Unit,
+    onLikeClick: (String) -> Unit,
+    onCommentClick: (String) -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Xem chi tiết */ }
+            .clickable { onCommentClick(post.id) }
             .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
         // Header: Avatar + Tên
@@ -222,16 +253,121 @@ fun FeedItem(post: SocialPost, onUserClick: (String) -> Unit) {
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.FavoriteBorder, contentDescription = "Like", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            // 1. Nút Like
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onLikeClick(post.id) } // Gọi hàm Like
+            ) {
+                // Logic đổi màu tim
+                Icon(
+                    imageVector = if (post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                    contentDescription = "Like",
+                    modifier = Modifier.size(20.dp),
+                    tint = if (post.isLikedByMe) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("${post.likes}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = "${post.likes}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Outlined.ChatBubbleOutline, contentDescription = "Comment", modifier = Modifier.size(18.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+
+            // 2. Nút Comment
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.clickable { onCommentClick(post.id) } // Gọi hàm Comment
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.ChatBubbleOutline,
+                    contentDescription = "Comment",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Spacer(modifier = Modifier.width(6.dp))
-                Text("${post.comments}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = "${post.comments}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
+        }
+    }
+}
+
+// --- UI NỘI DUNG COMMENT SHEET ---
+@Composable
+fun CommentSheetContent(
+    comments: List<Comment>,
+    newComment: String,
+    onValueChange: (String) -> Unit,
+    onSend: () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.7f) // Chiều cao 70% màn hình
+            .padding(16.dp)
+    ) {
+        Text("Bình luận", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        Spacer(modifier = Modifier.height(12.dp))
+
+        // Danh sách comment
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            if (comments.isEmpty()) {
+                item { Text("Chưa có bình luận nào. Hãy là người đầu tiên!", style = MaterialTheme.typography.bodyMedium, color = Color.Gray) }
+            }
+            items(comments) { comment ->
+                CommentItem(comment)
+            }
+        }
+
+        // Ô nhập comment
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            OutlinedTextField(
+                value = newComment,
+                onValueChange = onValueChange,
+                placeholder = { Text("Viết bình luận...") },
+                modifier = Modifier.weight(1f),
+                shape = RoundedCornerShape(24.dp),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline
+                )
+            )
+            IconButton(onClick = onSend) {
+                Icon(Icons.Default.Send, contentDescription = "Gửi", tint = MaterialTheme.colorScheme.primary)
+            }
+        }
+    }
+}
+
+@Composable
+fun CommentItem(comment: Comment) {
+    Row(verticalAlignment = Alignment.Top) {
+        Surface(
+            modifier = Modifier.size(32.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer
+        ) {
+            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
+        }
+        Spacer(modifier = Modifier.width(8.dp))
+        Column {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(comment.username, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("vừa xong", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            }
+            Text(comment.content, style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
