@@ -13,6 +13,7 @@ sealed class Screen(val route: String) {
     object Explore : Screen("explore")
     // --- CÁC MÀN HÌNH TÍNH NĂNG (EXPLORE) ---
     object Tips : Screen("tips_screen")       // Bí kíp
+    object Quiz : Screen("quiz")
 
     object ChangeIcon : Screen("change_icon")
     object SecretBook : Screen("secret_book")

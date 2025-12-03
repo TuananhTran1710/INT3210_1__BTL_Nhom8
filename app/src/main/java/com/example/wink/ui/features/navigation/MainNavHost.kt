@@ -48,7 +48,7 @@ fun MainNavHost(
             TipsScreen(navController = navController)
         }
 
-        composable(BottomNavItem.Quiz.route) {
+        composable(Screen.Quiz.route) {
             QuizFeatureNavHost()
         }
     }
