@@ -1,5 +1,7 @@
 package com.example.wink.data.model
 
+import com.google.firebase.Timestamp
+
 data class User(
     val uid: String,
     val email: String?,
@@ -9,6 +11,8 @@ data class User(
     val rizzPoints: Int = 0,
     val loginStreak: Int = 0,
     val avatarUrl: String = "",
+    val lastCheckInDate: Timestamp?= null,
+    var longestStreak: Int = 0,
 
     val friendsList: List<String> = emptyList(),      // list uid bạn bè
     val quizzesFinished: List<String> = emptyList()   // list quizId đã xong

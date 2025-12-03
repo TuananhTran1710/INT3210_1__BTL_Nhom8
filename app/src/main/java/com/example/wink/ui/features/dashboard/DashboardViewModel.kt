@@ -1,121 +1,122 @@
 package com.example.wink.ui.features.dashboard
 
 import android.util.Log
-import androidx.lifecycle.ViewModel
+import androidx.compose.animation.core.snap
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.util.BaseViewModel
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
+import java.util.TimeZone
 import javax.inject.Inject
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository
-) : ViewModel() {
+) : BaseViewModel<DashboardState, DashboardEvent>() {
 
-    private val _dashboardState = MutableStateFlow(
-        DashboardState(
-            rizzPoints = 0,
-            dailyStreak = 0,
-            hasDailyCheckIn = false,
-            isAIUnlocked = true,
-            isLoading = false
-        )
+    // Cho UI dùng
+    override val uiState: StateFlow<DashboardState>
+        get() = _uiState
+
+    // State khởi tạo
+    override fun getInitialState(): DashboardState = DashboardState(
+        userEmail = "",
+        username = "",
+        rizzPoints = 0,
+        dailyStreak = 0,
+        hasDailyCheckIn = false,
+        isAIUnlocked = true,
+        isLoading = true,
+        isRefreshing = false,
+        errorMessage = null,
+        dailyTasks = emptyList()
     )
 
+    init {
+        getInitialState()
+        observeUser()
+    }
 
-    // Combine user data from auth repository with dashboard state
-    val uiState: StateFlow<DashboardState> = combine(
-        authRepository.currentUser,
-        _dashboardState
-    ) { user, dashboardState ->
-        dashboardState.copy(
-            userEmail = user?.email ?: "Không tìm thấy Email",
-            username = user?.username ?: user?.email?.substringBefore("@") ?: "Người dùng",
-            rizzPoints = user?.rizzPoints ?: dashboardState.rizzPoints,
-            dailyStreak = user?.loginStreak ?: dashboardState.dailyStreak,
-            isLoading = false
-        )
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5000L),
-        initialValue = DashboardState(isLoading = true)
-    )
-
-    fun onEvent(event: DashboardEvent) {
+    // Nhận event từ UI
+    override fun onEvent(event: DashboardEvent) {
         when (event) {
-            is DashboardEvent.OnDailyCheckIn -> {
-                handleDailyCheckIn()
+            is DashboardEvent.OnDailyCheckIn -> handleDailyCheckIn()
+            is DashboardEvent.OnStartAIChat -> { /* điều hướng màn AI chat */ }
+            is DashboardEvent.OnCompleteTask -> handleTaskCompletion()
+            is DashboardEvent.OnClaimTaskReward -> handleClaimTaskReward()
+            is DashboardEvent.OnPlayGame -> { /* điều hướng game */ }
+            is DashboardEvent.OnClaimReward -> handleClaimReward()
+            is DashboardEvent.OnRefresh -> refreshDashboard()
+            is DashboardEvent.OnShowDetails -> { /* show chi tiết */ }
+            is DashboardEvent.OnNavigateToLeaderboard -> {
+                // Navigation, để UI xử lý (hoặc emit side-effect nếu anh có)
             }
-
-            is DashboardEvent.OnStartAIChat -> {
-                // Handle AI chat start
-                // Could navigate to AI chat screen
+            is DashboardEvent.OnNavigateToProfile -> {
+                // Navigation
             }
-
-            is DashboardEvent.OnCompleteTask -> {
-                handleTaskCompletion()
+            is DashboardEvent.OnNavigateToSettings -> {
+                // Navigation
             }
-
-            is DashboardEvent.OnClaimTaskReward -> {
-                handleClaimTaskReward()
+            is DashboardEvent.OnNavigateToShop -> {
+                // Navigation
             }
+        }
+    }
 
-            is DashboardEvent.OnPlayGame -> {
-                // Handle game start
-            }
+    /** Lắng nghe user từ AuthRepository và merge vào DashboardState */
+    private fun observeUser() {
+        viewModelScope.launch {
+            authRepository.currentUser.collectLatest { user ->
+                val current = _uiState.value
+                val now = com.google.firebase.Timestamp.now()
 
-            is DashboardEvent.OnClaimReward -> {
-                handleClaimReward()
-            }
-
-            is DashboardEvent.OnRefresh -> {
-                refreshDashboard()
-            }
-
-            is DashboardEvent.OnShowDetails -> {
-                // Handle showing details for specific item
-            }
-
-            else -> {
-                // Handle navigation events in the UI layer
+                val offsetSeconds = TimeZone.getDefault().rawOffset.toLong() / 1000L
+                fun dayNumber(ts: com.google.firebase.Timestamp?): Long? {
+                    return ts?.seconds?.let { (it + offsetSeconds) / 86400L }
+                }
+                val todayDay = (now.seconds + offsetSeconds) / 86400L
+                val lastAny = user?.lastCheckInDate?:null
+                val lastTs = lastAny as? Timestamp
+                val lastDay = dayNumber(lastTs)
+                _uiState.value = current.copy(
+                    userEmail = user?.email ?: "Không tìm thấy Email",
+                    username = user?.username ?: user?.email?.substringBefore("@") ?: "Người dùng",
+                    rizzPoints = user?.rizzPoints ?: current.rizzPoints,
+                    dailyStreak = user?.loginStreak ?: current.dailyStreak,
+                    hasDailyCheckIn = (lastDay == todayDay),
+                    isLoading = false
+                )
+                Log.d("dvm","$lastDay:$todayDay:$lastAny")
             }
         }
     }
 
     private fun handleDailyCheckIn() {
         viewModelScope.launch {
-            val currentState = _dashboardState.value
+            val currentState = _uiState.value
             if (currentState.hasDailyCheckIn) return@launch
 
-            _dashboardState.value = currentState.copy(
+            _uiState.value = currentState.copy(
                 isLoading = true,
                 errorMessage = null
             )
 
             try {
-                // Đảm bảo user doc tồn tại nếu anh còn dùng hàm này
-                // authRepository.ensureUserDocumentExists().getOrThrow()
-
                 authRepository.performDailyCheckIn().getOrThrow()
 
-                _dashboardState.value = _dashboardState.value.copy(
+                _uiState.value = _uiState.value.copy(
                     hasDailyCheckIn = true,
                     isLoading = false
-                    // Không cần cộng thêm điểm / streak ở đây,
-                    // vì combine(...) sẽ nhận user mới từ Firestore.
                 )
 
                 Log.d("DashboardViewModel", "Daily check-in completed successfully")
             } catch (e: Exception) {
                 Log.e("DashboardViewModel", "Daily check-in failed: ${e.message}", e)
-                _dashboardState.value = _dashboardState.value.copy(
+                _uiState.value = _uiState.value.copy(
                     isLoading = false,
                     errorMessage = "Check-in thất bại: ${e.message}"
                 )
@@ -123,54 +124,49 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-
     private fun handleTaskCompletion() {
         viewModelScope.launch {
-            val currentState = _dashboardState.value
-            val updatedTasks = currentState.dailyTasks.map { task ->
-                if (!task.isCompleted) {
-                    task.copy(isCompleted = true)
-                } else task
+            val current = _uiState.value
+            val updatedTasks = current.dailyTasks.map { task ->
+                if (!task.isCompleted) task.copy(isCompleted = true) else task
             }
 
             val completedTasksReward = updatedTasks.sumOf { if (it.isCompleted) it.reward else 0 }
 
-            _dashboardState.value = currentState.copy(
+            _uiState.value = current.copy(
                 dailyTasks = updatedTasks,
-                rizzPoints = currentState.rizzPoints + completedTasksReward
+                rizzPoints = current.rizzPoints + completedTasksReward
             )
         }
     }
 
     private fun handleClaimTaskReward() {
         viewModelScope.launch {
-            val currentState = _dashboardState.value
-            val rewardAmount = 50 // Example reward amount
+            val current = _uiState.value
+            val rewardAmount = 50 // Example
 
-            _dashboardState.value = currentState.copy(
-                rizzPoints = currentState.rizzPoints + rewardAmount
+            _uiState.value = current.copy(
+                rizzPoints = current.rizzPoints + rewardAmount
             )
         }
     }
 
     private fun handleClaimReward() {
         viewModelScope.launch {
-            // Handle reward claiming logic
-            val currentState = _dashboardState.value
-            _dashboardState.value = currentState.copy(
-                rizzPoints = currentState.rizzPoints + 100
+            val current = _uiState.value
+            _uiState.value = current.copy(
+                rizzPoints = current.rizzPoints + 100
             )
         }
     }
 
     private fun refreshDashboard() {
         viewModelScope.launch {
-            _dashboardState.value = _dashboardState.value.copy(isRefreshing = true)
+            _uiState.value = _uiState.value.copy(isRefreshing = true)
 
-            // Simulate refresh delay
             kotlinx.coroutines.delay(1000)
 
-            _dashboardState.value = _dashboardState.value.copy(
+            _uiState.value = _uiState.value.copy(
                 isRefreshing = false,
                 errorMessage = null
             )

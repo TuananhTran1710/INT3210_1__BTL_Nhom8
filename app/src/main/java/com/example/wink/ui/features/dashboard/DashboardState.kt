@@ -19,8 +19,8 @@ data class DashboardReward(
 data class DashboardState(
     val userEmail: String = "Đang tải...",
     val username: String = "",
-    val rizzPoints: Int = 1250,
-    val dailyStreak: Int = 5,
+    val rizzPoints: Int = 0,
+    val dailyStreak: Int = 0,
     val isLoading: Boolean = true,
     
     // Daily check-in

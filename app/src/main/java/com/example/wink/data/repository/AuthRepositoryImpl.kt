@@ -57,7 +57,7 @@ class AuthRepositoryImpl @Inject constructor(
                                     rizzPoints = (data["rizzPoints"] as? Long)?.toInt() ?: 0,
                                     loginStreak = (data["loginStreak"] as? Long)?.toInt() ?: 0,
                                     avatarUrl = data["avatarUrl"] as? String ?: "",
-//                                    lastCheckInDate = data["lastCheckInDate"] as? String ?: "",
+                                    lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
                                     friendsList = data["friendsList"] as? List<String> ?: emptyList(),
                                     quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
                                 )
@@ -261,27 +261,35 @@ override suspend fun performDailyCheckIn(): AuthResult {
         firestore.runTransaction { tx ->
             val snap = tx.get(userDoc)
 
-            val now = Timestamp.now()
+            val now = com.google.firebase.Timestamp.now()
+
+            val offsetSeconds = TimeZone.getDefault().rawOffset.toLong() / 1000L
 
             fun dayNumber(ts: com.google.firebase.Timestamp?): Long? {
-                return ts?.seconds?.div(86400L)   // 86400 giây = 1 ngày
+                return ts?.seconds?.let { (it + offsetSeconds) / 86400L }
             }
 
-            val todayDay = now.seconds / 86400L
-            val lastTs = snap.getTimestamp("lastCheckInDate")
+            val todayDay = (now.seconds + offsetSeconds) / 86400L
+
+            val lastAny = snap.get("lastCheckInDate")
+            val lastTs = lastAny as? com.google.firebase.Timestamp
             val lastDay = dayNumber(lastTs)
 
             val oldStreak = (snap.getLong("loginStreak") ?: 0L).toInt()
             val oldLongest = (snap.getLong("longestStreak") ?: 0L).toInt()
             val oldRizz = (snap.getLong("rizzPoints") ?: 0L).toInt()
 
+            // Debug nếu cần
+            Log.d("AuthRepository", "todayDay=$todayDay lastDay=$lastDay now=$now lastTs=$lastTs")
+
+            // 🔹 Nếu cùng "ngày local" -> coi như đã check-in hôm nay
             if (lastDay == todayDay) {
                 return@runTransaction null
             }
 
             val newStreak = when (lastDay) {
-                todayDay - 1 -> oldStreak + 1
-                else -> 1
+                todayDay - 1 -> oldStreak + 1   // check-in liên tiếp
+                else -> 1                       // bị đứt quãng -> reset
             }
 
             val newLongest = kotlin.math.max(newStreak, oldLongest)

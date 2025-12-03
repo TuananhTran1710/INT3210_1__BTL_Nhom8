@@ -102,11 +102,8 @@ class ProfileViewModel @Inject constructor(
     }
     private fun loadFriends()  {
         viewModelScope.launch {
-            val fakeFriends = listOf(
-            FriendUi("1", "Ngọc", null, true),
-            FriendUi("2", "Minh", null, true),
-            FriendUi("3", "Hà", null, false),)
-            _uiState.value = _uiState.value.copy(friends = fakeFriends, friendCount = fakeFriends.size)
+            val lstFriends = null
+//            _uiState.value = _uiState.value.copy(friends = lstFriends, friendCount = lstFriends.size)
         }
     }
 }
