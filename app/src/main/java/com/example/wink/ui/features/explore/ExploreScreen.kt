@@ -125,6 +125,8 @@ fun ExploreScreen(
                 ExploreCard(item) {
                     when (item.id) {
                         "tips" -> navController.navigate(Screen.Tips.route)
+                        "quiz" -> navController.navigate(Screen.Quiz.route)
+
                     }
                 }
             }

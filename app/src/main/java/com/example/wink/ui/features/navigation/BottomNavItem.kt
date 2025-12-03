@@ -5,6 +5,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Public
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -12,7 +13,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 sealed class BottomNavItem(val route: String, val label: String, val icon: ImageVector) {
     object Dashboard : BottomNavItem("dashboard", "Home", Icons.Filled.Home)
     object Social : BottomNavItem("social", "Social", Icons.Filled.Public)
-    object Explore : BottomNavItem("explore", "Khám phá", Icons.Filled.Explore)
+    object Explore : BottomNavItem("explore", "Explore", Icons.Filled.Explore)
     object Profile : BottomNavItem("profile", "Profile", Icons.Filled.Person)
 }
 
