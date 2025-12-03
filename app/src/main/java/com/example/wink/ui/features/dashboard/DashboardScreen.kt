@@ -117,17 +117,9 @@ fun DashboardScreen(
                     }
                 )
             }
-            // Progress Features
-//            item {
-//                ProgressFeaturesSection(
-//                    onFeatureClick = {
-//                        viewModel.onEvent(DashboardEvent.OnClaimReward) }
-//                )
-//            }
+
         }
 
-        // Bottom Navigation
-//        BottomNavigationBar()
     }
 }
 
