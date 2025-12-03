@@ -28,6 +28,9 @@ class QuizViewModel @Inject constructor(
             is QuizEvent.OpenQuiz -> openQuiz(event.quizId)
             is QuizEvent.SelectAnswer -> selectAnswer(event.questionId, event.selectedIndex)
             is QuizEvent.Submit -> submitCurrent()
+            is QuizEvent.MoveNext -> moveNext()
+            is QuizEvent.MovePrev -> movePrev()
+            is QuizEvent.JumpTo -> jumpTo(event.index)
         }
     }
 
@@ -55,7 +58,8 @@ class QuizViewModel @Inject constructor(
                         quiz = quiz,
                         selectedAnswers = emptyMap(),
                         isSubmitted = false,
-                        score = null
+                        score = null,
+                        currentQuestionIndex = 0
                     )
                 }
             } catch (e: Exception) {
@@ -64,10 +68,15 @@ class QuizViewModel @Inject constructor(
         }
     }
 
-    private fun selectAnswer(questionId: String, selectedIndex: Int) {
+    private fun selectAnswer(questionId: String, selectedIndex: Int?) {
         val current = _uiState.value
         if (current is QuizUiState.QuizDetail && !current.isSubmitted) {
-            _uiState.value = current.copy(selectedAnswers = current.selectedAnswers + (questionId to selectedIndex))
+            val newSelected = if (selectedIndex == null) {
+                current.selectedAnswers - questionId
+            } else {
+                current.selectedAnswers + (questionId to selectedIndex)
+            }
+            _uiState.value = current.copy(selectedAnswers = newSelected)
         }
     }
 
@@ -77,9 +86,43 @@ class QuizViewModel @Inject constructor(
             var score = 0
             current.quiz.questions.forEach { q ->
                 val selected = current.selectedAnswers[q.id]
-                if (selected != null && selected == q.correctIndex) score++
+                if (selected == q.correctIndex) score++
             }
-            _uiState.value = current.copy(isSubmitted = true, score = score)
+            _uiState.value = current.copy(
+                isSubmitted = true,
+                score = score
+            )
+        }
+    }
+
+    private fun moveNext() {
+        val current = _uiState.value
+        if (current is QuizUiState.QuizDetail) {
+            if (current.currentQuestionIndex < current.quiz.questions.size - 1) {
+                _uiState.value = current.copy(
+                    currentQuestionIndex = current.currentQuestionIndex + 1
+                )
+            }
+        }
+    }
+
+    private fun movePrev() {
+        val current = _uiState.value
+        if (current is QuizUiState.QuizDetail) {
+            if (current.currentQuestionIndex > 0) {
+                _uiState.value = current.copy(
+                    currentQuestionIndex = current.currentQuestionIndex - 1
+                )
+            }
+        }
+    }
+
+    private fun jumpTo(index: Int) {
+        val current = _uiState.value
+        if (current is QuizUiState.QuizDetail) {
+            if (index in current.quiz.questions.indices) {
+                _uiState.value = current.copy(currentQuestionIndex = index)
+            }
         }
     }
 }

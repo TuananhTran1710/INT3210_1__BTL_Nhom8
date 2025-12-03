@@ -184,7 +184,7 @@ fun PersonalityPage(state: OnboardingState, viewModel: OnboardingViewModel) {
                         .fillMaxWidth()
                         .clickable {
                             selectedPersonality = personality
-                            viewModel.onEvent(OnboardingEvent.SelectPreference(personality))
+                            viewModel.onEvent(OnboardingEvent.SelectPersonality(personality))
                         }
                         .shadow(if (selectedPersonality == personality) 8.dp else 2.dp, RoundedCornerShape(16.dp)),
                     shape = RoundedCornerShape(16.dp),

@@ -10,8 +10,12 @@ import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController // Changed from NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import com.example.wink.data.model.Answer
+import com.example.wink.data.model.Question
+import com.example.wink.data.model.Quiz
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
+import com.example.wink.ui.features.quiz.QuizListScreen
 
 
 @Composable
@@ -34,6 +38,10 @@ fun MainNavHost(
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(navController = mainNavController) // Use main nav controller for logout
+        }
+
+        composable(BottomNavItem.Quiz.route) {
+            QuizFeatureNavHost()
         }
     }
 }
