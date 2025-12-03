@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.util.TimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -244,7 +245,7 @@ fun FeedItem(
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "vừa xong", // TODO: Format timestamp
+                    text = TimeUtils.getRelativeTime(post.timestamp),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -423,7 +424,11 @@ fun CommentItem(comment: Comment) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(comment.username, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
-                Text("vừa xong", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+                Text(
+                    text = TimeUtils.getRelativeTime(comment.timestamp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = Color.Gray
+                )
             }
             Text(comment.content, style = MaterialTheme.typography.bodyMedium)
         }
