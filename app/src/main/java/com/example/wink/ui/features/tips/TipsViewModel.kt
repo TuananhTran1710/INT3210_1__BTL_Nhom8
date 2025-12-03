@@ -3,18 +3,22 @@ package com.example.wink.ui.features.tips
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Tip
+import com.example.wink.data.repository.AuthRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class TipsViewModel @Inject constructor() : ViewModel() {
+class TipsViewModel @Inject constructor(
+    private val authRepository: AuthRepository // 2. Inject AuthRepository
+) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TipsState())
     val uiState = _uiState.asStateFlow()
@@ -23,28 +27,37 @@ class TipsViewModel @Inject constructor() : ViewModel() {
     val navigationEvent = _navigationEvent.asSharedFlow()
 
     init {
-        loadData()
+        loadRealUserData() // 3. Gọi hàm lấy dữ liệu thật
+        loadMockTips()
     }
 
-    private fun loadData() {
+    private fun loadRealUserData() {
+        viewModelScope.launch {
+            // Lắng nghe realtime thay đổi của User từ Repository
+            authRepository.currentUser.collectLatest { user ->
+                _uiState.update {
+                    it.copy(userRizzPoints = user?.rizzPoints ?: 0)
+                }
+            }
+        }
+    }
+    private fun loadMockTips() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-            delay(500) // Fake loading
+            delay(500)
 
-            // Mock Data
             val mockTips = listOf(
-                Tip("1", "Eye Contact cơ bản", "Cách giao tiếp bằng mắt không gây sợ hãi", "Nội dung bài 1...", 0, false), // Free
-                Tip("2", "Quy tắc 3 ngày", "Có nên nhắn tin ngay sau buổi hẹn?", "Nội dung bài 2...", 0, false), // Free
-                Tip("3", "Đọc vị ngôn ngữ cơ thể", "Biết nàng thích bạn qua cử chỉ", "Nội dung bài 3...", 50, true), // Locked
-                Tip("4", "Cách bắt chuyện tự nhiên", "Không bao giờ bị 'Seen' không rep", "Nội dung bài 4...", 100, true), // Locked
-                Tip("5", "Nghệ thuật khen ngợi", "Khen sao cho tinh tế", "Nội dung bài 5...", 150, true) // Locked
+                Tip("1", "Eye Contact cơ bản", "Cách giao tiếp bằng mắt", "Nội dung...", 0, false),
+                Tip("2", "Quy tắc 3 ngày", "Có nên nhắn tin ngay?", "Nội dung...", 0, false),
+                Tip("3", "Đọc vị ngôn ngữ cơ thể", "Biết nàng thích bạn", "Nội dung...", 50, true),
+                Tip("4", "Cách bắt chuyện", "Không bao giờ bị 'Seen'", "Nội dung...", 100, true),
+                Tip("5", "Nghệ thuật khen ngợi", "Khen sao cho tinh tế", "Nội dung...", 150, true)
             )
 
             _uiState.update {
                 it.copy(
                     isLoading = false,
                     tips = mockTips,
-                    userRizzPoints = 200 // Giả sử user có 200 điểm
                 )
             }
         }

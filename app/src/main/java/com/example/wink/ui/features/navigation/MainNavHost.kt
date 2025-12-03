@@ -43,7 +43,7 @@ fun MainNavHost(
             SocialScreen(navController = mainNavController)
         }
         composable(BottomNavItem.Explore.route) {
-            ExploreScreen(navController = mainNavController)
+            ExploreScreen(navController = navController)
         }
         composable(Screen.Tips.route) {
             TipsScreen(navController = navController)
