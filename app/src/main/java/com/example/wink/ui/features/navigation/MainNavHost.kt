@@ -13,9 +13,14 @@ import androidx.navigation.compose.composable
 import com.example.wink.data.model.Answer
 import com.example.wink.data.model.Question
 import com.example.wink.data.model.Quiz
+import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.quiz.QuizListScreen
+import com.example.wink.ui.features.dashboard.DashboardScreen
+import com.example.wink.ui.features.social.SocialScreen
+import com.example.wink.ui.features.tips.TipsScreen
+import com.example.wink.ui.navigation.Screen
 
 
 @Composable
@@ -28,16 +33,19 @@ fun MainNavHost(
         startDestination = BottomNavItem.Dashboard.route
     ) {
         composable(BottomNavItem.Dashboard.route) {
-            // Placeholder Dashboard
-            Box(
-                modifier = Modifier.fillMaxSize(),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "Dashboard Screen")
-            }
+            DashboardScreen(navController = mainNavController) // Use main nav controller for navigation
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(navController = mainNavController) // Use main nav controller for logout
+        }
+        composable(BottomNavItem.Social.route) {
+            SocialScreen(navController = mainNavController)
+        }
+        composable(BottomNavItem.Explore.route) {
+            ExploreScreen(navController = navController)
+        }
+        composable(Screen.Tips.route) {
+            TipsScreen(navController = navController)
         }
 
         composable(BottomNavItem.Quiz.route) {
