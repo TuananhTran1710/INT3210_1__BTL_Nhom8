@@ -3,6 +3,7 @@ package com.example.wink.data.repository
 import android.util.Log
 import com.example.wink.data.model.User
 import com.example.wink.ui.features.signup.SignupScreen
+import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.channels.awaitClose
@@ -11,6 +12,9 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import java.util.Calendar
+import java.util.TimeZone
+
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth, // Được Hilt tiêm vào từ AppModule
@@ -22,18 +26,69 @@ class AuthRepositoryImpl @Inject constructor(
         val authStateListener = FirebaseAuth.AuthStateListener { auth ->
             val firebaseUser = auth.currentUser
             if (firebaseUser != null) {
-                // User đã đăng nhập -> Convert sang Model của App
-                val user = User(
-                    uid = firebaseUser.uid,
-                    email = firebaseUser.email,
-                    username = firebaseUser.displayName ?: "No Name",
-                    gender = "",
-                    preference = "",
-                    avatarUrl = firebaseUser.photoUrl?.toString() ?: ""
-                )
-                // Gửi dữ liệu vào Flow
-                trySend(user)
-                Log.d("AuthRepository", "Emitted User: ${user.email}")
+                // Lấy thông tin user từ Firestore
+                firestore.collection("users")
+                    .document(firebaseUser.uid)
+                    .addSnapshotListener { document, error ->
+                        if (error != null) {
+                            Log.e("AuthRepository", "Error listening to user document", error)
+                            // Fallback to basic user info từ Firebase Auth
+                            val basicUser = User(
+                                uid = firebaseUser.uid,
+                                email = firebaseUser.email,
+                                username = firebaseUser.displayName ?: "No Name",
+                                gender = "",
+                                preference = "",
+                                avatarUrl = firebaseUser.photoUrl?.toString() ?: ""
+                            )
+                            trySend(basicUser)
+                            return@addSnapshotListener
+                        }
+
+                        if (document != null && document.exists()) {
+                            try {
+                                val data = document.data!!
+                                val user = User(
+                                    uid = data["uid"] as String,
+                                    email = data["email"] as? String,
+                                    username = data["username"] as String,
+                                    gender = data["gender"] as? String ?: "",
+                                    preference = data["preference"] as? String ?: "",
+                                    rizzPoints = (data["rizzPoints"] as? Long)?.toInt() ?: 0,
+                                    loginStreak = (data["loginStreak"] as? Long)?.toInt() ?: 0,
+                                    avatarUrl = data["avatarUrl"] as? String ?: "",
+//                                    lastCheckInDate = data["lastCheckInDate"] as? String ?: "",
+                                    friendsList = data["friendsList"] as? List<String> ?: emptyList(),
+                                    quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
+                                )
+                                trySend(user)
+                                Log.d("AuthRepository", "Emitted User from Firestore: ${user.username}")
+                            } catch (e: Exception) {
+                                Log.e("AuthRepository", "Error parsing user data", e)
+                                // Fallback to basic user info
+                                val basicUser = User(
+                                    uid = firebaseUser.uid,
+                                    email = firebaseUser.email,
+                                    username = firebaseUser.displayName ?: "No Name",
+                                    gender = "",
+                                    preference = "",
+                                    avatarUrl = firebaseUser.photoUrl?.toString() ?: ""
+                                )
+                                trySend(basicUser)
+                            }
+                        } else {
+                            // Document doesn't exist, tạo basic user
+                            val basicUser = User(
+                                uid = firebaseUser.uid,
+                                email = firebaseUser.email,
+                                username = firebaseUser.displayName ?: "No Name",
+                                gender = "",
+                                preference = "",
+                                avatarUrl = firebaseUser.photoUrl?.toString() ?: ""
+                            )
+                            trySend(basicUser)
+                        }
+                    }
             } else {
                 // User chưa đăng nhập hoặc đã đăng xuất
                 trySend(null)
@@ -75,6 +130,11 @@ class AuthRepositoryImpl @Inject constructor(
 
             // 3. Tạo document user trong Firestore (collection "users")
             firebaseUser?.let { fbUser ->
+                val cal = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+                    set(2000, Calendar.JANUARY, 1, 0, 0, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+                val veryOldDate = Timestamp(cal.time)
                 val userDoc = hashMapOf(
                     "uid" to fbUser.uid,
                     "email" to (fbUser.email ?: email),
@@ -84,7 +144,11 @@ class AuthRepositoryImpl @Inject constructor(
                     "quizzesFinished" to emptyList<String>(),
                     "gender" to "",
                     "preference" to "",
-                    "avatarUrl" to (fbUser.photoUrl?.toString() ?: "")
+                    "avatarUrl" to (fbUser.photoUrl?.toString() ?: ""),
+                    "streak" to 0,
+                    "longestStreak" to 0,
+                    "lastCheckInDate" to veryOldDate,        // Firestore sẽ lưu null
+                    "createdAt" to Timestamp.now()
                 )
 
                 firestore.collection("users")
@@ -109,4 +173,171 @@ class AuthRepositoryImpl @Inject constructor(
         Log.d("TestAuth", "currentUser = $user, uid = ${user?.uid}, email = ${user?.email}")
         return user != null
     }
+//
+//    // Methods để update database
+//    override
+//    suspend fun updateRizzPoints(newPoints: Int): AuthResult {
+//        return try {
+//            val currentUser = firebaseAuth.currentUser
+//                ?: return Result.failure(Exception("User not authenticated"))
+//
+//            // Use set with merge to handle missing documents
+//            firestore.collection("users")
+//                .document(currentUser.uid)
+//                .set(
+//                    mapOf("rizzPoints" to newPoints.toLong()),
+//                    com.google.firebase.firestore.SetOptions.merge()
+//                )
+//                .await()
+//
+//            Log.d("AuthRepository", "RIZZ points updated to: $newPoints")
+//            Result.success(Unit)
+//        } catch (e: Exception) {
+//            Log.e("AuthRepository", "Update RIZZ points error", e)
+//            Result.failure(e)
+//        }
+//    }
+//
+//    override
+//    suspend fun updateUsername(newUsername: String): AuthResult {
+//        return try {
+//            val currentUser = firebaseAuth.currentUser
+//                ?: return Result.failure(Exception("User not authenticated"))
+//
+//            // Use set with merge to handle missing documents
+//            firestore.collection("users")
+//                .document(currentUser.uid)
+//                .set(
+//                    mapOf("username" to newUsername),
+//                    com.google.firebase.firestore.SetOptions.merge()
+//                )
+//                .await()
+//
+//            // Update Firebase Auth display name
+//            currentUser.updateProfile(
+//                com.google.firebase.auth.UserProfileChangeRequest.Builder()
+//                    .setDisplayName(newUsername)
+//                    .build()
+//            )?.await()
+//
+//            Log.d("AuthRepository", "Username updated to: $newUsername")
+//            Result.success(Unit)
+//        } catch (e: Exception) {
+//            Log.e("AuthRepository", "Update username error", e)
+//            Result.failure(e)
+//        }
+//    }
+//
+//    override
+//    suspend fun addFriend(friendUid: String): AuthResult {
+//        return try {
+//            val currentUser = firebaseAuth.currentUser
+//                ?: return Result.failure(Exception("User not authenticated"))
+//
+//            // Use set with merge to handle missing documents
+//            firestore.collection("users")
+//                .document(currentUser.uid)
+//                .set(
+//                    mapOf("friendsList" to com.google.firebase.firestore.FieldValue.arrayUnion(friendUid)),
+//                    com.google.firebase.firestore.SetOptions.merge()
+//                )
+//                .await()
+//
+//            Log.d("AuthRepository", "Friend added: $friendUid")
+//            Result.success(Unit)
+//        } catch (e: Exception) {
+//            Log.e("AuthRepository", "Add friend error", e)
+//            Result.failure(e)
+//        }
+//    }
+//
+override suspend fun performDailyCheckIn(): AuthResult {
+    return try {
+        val currentUser = firebaseAuth.currentUser
+            ?: return Result.failure(Exception("User not authenticated"))
+
+        val userDoc = firestore.collection("users").document(currentUser.uid)
+
+        firestore.runTransaction { tx ->
+            val snap = tx.get(userDoc)
+
+            val now = Timestamp.now()
+
+            fun dayNumber(ts: com.google.firebase.Timestamp?): Long? {
+                return ts?.seconds?.div(86400L)   // 86400 giây = 1 ngày
+            }
+
+            val todayDay = now.seconds / 86400L
+            val lastTs = snap.getTimestamp("lastCheckInDate")
+            val lastDay = dayNumber(lastTs)
+
+            val oldStreak = (snap.getLong("loginStreak") ?: 0L).toInt()
+            val oldLongest = (snap.getLong("longestStreak") ?: 0L).toInt()
+            val oldRizz = (snap.getLong("rizzPoints") ?: 0L).toInt()
+
+            if (lastDay == todayDay) {
+                return@runTransaction null
+            }
+
+            val newStreak = when (lastDay) {
+                todayDay - 1 -> oldStreak + 1
+                else -> 1
+            }
+
+            val newLongest = kotlin.math.max(newStreak, oldLongest)
+            val newRizz = oldRizz + 10
+
+            tx.set(
+                userDoc,
+                mapOf(
+                    "loginStreak" to newStreak.toLong(),
+                    "longestStreak" to newLongest.toLong(),
+                    "lastCheckInDate" to now,
+                    "rizzPoints" to newRizz.toLong()
+                ),
+                com.google.firebase.firestore.SetOptions.merge()
+            )
+
+            null
+        }.await()
+
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Log.e("AuthRepository", "Daily check-in error", e)
+        Result.failure(e)
+    }
+}
+
+//
+//    override
+//    suspend fun ensureUserDocumentExists(): AuthResult {
+//        return try {
+//            val currentUser = firebaseAuth.currentUser
+//                ?: return Result.failure(Exception("User not authenticated"))
+//
+//            // Create user document with only the fields that should exist
+//            val defaultUserData = mapOf(
+//                "uid" to currentUser.uid,
+//                "email" to (currentUser.email ?: ""),
+//                "username" to (currentUser.displayName ?: "Unknown"),
+//                "rizzPoints" to 0L,
+//                "friendsList" to emptyList<String>(),
+//                "quizzesFinished" to emptyList<String>(),
+//                "gender" to "",
+//                "preference" to "",
+//                "avatarUrl" to (currentUser.photoUrl?.toString() ?: "")
+//            )
+//
+//            firestore.collection("users")
+//                .document(currentUser.uid)
+//                .set(defaultUserData, com.google.firebase.firestore.SetOptions.merge())
+//                .await()
+//
+//            Log.d("AuthRepository", "User document ensured for: ${currentUser.uid}")
+//            Result.success(Unit)
+//        } catch (e: Exception) {
+//            Log.e("AuthRepository", "Ensure user document error", e)
+//            Result.failure(e)
+//        }
+//    }
 }
