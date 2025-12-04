@@ -83,13 +83,28 @@ class ChatRepository @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    suspend fun getLastMessage(chatId: String): Message? {
+        return try {
+            val snapshot = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .await()
+            snapshot.documents.firstOrNull()?.toObject(Message::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /**
      * Gửi tin nhắn vào chat subcollection
      * - Đồng thời update updatedAt của chat
      */
     suspend fun sendMessage(chatId: String, message: Message): Result<Unit> = try {
         val chatRef = firestore.collection("chats").document(chatId)
-        
+
         val messageData = hashMapOf<String, Any?>(
             "senderId" to message.senderId,
             "receiverId" to message.receiverId,
@@ -106,6 +121,9 @@ class ChatRepository @Inject constructor(
 
         // Update updatedAt của chat
         chatRef.update("updatedAt", message.timestamp).await()
+        
+        // Update lastMessage của chat
+        chatRef.update("lastMessage", message.content).await()
 
         Result.success(Unit)
     } catch (e: Exception) {
