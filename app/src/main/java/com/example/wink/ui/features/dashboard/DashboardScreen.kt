@@ -32,7 +32,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.annotation.DrawableRes
-
+import com.example.wink.ui.navigation.Screen
 
 
 enum class FeatureType {
@@ -110,7 +110,7 @@ fun DashboardScreen(
                             }
 
                             FeatureType.TAROT -> {
-                                navController.navigate("tarot")
+                                navController.navigate(Screen.Tarot.route)
                             }
                         }
 

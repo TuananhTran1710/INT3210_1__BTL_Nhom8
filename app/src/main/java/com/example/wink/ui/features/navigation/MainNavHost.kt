@@ -21,6 +21,11 @@ import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.social.SocialScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
+import com.example.wink.ui.features.tarot.TarotScreen
+import com.example.wink.ui.features.tarot.TarotScreen
+import com.example.wink.ui.features.iconshop.IconShopScreen
+import com.example.wink.ui.features.tarot.TarotScreen
+import com.example.wink.ui.features.iconshop.IconShopScreen
 
 
 @Composable
@@ -47,9 +52,17 @@ fun MainNavHost(
         composable(Screen.Tips.route) {
             TipsScreen(navController = navController)
         }
-
+        // 👉 Thêm Tarot route:
+        composable(Screen.Tarot.route) {
+            TarotScreen()
+        }
         composable(Screen.Quiz.route) {
             QuizFeatureNavHost()
         }
+        // 👉 Thêm dòng này
+        composable(Screen.ChangeIcon.route) {
+            IconShopScreen()
+        }
+
     }
 }
