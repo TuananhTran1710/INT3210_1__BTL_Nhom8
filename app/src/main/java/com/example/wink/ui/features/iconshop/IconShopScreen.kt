@@ -9,6 +9,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
@@ -24,91 +25,104 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun IconShopScreen(
+    navController: NavController,
     viewModel: IconShopViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Đổi icon",
-            fontSize = 20.sp,
-            fontWeight = FontWeight.Bold,
-            color = Color.Black
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Thẻ hiển thị RIZZ
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFFFF3E0)
-            ),
-            shape = RoundedCornerShape(16.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column {
-                    Text(
-                        text = "Điểm RIZZ của bạn",
-                        fontSize = 14.sp,
-                        color = Color.DarkGray
-                    )
-                    Text(
-                        text = state.rizzPoints.toString(),
-                        fontSize = 24.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color(0xFFFF6F00)
-                    )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Đổi icon", fontWeight = FontWeight.Bold) },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay lại"
+                        )
+                    }
                 }
-                Icon(
-                    imageVector = Icons.Default.Favorite,
-                    contentDescription = null,
-                    tint = Color(0xFFFF6F00),
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Thông báo lỗi (nếu có)
-        state.errorMessage?.let { msg ->
-            Text(
-                text = msg,
-                color = MaterialTheme.colorScheme.error,
-                style = MaterialTheme.typography.bodyMedium,
-                modifier = Modifier.padding(bottom = 8.dp)
             )
         }
+    ) { padding ->
 
-        Spacer(modifier = Modifier.height(4.dp))
-
-        // Lưới icon 4 cột
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(4),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(16.dp),
-            modifier = Modifier.fillMaxSize()
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color(0xFFF5F5F5))
+                .padding(padding)
+                .padding(16.dp)
         ) {
-            items(state.icons) { icon ->
-                IconItem(
-                    item = icon,
-                    onClick = { viewModel.onIconClicked(icon.id) }
+
+            // Thẻ hiển thị RIZZ
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(
+                    containerColor = Color(0xFFFFF3E0)
+                ),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column {
+                        Text(
+                            text = "Điểm RIZZ của bạn",
+                            fontSize = 14.sp,
+                            color = Color.DarkGray
+                        )
+                        Text(
+                            text = state.rizzPoints.toString(),
+                            fontSize = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = Color(0xFFFF6F00)
+                        )
+                    }
+                    Icon(
+                        imageVector = Icons.Default.Favorite,
+                        contentDescription = null,
+                        tint = Color(0xFFFF6F00),
+                        modifier = Modifier.size(32.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Thông báo lỗi (nếu có)
+            state.errorMessage?.let { msg ->
+                Text(
+                    text = msg,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodyMedium,
+                    modifier = Modifier.padding(bottom = 8.dp)
                 )
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
+
+            // Lưới icon 4 cột
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(4),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(state.icons) { icon ->
+                    IconItem(
+                        item = icon,
+                        onClick = { viewModel.onIconClicked(icon.id) }
+                    )
+                }
             }
         }
     }
@@ -131,7 +145,6 @@ private fun IconItem(
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            // overlay viền khi đang chọn
             if (item.isSelected) {
                 Box(
                     modifier = Modifier
@@ -142,7 +155,6 @@ private fun IconItem(
             }
 
             if (item.isOwned) {
-                // icon đã mua: trái tim
                 Box(
                     modifier = Modifier
                         .size(32.dp)
@@ -158,7 +170,6 @@ private fun IconItem(
                     )
                 }
             } else {
-                // icon chưa mua: ổ khóa
                 Box(
                     modifier = Modifier
                         .size(32.dp)

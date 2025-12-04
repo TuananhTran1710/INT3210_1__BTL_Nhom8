@@ -3,15 +3,9 @@ package com.example.wink.ui.features.tarot
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -22,10 +16,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TarotScreen(
+    navController: NavController,
     viewModel: TarotViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
@@ -33,7 +29,15 @@ fun TarotScreen(
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text(text = "Tarot tình yêu") }
+                title = { Text(text = "Tarot tình yêu") },
+                navigationIcon = {
+                    IconButton(onClick = { navController.popBackStack() }) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay lại"
+                        )
+                    }
+                }
             )
         }
     ) { innerPadding ->
@@ -46,17 +50,18 @@ fun TarotScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // ====== CARD TAROT (chiếm gần hết chiều cao) ======
+            // ====== CARD TAROT ======
             Card(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .weight(1f)                              // chiếm hết phần còn lại
-                    .clickable(enabled = !state.isLoading) { // Ấn vào lá bài cũng rút
+                    .weight(1f)
+                    .clickable(enabled = !state.isLoading) {
                         viewModel.drawCard()
                     },
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
             ) {
+
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -126,7 +131,7 @@ fun TarotScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ====== HÀNG NÚT ACTION Ở DƯỚI CÙNG ======
+            // ====== NÚT ACTION ======
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly,
@@ -136,9 +141,7 @@ fun TarotScreen(
                     enabled = !state.isLoading,
                     onClick = { viewModel.drawCard() }
                 ) {
-                    Text(
-                        text = if (state.currentCard == null) "Rút bài" else "Rút lại"
-                    )
+                    Text(text = if (state.currentCard == null) "Rút bài" else "Rút lại")
                 }
 
                 if (state.currentCard != null) {
@@ -151,7 +154,7 @@ fun TarotScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp)) // chừa chỗ cho bottom bar
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }

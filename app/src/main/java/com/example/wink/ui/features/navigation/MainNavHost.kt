@@ -53,15 +53,19 @@ fun MainNavHost(
             TipsScreen(navController = navController)
         }
         // 👉 Thêm Tarot route:
+//        composable(Screen.Tarot.route) {
+//            TarotScreen()
+//        }
         composable(Screen.Tarot.route) {
-            TarotScreen()
+            TarotScreen(navController = navController)
         }
+
         composable(Screen.Quiz.route) {
             QuizFeatureNavHost()
         }
         // 👉 Thêm dòng này
         composable(Screen.ChangeIcon.route) {
-            IconShopScreen()
+            IconShopScreen(navController = navController)
         }
 
     }
