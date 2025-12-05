@@ -1,13 +1,16 @@
 package com.example.wink.data.model
 
+import com.google.firebase.firestore.DocumentId
+
 import com.google.firebase.Timestamp
 
 data class User(
-    val uid: String,
-    val email: String?,
-    val username: String,
-    val gender: String, // "male", "female", "other"
-    val preference: String, // "female"
+    @DocumentId
+    val uid: String = "",
+    val email: String? = null,
+    val username: String = "",
+    val gender: String = "", // "male", "female", "other"
+    val preference: String = "", // "female"
     val rizzPoints: Int = 0,
     val loginStreak: Int = 0,
     val avatarUrl: String = "",

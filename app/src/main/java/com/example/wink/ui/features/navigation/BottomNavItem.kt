@@ -3,6 +3,7 @@ package com.example.wink.ui.features.navigation
 // File: BottomNavItem.kt
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Explore
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Quiz
@@ -14,11 +15,13 @@ sealed class BottomNavItem(val route: String, val label: String, val icon: Image
     object Dashboard : BottomNavItem("dashboard", "Home", Icons.Filled.Home)
     object Social : BottomNavItem("social", "Social", Icons.Filled.Public)
     object Explore : BottomNavItem("explore", "Explore", Icons.Filled.Explore)
+    object Message : BottomNavItem("message", "Message", Icons.Filled.Email)
     object Profile : BottomNavItem("profile", "Profile", Icons.Filled.Person)
 }
 
 val bottomNavItems = listOf(
     BottomNavItem.Dashboard,
+    BottomNavItem.Message,
     BottomNavItem.Social,
     BottomNavItem.Explore,
     BottomNavItem.Profile
