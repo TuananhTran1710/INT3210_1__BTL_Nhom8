@@ -1,5 +1,7 @@
 package com.example.wink.data.model
 
+import com.google.firebase.firestore.DocumentId
+
 import com.google.firebase.Timestamp
 
 data class User(

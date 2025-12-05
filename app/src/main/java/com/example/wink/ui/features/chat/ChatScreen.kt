@@ -1,6 +1,9 @@
 package com.example.wink.ui.features.chat
 
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -27,25 +30,33 @@ fun ChatScreen(
         },
         bottomBar = {
             Row(
-                modifier = Modifier.padding(8.dp),
+                modifier = Modifier
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                TextField(
+                OutlinedTextField(
                     value = messageText,
                     onValueChange = { messageText = it },
                     modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message") }
+                    placeholder = { Text("Type a message") },
+                    shape = CircleShape,
                 )
                 Spacer(modifier = Modifier.width(8.dp))
-                Button(
+                IconButton(
                     onClick = {
                         if (messageText.isNotBlank()) {
                             viewModel.sendMessage(messageText)
                             messageText = ""
                         }
-                    }
+                    },
+                    enabled = messageText.isNotBlank()
                 ) {
-                    Text("Send")
+                    Icon(
+                        imageVector = Icons.Default.Send,
+                        contentDescription = "Send",
+                        tint = if (messageText.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                    )
                 }
             }
         }
