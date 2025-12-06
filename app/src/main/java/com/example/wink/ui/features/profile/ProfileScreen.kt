@@ -36,7 +36,9 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
+import com.example.wink.data.model.SocialPost
 import com.example.wink.ui.navigation.Screen
+import com.example.wink.util.TimeUtils
 import kotlinx.coroutines.launch
 
 // --- Model Mock Data ---
@@ -65,8 +67,8 @@ fun ProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
 
     // Tab & Pager State
-    val tabs = listOf("Bài viết", "Bạn bè", "Media")
-    val pagerState = rememberPagerState(pageCount = { tabs.size })
+    val tabs = listOf("Bài viết", "Bạn bè")
+    var selectedTabIndex by remember { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
 
     // Mock Data
@@ -205,32 +207,6 @@ fun ProfileScreen(
                         ProfileVerticalDivider()
                         ProfileStatItem("${uiState.friendCount}", "Bạn bè")
                     }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    // Action Buttons
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Button(
-                            onClick = { /* Edit Profile */ },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Icon(Icons.Outlined.Edit, null, Modifier.size(18.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Chỉnh sửa")
-                        }
-
-                        FilledTonalButton(
-                            onClick = { /* Share Profile */ },
-                            modifier = Modifier.weight(1f),
-                            shape = RoundedCornerShape(12.dp)
-                        ) {
-                            Text("Chia sẻ hồ sơ")
-                        }
-                    }
                 }
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -240,17 +216,15 @@ fun ProfileScreen(
             stickyHeader {
                 Surface(color = MaterialTheme.colorScheme.background) {
                     TabRow(
-                        selectedTabIndex = pagerState.currentPage,
+                        selectedTabIndex = selectedTabIndex, // Dùng biến Int
                         containerColor = Color.Transparent,
                         contentColor = MaterialTheme.colorScheme.primary,
                         divider = { HorizontalDivider(color = MaterialTheme.colorScheme.surfaceVariant) }
                     ) {
                         tabs.forEachIndexed { index, title ->
                             Tab(
-                                selected = pagerState.currentPage == index,
-                                onClick = {
-                                    coroutineScope.launch { pagerState.animateScrollToPage(index) }
-                                },
+                                selected = selectedTabIndex == index,
+                                onClick = { selectedTabIndex = index }, // Cập nhật biến Int
                                 text = { Text(title, fontWeight = FontWeight.SemiBold) }
                             )
                         }
@@ -259,19 +233,19 @@ fun ProfileScreen(
             }
 
             // 4. CONTENT BASED ON TAB
-            // Lưu ý: Trong LazyColumn không lồng LazyColumn khác được.
-            // Ta sẽ render items trực tiếp dựa trên tab đang chọn.
 
-            if (pagerState.currentPage == 0) {
+            if (selectedTabIndex == 0) {
                 // --- TAB BÀI VIẾT ---
-                if (mockPosts.isEmpty()) {
+                val posts = uiState.posts // Lấy posts từ State thật
+
+                if (posts.isEmpty()) {
                     item { EmptyStateView("Chưa có bài viết nào") }
                 } else {
-                    items(mockPosts) { post ->
-                        ProfilePostItem(post)
+                    items(posts) { post ->
+                        ProfilePostItem(post) // Truyền SocialPost vào
                     }
                 }
-            } else if (pagerState.currentPage == 1) {
+            } else if (selectedTabIndex == 1) {
                 // --- TAB BẠN BÈ ---
                 if (mockFriends.isEmpty()) {
                     item { EmptyStateView("Chưa có bạn bè") }
@@ -280,12 +254,8 @@ fun ProfileScreen(
                         FriendListItem(friend)
                     }
                 }
-            } else {
-                // --- TAB MEDIA (Ví dụ) ---
-                item { EmptyStateView("Chưa có hình ảnh") }
             }
 
-            // Padding bottom cuối cùng
             item { Spacer(modifier = Modifier.height(40.dp)) }
         }
     }
@@ -320,7 +290,7 @@ fun ProfileVerticalDivider() {
 }
 
 @Composable
-fun ProfilePostItem(post: PostData) {
+fun ProfilePostItem(post: SocialPost) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -330,19 +300,39 @@ fun ProfilePostItem(post: PostData) {
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primaryContainer) {
-                Box(contentAlignment = Alignment.Center) {
-                    Text(post.author.take(1), fontWeight = FontWeight.Bold)
+                // Load Avatar thật
+                if (post.avatarUrl != null) {
+                    AsyncImage(model = post.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
+                } else {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(post.username.take(1), fontWeight = FontWeight.Bold)
+                    }
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(post.author, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
-                Text(post.timeAgo, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Text(post.username, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                // Dùng TimeUtils
+                Text(TimeUtils.getRelativeTime(post.timestamp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
         Text(post.content, style = MaterialTheme.typography.bodyMedium)
+
+        // Hiển thị ảnh (nếu có)
+        if (post.imageUrls.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            AsyncImage(
+                model = post.imageUrls.first(),
+                contentDescription = null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(200.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+        }
 
         Spacer(modifier = Modifier.height(12.dp))
 
@@ -359,7 +349,7 @@ fun ProfilePostItem(post: PostData) {
             Text("${post.comments}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
         }
     }
-    HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainerLow) // Separator
+    HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainerLow)
 }
 
 @Composable
