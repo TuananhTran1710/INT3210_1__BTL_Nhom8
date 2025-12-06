@@ -100,7 +100,7 @@ fun ProfileScreen(
             ) {
                 // Nút Settings (Góc phải)
                 SmallFloatingActionButton(
-                    onClick = { viewModel.onEvent(ProfileEvent.LogoutClick) }, // Tạm thời để Logout ở đây
+                    onClick = { navController.navigate(Screen.Settings.route) },
                     containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.align(Alignment.TopEnd),

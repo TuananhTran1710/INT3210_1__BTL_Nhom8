@@ -1,5 +1,6 @@
 package com.example.wink.data.repository
 
+import android.net.Uri
 import com.example.wink.data.model.User
 import kotlinx.coroutines.flow.Flow
 
@@ -16,4 +17,9 @@ interface AuthRepository {
 
     suspend fun hasLoggedInUser() : Boolean
     suspend fun performDailyCheckIn() : AuthResult
+
+    suspend fun uploadAvatar(uri: Uri): Result<String>
+
+    suspend fun updateUserProfile(uid: String, username: String, avatarUrl: String): Result<Unit>
+    suspend fun updateEmail(newEmail: String): Result<Unit>
 }

@@ -19,6 +19,7 @@ import com.example.wink.ui.features.friends.FriendsScreen
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.profile.UserDetailScreen
+import com.example.wink.ui.features.profile.SettingsScreen
 import com.example.wink.ui.features.social.SocialScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
@@ -50,7 +51,7 @@ fun MainNavHost(
             MessageScreen(navController = navController)
         }
         composable(BottomNavItem.Profile.route) {
-            ProfileScreen(navController = mainNavController) // Use main nav controller for logout
+            ProfileScreen(navController = navController) // Use main nav controller for logout
         }
         composable(
             route = Screen.UserDetail.route,
@@ -74,6 +75,14 @@ fun MainNavHost(
         }
         composable(Screen.Friends.route) {
             FriendsScreen(navController = navController)
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(navController = navController,
+                onLogout = {
+                    mainNavController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                })
         }
     }
 }

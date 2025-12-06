@@ -1,11 +1,13 @@
 package com.example.wink.data.repository
 
+import android.net.Uri
 import android.util.Log
 import com.example.wink.data.model.User
 import com.example.wink.ui.features.signup.SignupScreen
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -14,11 +16,13 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import java.util.Calendar
 import java.util.TimeZone
+import java.util.UUID
 
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth, // Được Hilt tiêm vào từ AppModule
-     private val firestore: FirebaseFirestore // Sẽ cần cái này để lưu thông tin user chi tiết
+    private val firestore: FirebaseFirestore, // Sẽ cần cái này để lưu thông tin user chi tiết
+    private val storage: FirebaseStorage
 ) : AuthRepository {
 
     override val currentUser: Flow<User?> = callbackFlow {
@@ -315,6 +319,68 @@ override suspend fun performDailyCheckIn(): AuthResult {
         Result.failure(e)
     }
 }
+
+    override suspend fun uploadAvatar(uri: Uri): Result<String> {
+        return try {
+            // Đặt tên file theo UID để mỗi user chỉ có 1 ảnh avatar (tiết kiệm dung lượng)
+            // Hoặc dùng UUID nếu muốn lưu lịch sử
+            val uid = firebaseAuth.currentUser?.uid ?: UUID.randomUUID().toString()
+            val ref = storage.reference.child("avatars/$uid.jpg")
+
+            ref.putFile(uri).await()
+            val downloadUrl = ref.downloadUrl.await()
+
+            Result.success(downloadUrl.toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 2. UPDATE PROFILE (Không còn Bio)
+    override suspend fun updateUserProfile(
+        uid: String,
+        username: String,
+        avatarUrl: String
+    ): Result<Unit> {
+        return try {
+            val updates = mapOf(
+                "username" to username,
+                "avatarUrl" to avatarUrl
+            )
+
+            // Cập nhật Firestore
+            firestore.collection("users").document(uid).update(updates).await()
+
+            // Cập nhật Firebase Auth (để đồng bộ display name & photo)
+            val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                .setDisplayName(username)
+
+            if (avatarUrl.isNotBlank()) {
+                profileUpdates.setPhotoUri(android.net.Uri.parse(avatarUrl))
+            }
+
+            firebaseAuth.currentUser?.updateProfile(profileUpdates.build())?.await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 3. UPDATE EMAIL
+    override suspend fun updateEmail(newEmail: String): Result<Unit> {
+        return try {
+            // Lưu ý: User phải đăng nhập gần đây mới đổi được email
+            firebaseAuth.currentUser?.updateEmail(newEmail)?.await()
+
+            firebaseAuth.currentUser?.uid?.let { uid ->
+                firestore.collection("users").document(uid).update("email", newEmail).await()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
 
 //
 //    override

@@ -23,6 +23,7 @@ sealed class Screen(val route: String) {
     object SecretBook : Screen("secret_book")
     object Tarot : Screen("tarot")
     object Friends : Screen("friends")
+    object Settings : Screen("settings")
     companion object {
         const val AUTH_GRAPH_ROUTE = "auth_graph"
         const val MAIN_GRAPH_ROUTE = "main_graph"
