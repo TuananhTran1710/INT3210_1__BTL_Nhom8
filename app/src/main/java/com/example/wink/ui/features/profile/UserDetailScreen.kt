@@ -69,18 +69,8 @@ fun UserDetailScreen(
             ) {
                 // 1. HEADER (Ảnh bìa + Avatar)
                 item {
-                    Box(modifier = Modifier.height(280.dp)) {
-                        // Ảnh bìa
-                        Box(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(200.dp)
-                                .background(
-                                    Brush.verticalGradient(
-                                        listOf(MaterialTheme.colorScheme.secondary, MaterialTheme.colorScheme.secondaryContainer)
-                                    )
-                                )
-                        )
+                    Box(modifier = Modifier.height(180.dp)) {
+                        Spacer(modifier = Modifier.fillMaxWidth())
                         // Avatar
                         Box(
                             modifier = Modifier
@@ -159,13 +149,25 @@ fun UserDetailScreen(
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
                         StatItem(value = "${user.rizzPoints}", label = "RIZZ")
+                        VerticalDivider()
                         StatItem(value = "${user.loginStreak}", label = "Streak")
+                        VerticalDivider()
                         StatItem(value = "10", label = "Bạn bè")
                     }
                 }
             }
         }
     }
+}
+
+@Composable
+fun VerticalDivider() {
+    Box(
+        modifier = Modifier
+            .height(30.dp)
+            .width(1.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    )
 }
 
 // Tái sử dụng StatItem từ ProfileScreen (hoặc copy lại)

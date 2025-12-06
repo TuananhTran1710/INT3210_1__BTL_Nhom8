@@ -122,26 +122,8 @@ fun ProfileScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(280.dp) // Tổng chiều cao vùng header
+                        .height(150.dp) // Tổng chiều cao vùng header
                 ) {
-                    // Ảnh bìa (Cover)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(200.dp)
-                            .background(
-                                Brush.verticalGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.primary,
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    )
-                                )
-                            )
-                    ) {
-                        // Nếu có ảnh bìa thật thì dùng AsyncImage ở đây
-                    }
-
-                    // Avatar (Chồng lấn)
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomCenter) // Căn giữa dưới cùng

@@ -165,7 +165,7 @@ fun CreatePostInputBar(onClick: () -> Unit) {
                     .height(40.dp)
                     .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
                     .clip(RoundedCornerShape(24.dp))
-                    //.background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
+                    .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     .padding(horizontal = 16.dp),
                 contentAlignment = Alignment.CenterStart
             ) {
@@ -176,14 +176,6 @@ fun CreatePostInputBar(onClick: () -> Unit) {
                 )
             }
 
-            Spacer(modifier = Modifier.width(12.dp))
-
-            // Icon hình ảnh (Chỉ để trang trí cho giống)
-            Icon(
-                imageVector = Icons.Default.Image,
-                contentDescription = "Ảnh",
-                tint = MaterialTheme.colorScheme.primary
-            )
         }
     }
 }
@@ -323,7 +315,7 @@ fun FeedItem(
                     imageVector = if(post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
                     contentDescription = null,
                     tint = if(post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
@@ -344,7 +336,7 @@ fun FeedItem(
                     imageVector = Icons.Outlined.ChatBubbleOutline,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(22.dp)
+                    modifier = Modifier.size(20.dp)
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
