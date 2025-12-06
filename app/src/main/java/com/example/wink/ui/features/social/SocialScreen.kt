@@ -31,16 +31,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.ui.components.ImagePreviewDialog
 import com.example.wink.ui.navigation.Screen
 import com.example.wink.util.TimeUtils
 
@@ -52,6 +58,15 @@ fun SocialScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val tabs = listOf("Bảng tin", "Xếp hạng")
+
+    var viewingImageUrl by remember { mutableStateOf<String?>(null) }
+
+    if (viewingImageUrl != null) {
+        ImagePreviewDialog(
+            imageUrl = viewingImageUrl!!,
+            onDismiss = { viewingImageUrl = null }
+        )
+    }
 
     // BottomSheetState
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -117,7 +132,8 @@ fun SocialScreen(
                         },
                         onCreatePostClick = { viewModel.onFabClick() },
                         onLikeClick = { postId -> viewModel.onLikeClick(postId) },
-                        onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) }
+                        onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) },
+                        onImageClick = { url -> viewingImageUrl = url }
                     )
                 } else {
                     LeaderboardList(users = state.leaderboardList, onUserClick = { userId ->
@@ -187,7 +203,8 @@ fun FeedList(
     onUserClick: (String) -> Unit,
     onCreatePostClick: () -> Unit,
     onLikeClick: (String) -> Unit,      // Mới
-    onCommentClick: (String) -> Unit    // Mới
+    onCommentClick: (String) -> Unit,    // Mới
+    onImageClick: (String) -> Unit
 ) {
     LazyColumn {
         // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
@@ -199,7 +216,7 @@ fun FeedList(
 
         // Các bài post bên dưới
         items(posts) { post ->
-            FeedItem(post, onUserClick, onLikeClick, onCommentClick)
+            FeedItem(post, onUserClick, onLikeClick, onCommentClick, onImageClick = onImageClick)
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
                 thickness = 0.5.dp,
@@ -214,7 +231,8 @@ fun FeedItem(
     post: SocialPost,
     onUserClick: (String) -> Unit,
     onLikeClick: (String) -> Unit = {},
-    onCommentClick: (String) -> Unit = {}
+    onCommentClick: (String) -> Unit = {},
+    onImageClick: (String) -> Unit = {}
 ) {
     Column(
         modifier = Modifier
@@ -232,7 +250,26 @@ fun FeedItem(
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer
             ) {
-                Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(8.dp))
+                if (post.avatarUrl.isNullOrBlank()) {
+                    // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp),
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                } else {
+                    // Trường hợp 2: Có avatar -> Load ảnh từ URL
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(post.avatarUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
             }
             Spacer(modifier = Modifier.width(10.dp))
             Column {
@@ -252,50 +289,34 @@ fun FeedItem(
         // 2. Nội dung chữ
         if (post.content.isNotBlank()) {
             Spacer(modifier = Modifier.height(8.dp))
-            Text(
+            ExpandableText(
                 text = post.content,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(horizontal = 16.dp)
             )
         }
 
         // 3. hiển thị ảnh
         if (post.imageUrls.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            // Logic hiển thị thông minh hơn
-            if (post.imageUrls.size == 1) {
-                // Nếu chỉ có 1 ảnh: Hiển thị full chiều rộng
-                AsyncImage(
-                    model = post.imageUrls.first(),
-                    contentDescription = "Post Image",
-                    modifier = Modifier
-                        .fillMaxWidth() // Full chiều rộng
-                        .heightIn(max = 400.dp) // Chiều cao tối đa
-                        .padding(horizontal = 16.dp) // Cách lề chút cho đẹp
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(MaterialTheme.colorScheme.surfaceVariant),
-                    contentScale = ContentScale.Crop
-                )
-            } else {
-                // Nếu có nhiều ảnh: Dùng LazyRow để cuộn
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    items(post.imageUrls) { imageUrl ->
-                        AsyncImage(
-                            model = imageUrl,
-                            contentDescription = "Post Image",
-                            modifier = Modifier
-                                .height(250.dp)
-                                .width(300.dp) // Chiều rộng cố định để user thấy ảnh tiếp theo lấp ló
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant),
-                            contentScale = ContentScale.Crop
-                        )
-                    }
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp), // Cách lề 2 bên
+                horizontalArrangement = Arrangement.spacedBy(8.dp)  // Khoảng cách giữa các ảnh
+            ) {
+                items(post.imageUrls) { imageUrl ->
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = "Post Image",
+                        contentScale = ContentScale.Crop, // Cắt ảnh thành hình vuông
+                        modifier = Modifier
+                            .size(120.dp) // Kích thước cố định hình vuông nhỏ
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { onImageClick(imageUrl) } // Bấm vào để xem full
+                    )
                 }
             }
         }
@@ -615,6 +636,52 @@ fun LeaderboardItem(rank: Int, user: User, onUserClick: (String) -> Unit) {
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun ExpandableText(
+    text: String,
+    modifier: Modifier = Modifier,
+    minimizedMaxLines: Int = 3, // Số dòng tối đa khi thu gọn
+    style: TextStyle = MaterialTheme.typography.bodyMedium,
+    color: Color = MaterialTheme.colorScheme.onSurface
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
+    var isClickable by remember { mutableStateOf(false) }
+    var finalText by remember { mutableStateOf(text) }
+
+    // Tính toán xem có cần cắt bớt chữ không
+    LaunchedEffect(textLayoutResult) {
+        textLayoutResult?.let {
+            if (it.hasVisualOverflow) {
+                isClickable = true
+            }
+        }
+    }
+
+    Column(modifier = modifier) {
+        Text(
+            text = finalText,
+            style = style,
+            color = color,
+            maxLines = if (isExpanded) Int.MAX_VALUE else minimizedMaxLines,
+            overflow = TextOverflow.Ellipsis,
+            onTextLayout = { textLayoutResult = it }
+        )
+
+        // Nếu văn bản dài quá số dòng quy định -> Hiện nút Xem thêm
+        if (isClickable || (textLayoutResult?.lineCount ?: 0) > minimizedMaxLines) {
+            Text(
+                text = if (isExpanded) "Thu gọn" else "Xem thêm",
+                style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier
+                    .padding(top = 4.dp)
+                    .clickable { isExpanded = !isExpanded }
             )
         }
     }
