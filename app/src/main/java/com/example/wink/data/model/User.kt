@@ -5,7 +5,6 @@ import com.google.firebase.firestore.DocumentId
 import com.google.firebase.Timestamp
 
 data class User(
-    @DocumentId
     val uid: String = "",
     val email: String? = null,
     val username: String = "",

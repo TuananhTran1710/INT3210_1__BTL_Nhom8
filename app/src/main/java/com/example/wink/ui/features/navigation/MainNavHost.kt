@@ -18,6 +18,7 @@ import com.example.wink.ui.features.chat.MessageScreen
 import com.example.wink.ui.features.friends.FriendsScreen
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.dashboard.DashboardScreen
+import com.example.wink.ui.features.profile.UserDetailScreen
 import com.example.wink.ui.features.social.SocialScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
@@ -37,7 +38,7 @@ fun MainNavHost(
         popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)) }
     ) {
         composable(BottomNavItem.Dashboard.route) {
-            DashboardScreen(navController = mainNavController) // Use main nav controller for navigation
+            DashboardScreen(navController = navController) // Use main nav controller for navigation
         }
         composable(BottomNavItem.Message.route) {
             ChatListScreen(navController = navController)
@@ -51,8 +52,15 @@ fun MainNavHost(
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(navController = mainNavController) // Use main nav controller for logout
         }
+        composable(
+            route = Screen.UserDetail.route,
+            // Không cần arguments = listOf(...) vì NavHost tự parse {userId}
+        ) { backStackEntry ->
+            // Hilt sẽ tự inject ViewModel và lấy userId từ SavedStateHandle
+            UserDetailScreen(navController = navController)
+        }
         composable(BottomNavItem.Social.route) {
-            SocialScreen(navController = mainNavController)
+            SocialScreen(navController = navController)
         }
         composable(BottomNavItem.Explore.route) {
             ExploreScreen(navController = navController)

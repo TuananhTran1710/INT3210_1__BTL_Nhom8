@@ -25,15 +25,6 @@ fun NavGraphBuilder.authGraph(navController: NavHostController) {
         composable(Screen.Onboarding.route) {
             OnboardingScreen(navController = navController)
         }
-        composable("user_detail/{userId}") { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
-            UserDetailScreen(
-                userId = userId,
-                onBack = {
-                    navController.popBackStack()
-                }
-            )
-        }
 //        composable(Screen.ChangeIcon.route) {
 //            ChangeIconScreen(navController = navController)
 //        }

@@ -41,6 +41,7 @@ import coil.compose.AsyncImage
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.ui.navigation.Screen
 import com.example.wink.util.TimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -110,13 +111,17 @@ fun SocialScreen(
                 if (state.selectedTab == 0) {
                     FeedList(
                         posts = state.feedList,
-                        onUserClick = { /* TODO */ },
+                        onUserClick = { userId ->
+                            // Chuyển sang màn hình hồ sơ người khác
+                            navController.navigate(Screen.UserDetail.createRoute(userId))
+                        },
                         onCreatePostClick = { viewModel.onFabClick() },
                         onLikeClick = { postId -> viewModel.onLikeClick(postId) },
                         onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) }
                     )
                 } else {
-                    LeaderboardList(users = state.leaderboardList, onUserClick = { /* TODO */ })
+                    LeaderboardList(users = state.leaderboardList, onUserClick = { userId ->
+                        navController.navigate(Screen.UserDetail.createRoute(userId)) })
                 }
             }
         }
