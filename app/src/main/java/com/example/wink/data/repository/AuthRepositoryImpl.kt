@@ -343,15 +343,42 @@ override suspend fun performDailyCheckIn(): AuthResult {
         avatarUrl: String
     ): Result<Unit> {
         return try {
-            val updates = mapOf(
+            // 1. Chuẩn bị dữ liệu update cho User Collection
+            val userUpdates = mapOf(
                 "username" to username,
                 "avatarUrl" to avatarUrl
             )
 
-            // Cập nhật Firestore
-            firestore.collection("users").document(uid).update(updates).await()
+            // Khởi tạo Batch (Ghi hàng loạt)
+            val batch = firestore.batch()
 
-            // Cập nhật Firebase Auth (để đồng bộ display name & photo)
+            // A. Thêm lệnh update User vào batch
+            val userRef = firestore.collection("users").document(uid)
+            batch.update(userRef, userUpdates)
+
+            // B. Tìm tất cả bài viết của User này để update theo
+            // (Lưu ý: Nếu user có quá nhiều bài > 500, cần chia nhỏ batch,
+            // nhưng với bài tập lớn thì làm thế này là ok)
+            val postsSnapshot = firestore.collection("posts")
+                .whereEqualTo("userId", uid)
+                .get()
+                .await()
+
+            for (document in postsSnapshot.documents) {
+                // Thêm lệnh update từng bài viết vào batch
+                batch.update(
+                    document.reference,
+                    mapOf(
+                        "username" to username,
+                        "avatarUrl" to avatarUrl
+                    )
+                )
+            }
+
+            // 2. Thực thi tất cả lệnh cùng lúc
+            batch.commit().await()
+
+            // 3. Cập nhật Firebase Auth (để đồng bộ hiển thị cục bộ nếu cần)
             val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
                 .setDisplayName(username)
 
@@ -363,6 +390,7 @@ override suspend fun performDailyCheckIn(): AuthResult {
 
             Result.success(Unit)
         } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure(e)
         }
     }
