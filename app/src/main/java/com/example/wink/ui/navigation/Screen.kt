@@ -15,10 +15,15 @@ sealed class Screen(val route: String) {
     object Tips : Screen("tips_screen")       // Bí kíp
     object Quiz : Screen("quiz")
 
+    object UserDetail : Screen("user_detail/{userId}") {
+        fun createRoute(userId: String) = "user_detail/$userId"
+    }
+
     object ChangeIcon : Screen("change_icon")
     object SecretBook : Screen("secret_book")
     object Tarot : Screen("tarot")
     object Friends : Screen("friends")
+    object Settings : Screen("settings")
     companion object {
         const val AUTH_GRAPH_ROUTE = "auth_graph"
         const val MAIN_GRAPH_ROUTE = "main_graph"

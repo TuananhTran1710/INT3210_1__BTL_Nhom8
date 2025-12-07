@@ -200,4 +200,36 @@ class SocialRepositoryImpl @Inject constructor(
             Result.failure(e)
         }
     }
+
+    override fun getUserPosts(userId: String): Flow<List<SocialPost>> = callbackFlow {
+        val listener = firestore.collection("posts")
+            .whereEqualTo("userId", userId) // Lọc theo User ID
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val posts = snapshot?.documents?.mapNotNull { doc ->
+                    // Copy logic mapping từ getSocialFeed xuống đây
+                    val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
+                    val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+
+                    SocialPost(
+                        id = doc.id,
+                        userId = doc.getString("userId") ?: "",
+                        username = doc.getString("username") ?: "Ẩn danh",
+                        avatarUrl = doc.getString("avatarUrl"),
+                        content = doc.getString("content") ?: "",
+                        timestamp = doc.getLong("timestamp") ?: 0L,
+                        likes = (doc.getLong("likesCount") ?: 0).toInt(),
+                        comments = (doc.getLong("commentsCount") ?: 0).toInt(),
+                        isLikedByMe = likedBy.contains(currentUserId),
+                        imageUrls = images
+                    )
+                } ?: emptyList()
+                trySend(posts)
+            }
+        awaitClose { listener.remove() }
+    }
 }

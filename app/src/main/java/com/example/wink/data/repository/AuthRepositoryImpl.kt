@@ -1,11 +1,14 @@
 package com.example.wink.data.repository
 
+import android.net.Uri
 import android.util.Log
 import com.example.wink.data.model.User
 import com.example.wink.ui.features.signup.SignupScreen
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
+import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -14,11 +17,13 @@ import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import java.util.Calendar
 import java.util.TimeZone
+import java.util.UUID
 
 
 class AuthRepositoryImpl @Inject constructor(
     private val firebaseAuth: FirebaseAuth, // Được Hilt tiêm vào từ AppModule
-     private val firestore: FirebaseFirestore // Sẽ cần cái này để lưu thông tin user chi tiết
+    private val firestore: FirebaseFirestore, // Sẽ cần cái này để lưu thông tin user chi tiết
+    private val storage: FirebaseStorage
 ) : AuthRepository {
 
     override val currentUser: Flow<User?> = callbackFlow {
@@ -315,6 +320,197 @@ override suspend fun performDailyCheckIn(): AuthResult {
         Result.failure(e)
     }
 }
+
+    override suspend fun uploadAvatar(uri: Uri): Result<String> {
+        return try {
+            // Đặt tên file theo UID để mỗi user chỉ có 1 ảnh avatar (tiết kiệm dung lượng)
+            // Hoặc dùng UUID nếu muốn lưu lịch sử
+            val uid = firebaseAuth.currentUser?.uid ?: UUID.randomUUID().toString()
+            val ref = storage.reference.child("avatars/$uid.jpg")
+
+            ref.putFile(uri).await()
+            val downloadUrl = ref.downloadUrl.await()
+
+            Result.success(downloadUrl.toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // 2. UPDATE PROFILE (Không còn Bio)
+    override suspend fun updateUserProfile(
+        uid: String,
+        username: String,
+        avatarUrl: String
+    ): Result<Unit> {
+        return try {
+            // 1. Chuẩn bị dữ liệu update cho User Collection
+            val userUpdates = mapOf(
+                "username" to username,
+                "avatarUrl" to avatarUrl
+            )
+
+            // Khởi tạo Batch (Ghi hàng loạt)
+            val batch = firestore.batch()
+
+            // A. Thêm lệnh update User vào batch
+            val userRef = firestore.collection("users").document(uid)
+            batch.update(userRef, userUpdates)
+
+            // B. Tìm tất cả bài viết của User này để update theo
+            // (Lưu ý: Nếu user có quá nhiều bài > 500, cần chia nhỏ batch,
+            // nhưng với bài tập lớn thì làm thế này là ok)
+            val postsSnapshot = firestore.collection("posts")
+                .whereEqualTo("userId", uid)
+                .get()
+                .await()
+
+            for (document in postsSnapshot.documents) {
+                // Thêm lệnh update từng bài viết vào batch
+                batch.update(
+                    document.reference,
+                    mapOf(
+                        "username" to username,
+                        "avatarUrl" to avatarUrl
+                    )
+                )
+            }
+
+            // 2. Thực thi tất cả lệnh cùng lúc
+            batch.commit().await()
+
+            // 3. Cập nhật Firebase Auth (để đồng bộ hiển thị cục bộ nếu cần)
+            val profileUpdates = com.google.firebase.auth.UserProfileChangeRequest.Builder()
+                .setDisplayName(username)
+
+            if (avatarUrl.isNotBlank()) {
+                profileUpdates.setPhotoUri(android.net.Uri.parse(avatarUrl))
+            }
+
+            firebaseAuth.currentUser?.updateProfile(profileUpdates.build())?.await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    // 3. UPDATE EMAIL
+    override suspend fun updateEmail(newEmail: String): Result<Unit> {
+        return try {
+            // Lưu ý: User phải đăng nhập gần đây mới đổi được email
+            firebaseAuth.currentUser?.updateEmail(newEmail)?.await()
+
+            firebaseAuth.currentUser?.uid?.let { uid ->
+                firestore.collection("users").document(uid).update("email", newEmail).await()
+            }
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override suspend fun updateUserPreferences(
+        gender: String,
+        preference: String,
+        personalities: List<String>
+    ): AuthResult {
+        return try {
+            val uid = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("User not logged in"))
+
+            // Tạo map dữ liệu cần cập nhật
+            val updates = hashMapOf(
+                "gender" to gender,
+                "preference" to preference,
+                "personalities" to personalities, // Lưu danh sách tính cách
+                "isOnboardingCompleted" to true   // Đánh dấu đã xong để lần sau ko hiện lại
+            )
+
+            // Dùng set + merge để an toàn (Tạo mới nếu chưa có, cập nhật nếu đã có)
+            firestore.collection("users")
+                .document(uid)
+                .set(updates, SetOptions.merge())
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun getUserById(userId: String): User? {
+        return try {
+            val document = firestore.collection("users")
+                .document(userId)
+                .get()
+                .await()
+
+            if (document.exists()) {
+                val data = document.data ?: return null
+                User(
+                    uid = data["uid"] as? String ?: userId,
+                    email = data["email"] as? String,
+                    username = data["username"] as? String ?: "Unknown",
+                    gender = data["gender"] as? String ?: "",
+                    preference = data["preference"] as? String ?: "",
+                    rizzPoints = (data["rizzPoints"] as? Long)?.toInt() ?: 0,
+                    loginStreak = (data["loginStreak"] as? Long)?.toInt() ?: 0,
+                    avatarUrl = data["avatarUrl"] as? String ?: "",
+                    lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
+                    longestStreak = (data["longestStreak"] as? Long)?.toInt() ?: 0,
+                    friendsList = data["friendsList"] as? List<String> ?: emptyList(),
+                    quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error getting user by id: $userId", e)
+            null
+        }
+    }
+
+    override suspend fun getUsersByIds(userIds: List<String>): List<User> {
+        if (userIds.isEmpty()) return emptyList()
+
+        return try {
+            val users = mutableListOf<User>()
+
+            // Firestore has a limit of 10 items per 'in' query, so we need to batch
+            userIds.chunked(10).forEach { chunk ->
+                val querySnapshot = firestore.collection("users")
+                    .whereIn("uid", chunk)
+                    .get()
+                    .await()
+
+                querySnapshot.documents.forEach { document ->
+                    val data = document.data ?: return@forEach
+                    val user = User(
+                        uid = data["uid"] as? String ?: document.id,
+                        email = data["email"] as? String,
+                        username = data["username"] as? String ?: "Unknown",
+                        gender = data["gender"] as? String ?: "",
+                        preference = data["preference"] as? String ?: "",
+                        rizzPoints = (data["rizzPoints"] as? Long)?.toInt() ?: 0,
+                        loginStreak = (data["loginStreak"] as? Long)?.toInt() ?: 0,
+                        avatarUrl = data["avatarUrl"] as? String ?: "",
+                        lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
+                        longestStreak = (data["longestStreak"] as? Long)?.toInt() ?: 0,
+                        friendsList = data["friendsList"] as? List<String> ?: emptyList(),
+                        quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
+                    )
+                    users.add(user)
+                }
+            }
+
+            users
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error getting users by ids", e)
+            emptyList()
+        }
+    }
 
 //
 //    override
