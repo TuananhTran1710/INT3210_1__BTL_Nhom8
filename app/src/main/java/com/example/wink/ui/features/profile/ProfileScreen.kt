@@ -2,6 +2,7 @@ package com.example.wink.ui.features.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
-import com.example.wink.ui.features.dashboard.FeatureType
+//import com.example.wink.ui.features.dashboard.FeatureType
 import com.example.wink.ui.navigation.Screen
 
 data class FriendProfile(
@@ -82,7 +83,7 @@ fun ProfileScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Top Bar
         Row(
@@ -110,9 +111,9 @@ fun ProfileScreen(
             ProfileMainContent(
                 username = uiState.username.ifBlank { "Ếch Xanh Lè" },
                 handle = "@echxanhle",
-                rizzPoints = 100,
-                streak = 200, // Mock data
-                friends = 3, // Mock data
+                rizzPoints = uiState.rizzPoints,
+                streak = uiState.dailyStreak,
+                friends = uiState.friendCount,
                 posts = mockPosts,
                 onFriendsClick = { selectedTab = 1 },
                 onLogout = { viewModel.onEvent(ProfileEvent.LogoutClick) }
@@ -120,7 +121,7 @@ fun ProfileScreen(
         } else {
             // Friends List View
             FriendsListContent(
-                friends = mockFriends,
+                friends = uiState.loadedFriends,
                 onBack = { selectedTab = 0 },
                 onFriendClick = { friendId ->
                     // Handle friend click
@@ -157,14 +158,14 @@ private fun ProfileMainContent(
                     modifier = Modifier
                         .size(100.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE8C5FF)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Profile",
                         modifier = Modifier.size(50.dp),
-                        tint = Color(0xFF9C27B0)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -174,13 +175,13 @@ private fun ProfileMainContent(
                     text = username,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
 
                 Text(
                     text = handle,
                     fontSize = 14.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -204,7 +205,7 @@ private fun ProfileMainContent(
                 text = "📝 Bài viết",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onSurface,
                 modifier = Modifier.padding(vertical = 8.dp)
             )
         }
@@ -221,13 +222,13 @@ private fun ProfileMainContent(
                 onClick = onLogout,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFFF4444)
+                    containerColor = MaterialTheme.colorScheme.error
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text(
                     text = "Đăng xuất",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onError,
                     fontSize = 16.sp,
                     modifier = Modifier.padding(8.dp)
                 )
@@ -240,10 +241,9 @@ private fun ProfileMainContent(
 
 @Composable
 private fun FriendsListContent(
-    friends: List<FriendProfile>,
+    friends: List<FriendUi>,
     onBack: () -> Unit,
     onFriendClick: (id: String) -> Unit
-//    onFriendClick: (String) -> Unit = {}
 ) {
     Column {
         // Header
@@ -251,7 +251,7 @@ private fun FriendsListContent(
             text = "Danh sách bạn bè",
             fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = Color.Black,
+            color = MaterialTheme.colorScheme.onSurface,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
@@ -263,7 +263,7 @@ private fun FriendsListContent(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(friends) { friend ->
-                FriendCard(
+                FriendCardUi(
                     friend = friend,
                     onFriendClick = { onFriendClick(friend.id) }
                 )
@@ -282,7 +282,7 @@ private fun StatCard(
         modifier = Modifier
             .then(if (onClick != null) Modifier.clickable { onClick() } else Modifier),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE0E0E0)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
@@ -294,12 +294,12 @@ private fun StatCard(
                 text = value,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -310,7 +310,7 @@ private fun PostCard(post: PostData) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -325,14 +325,14 @@ private fun PostCard(post: PostData) {
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE8C5FF)),
+                        .background(MaterialTheme.colorScheme.primaryContainer),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Person,
                         contentDescription = "Avatar",
                         modifier = Modifier.size(20.dp),
-                        tint = Color(0xFF9C27B0)
+                        tint = MaterialTheme.colorScheme.primary
                     )
                 }
 
@@ -343,12 +343,12 @@ private fun PostCard(post: PostData) {
                         text = post.author,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = post.timeAgo,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -359,7 +359,7 @@ private fun PostCard(post: PostData) {
             Text(
                 text = post.content,
                 fontSize = 14.sp,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 20.sp
             )
 
@@ -376,13 +376,13 @@ private fun PostCard(post: PostData) {
                         imageVector = Icons.Default.FavoriteBorder,
                         contentDescription = "Like",
                         modifier = Modifier.size(16.dp),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = post.likes.toString(),
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
 
@@ -393,13 +393,13 @@ private fun PostCard(post: PostData) {
                         imageVector = Icons.Default.ChatBubbleOutline,
                         contentDescription = "Comment",
                         modifier = Modifier.size(16.dp),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
                         text = post.comments.toString(),
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -417,7 +417,7 @@ private fun FriendCard(
             .fillMaxWidth()
             .clickable { onFriendClick() },
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp)
     ) {
@@ -429,14 +429,14 @@ private fun FriendCard(
                 modifier = Modifier
                     .size(40.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFFE8C5FF)),
+                    .background(MaterialTheme.colorScheme.primaryContainer),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = Icons.Default.Person,
                     contentDescription = "Avatar",
                     modifier = Modifier.size(20.dp),
-                    tint = Color(0xFF9C27B0)
+                    tint = MaterialTheme.colorScheme.primary
                 )
             }
 
@@ -449,25 +449,25 @@ private fun FriendCard(
                     text = friend.name,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color.Black
+                    color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
                     text = "RIZZ: ${friend.rizz}",
                     fontSize = 12.sp,
-                    color = Color.Gray
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
 
             Button(
                 onClick = { /* Send message */ },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF9C27B0)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
                     text = "Nhắn tin",
-                    color = Color.White,
+                    color = MaterialTheme.colorScheme.onPrimary,
                     fontSize = 12.sp
                 )
             }
@@ -475,80 +475,148 @@ private fun FriendCard(
     }
 }
 
-@Preview(showBackground = true)
 @Composable
-fun ProfileScreenPreview() {
-    // Create a simple preview without ViewModel dependency
-    ProfileScreenContent()
-}
-
-@Composable
-private fun ProfileScreenContent() {
-    var selectedTab by remember { mutableStateOf(0) }
-
-    // Mock data for preview
-    val mockFriends = listOf(
-        FriendProfile("1", "Girl Hài Hước", 15),
-        FriendProfile("2", "Kiên J", 40),
-        FriendProfile("3", "Khánh", 100)
-    )
-    
-    val mockPosts = listOf(
-        PostData(
-            "1", 
-            "Ếch Xanh Lè", 
-            "2 ngày", 
-            "Vừa áp dụng vần mẫu của AI tán đổ crush 2 năm. Uy tín luôn anh em à!", 
-            3842, 
-            247
-        )
-    )
-
-    Column(
+private fun FriendCardUi(
+    friend: FriendUi,
+    onFriendClick: () -> Unit = {}
+) {
+    Card(
         modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .fillMaxWidth()
+            .clickable { onFriendClick() },
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surface
+        ),
+        shape = RoundedCornerShape(12.dp)
     ) {
-        // Top Bar
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            if (selectedTab == 1) {
-                IconButton(onClick = { selectedTab = 0 }) {
-                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                }
-            } else {
-                Spacer(modifier = Modifier.size(48.dp))
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primaryContainer),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Person,
+                    contentDescription = "Avatar",
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
-            
-            IconButton(onClick = { /* Settings */ }) {
-                Icon(Icons.Default.Settings, contentDescription = "Settings")
-            }
-        }
 
-        if (selectedTab == 0) {
-            // Main Profile View
-            ProfileMainContent(
-                username = "Ếch Xanh Lè",
-                handle = "@echxanhle",
-                rizzPoints = 4022,
-                streak = 200,
-                friends = 3,
-                posts = mockPosts,
-                onFriendsClick = { selectedTab = 1 },
-                onLogout = { }
-            )
-        } else {
-            // Friends List View
-            FriendsListContent(
-                friends = mockFriends,
-                onBack = { selectedTab = 0 },
-                onFriendClick = { friendId -> /* Navigation in preview */ }
-            )
+            Spacer(modifier = Modifier.width(12.dp))
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = friend.name,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = "RIZZ: ${friend.rizzPoints}",
+                    fontSize = 12.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Button(
+                onClick = { /* Send message */ },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary
+                ),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "Nhắn tin",
+                    color = MaterialTheme.colorScheme.onPrimary,
+                    fontSize = 12.sp
+                )
+            }
         }
     }
 }
+
+//@Preview(showBackground = true)
+//@Composable
+//fun ProfileScreenPreview() {
+//    // Create a simple preview without ViewModel dependency
+//    ProfileScreenContent()
+//}
+//
+//@Composable
+//private fun ProfileScreenContent() {
+//    var selectedTab by remember { mutableStateOf(0) }
+//
+//    // Mock data for preview
+//    val mockFriends = listOf(
+//        FriendProfile("1", "Girl Hài Hước", 15),
+//        FriendProfile("2", "Kiên J", 40),
+//        FriendProfile("3", "Khánh", 100)
+//    )
+//
+//    val mockPosts = listOf(
+//        PostData(
+//            "1",
+//            "Ếch Xanh Lè",
+//            "2 ngày",
+//            "Vừa áp dụng vần mẫu của AI tán đổ crush 2 năm. Uy tín luôn anh em à!",
+//            3842,
+//            247
+//        )
+//    )
+//
+//    Column(
+//        modifier = Modifier
+//            .fillMaxSize()
+//            .background(MaterialTheme.colorScheme.background)
+//    ) {
+//        // Top Bar
+//        Row(
+//            modifier = Modifier
+//                .fillMaxWidth()
+//                .padding(16.dp),
+//            horizontalArrangement = Arrangement.SpaceBetween,
+//            verticalAlignment = Alignment.CenterVertically
+//        ) {
+//            if (selectedTab == 1) {
+//                IconButton(onClick = { selectedTab = 0 }) {
+//                    Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+//                }
+//            } else {
+//                Spacer(modifier = Modifier.size(48.dp))
+//            }
+//
+//            IconButton(onClick = { /* Settings */ }) {
+//                Icon(Icons.Default.Settings, contentDescription = "Settings")
+//            }
+//        }
+//
+//        if (selectedTab == 0) {
+//            // Main Profile View
+//            ProfileMainContent(
+//                username = "Ếch Xanh Lè",
+//                handle = "@echxanhle",
+//                rizzPoints = 4022,
+//                streak = 200,
+//                friends = 3,
+//                posts = mockPosts,
+//                onFriendsClick = { selectedTab = 1 },
+//                onLogout = { }
+//            )
+//        } else {
+//            // Friends List View
+//            FriendsListContent(
+//                friends = mockFriends,
+//                onBack = { selectedTab = 0 },
+//                onFriendClick = { friendId -> /* Navigation in preview */ }
+//            )
+//        }
+//    }
+//}

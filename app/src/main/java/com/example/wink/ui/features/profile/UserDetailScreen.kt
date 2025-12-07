@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.profile
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 
 data class UserProfile(
     val id: String,
@@ -36,41 +38,58 @@ data class UserProfile(
 @Composable
 fun UserDetailScreen(
     userId: String,
-    onBack: (() -> Unit)? = null
+    onBack: (() -> Unit)? = null,
+    viewModel: UserDetailViewModel = hiltViewModel()
 ) {
-    // Mock user data - in real app this would come from ViewModel
-    val mockUser = UserProfile(
-        id = userId,
-        name = "Girl Hài Hước",
-        handle = "@girlhaihuoctimnhieuvietxuoc",
-        avatarUrl = "",
-        rizzPoints = 1255,
-        streak = 27,
-        friends = 5,
-        posts = listOf(
-            PostData(
-                "1",
-                "Girl Hài Hước",
-                "1 năm",
-                "Anh ấy tỏ tình và mình đồng ý rồi! Tự này trái tim của mình sẽ bớt đi những viết xước ❤️",
-                8764,
-                2573
-            ),
-            PostData(
-                "2",
-                "Girl Hài Hước",
-                "2 năm",
-                "Chúng mình đừng lại rồi, cùng chăng muốn đâu những mình nghĩ vây là tốt cho cả hai...",
-                2146,
-                231
-            )
-        )
-    )
+    val uiState by viewModel.uiState.collectAsState()
+
+    // Show loading or error states
+    if (uiState.isLoading) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            CircularProgressIndicator()
+        }
+        return
+    }
+
+    if (!uiState.userFound && uiState.errorMessage != null) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .padding(16.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PersonOff,
+                    contentDescription = "Not Found",
+                    modifier = Modifier.size(64.dp),
+                    tint = MaterialTheme.colorScheme.error
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = uiState.errorMessage ?: "Không tìm thấy người dùng",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(onClick = { onBack?.invoke() }) {
+                    Text("Quay lại")
+                }
+            }
+        }
+        return
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Top Bar with back button
         Row(
@@ -83,7 +102,7 @@ fun UserDetailScreen(
                 Icon(
                     imageVector = Icons.Default.ArrowBack,
                     contentDescription = "Back",
-                    tint = Color.Black
+                    tint = MaterialTheme.colorScheme.onSurface
                 )
             }
             Spacer(modifier = Modifier.weight(1f))
@@ -95,6 +114,7 @@ fun UserDetailScreen(
             contentPadding = PaddingValues(horizontal = 16.dp)
         ) {
             item {
+
                 // Profile Header
                 Column(
                     horizontalAlignment = Alignment.CenterHorizontally,
@@ -122,39 +142,41 @@ fun UserDetailScreen(
                             fontSize = 60.sp
                         )
                     }
-                    
+
                     Spacer(modifier = Modifier.height(16.dp))
-                    
+
                     // User Name
                     Text(
-                        text = mockUser.name,
+                        text = uiState.username,
                         fontSize = 22.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
-                    
+
                     // Handle
                     Text(
-                        text = mockUser.handle,
+                        text = "@${uiState.username.lowercase().replace(" ", "")}",
                         fontSize = 14.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    
+
                     Spacer(modifier = Modifier.height(20.dp))
-                    
+
                     // Stats Row
                     Row(
                         horizontalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        UserStatCard("${mockUser.rizzPoints}", "RIZZ")
-                        UserStatCard("${mockUser.streak}", "STREAK")
-                        UserStatCard("${mockUser.friends}", "BẠN BÈ")
+                        UserStatCard("${uiState.rizzPoints}", "RIZZ")
+                        UserStatCard("${uiState.loginStreak}", "STREAK")
+                        UserStatCard("${uiState.friendCount}", "BẠN BÈ")
                     }
-                    
+
                     Spacer(modifier = Modifier.height(24.dp))
                 }
             }
             
+            // Hide posts section for now since we don't have posts data
+            /*
             item {
                 // Posts Section Header
                 Row(
@@ -165,14 +187,14 @@ fun UserDetailScreen(
                         imageVector = Icons.Default.Article,
                         contentDescription = "Posts",
                         modifier = Modifier.size(20.dp),
-                        tint = Color.Black
+                        tint = MaterialTheme.colorScheme.onSurface
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "Bài viết",
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                 }
             }
@@ -181,6 +203,7 @@ fun UserDetailScreen(
                 UserPostCard(post = post)
                 Spacer(modifier = Modifier.height(12.dp))
             }
+            */
             
             item {
                 Spacer(modifier = Modifier.height(32.dp))
@@ -196,7 +219,7 @@ private fun UserStatCard(
 ) {
     Card(
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE0E0E0)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
         shape = RoundedCornerShape(8.dp)
     ) {
@@ -208,12 +231,12 @@ private fun UserStatCard(
                 text = value,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color.Black
+                color = MaterialTheme.colorScheme.onSurface
             )
             Text(
                 text = label,
                 fontSize = 12.sp,
-                color = Color.Gray
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
     }
@@ -224,7 +247,7 @@ private fun UserPostCard(post: PostData) {
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(
-            containerColor = Color.White
+            containerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
@@ -264,12 +287,12 @@ private fun UserPostCard(post: PostData) {
                         text = post.author,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         text = post.timeAgo,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -280,7 +303,7 @@ private fun UserPostCard(post: PostData) {
             Text(
                 text = post.content,
                 fontSize = 14.sp,
-                color = Color.Black,
+                color = MaterialTheme.colorScheme.onSurface,
                 lineHeight = 20.sp
             )
             
@@ -297,13 +320,13 @@ private fun UserPostCard(post: PostData) {
                         imageVector = Icons.Default.FavoriteBorder,
                         contentDescription = "Like",
                         modifier = Modifier.size(18.dp),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = post.likes.toString(),
                         fontSize = 13.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                 }
@@ -315,13 +338,13 @@ private fun UserPostCard(post: PostData) {
                         imageVector = Icons.Default.ChatBubbleOutline,
                         contentDescription = "Comment",
                         modifier = Modifier.size(18.dp),
-                        tint = Color.Gray
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = post.comments.toString(),
                         fontSize = 13.sp,
-                        color = Color.Gray,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Medium
                     )
                 }

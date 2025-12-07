@@ -16,4 +16,6 @@ interface AuthRepository {
 
     suspend fun hasLoggedInUser() : Boolean
     suspend fun performDailyCheckIn() : AuthResult
+    suspend fun getUserById(userId: String): User?
+    suspend fun getUsersByIds(userIds: List<String>): List<User>
 }
