@@ -110,7 +110,7 @@ fun DashboardScreen(
                             }
 
                             FeatureType.TAROT -> {
-                                navController.navigate(Screen.Tarot.route)
+                                navController.navigate(Screen.TarotHub.route)
                             }
                         }
 

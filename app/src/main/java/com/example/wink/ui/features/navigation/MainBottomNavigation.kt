@@ -16,7 +16,7 @@ fun MainBottomNavigation(navController: NavController) {
         val exploreSubRoutes = listOf(
             Screen.Tips.route,
             Screen.Quiz.route,
-            Screen.Tarot.route    // 👈 thêm Tarot
+            Screen.TarotHub.route    // 👈 thêm Tarot
         )
 
         bottomNavItems.forEach { item ->

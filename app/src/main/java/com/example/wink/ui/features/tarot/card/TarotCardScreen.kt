@@ -1,4 +1,4 @@
-package com.example.wink.ui.features.tarot
+package com.example.wink.ui.features.tarot.card
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -17,19 +17,57 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.wink.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TarotScreen(
+fun TarotCardScreen(
     navController: NavController,
-    viewModel: TarotViewModel = hiltViewModel()
+    viewModel: TarotCardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // Dialog xác nhận dùng 50 Rizz
+    if (state.showConfirmDialog) {
+        AlertDialog(
+            onDismissRequest = { viewModel.onDismissDialogs() },
+            title = { Text("Hết lượt miễn phí!") },
+            text = { Text("Dùng 50 Rizz để rút lại một lá bài khác nhé?") },
+            confirmButton = {
+                Button(onClick = { viewModel.onConfirmUseRizz() }) {
+                    Text("Chốt đơn")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onDismissDialogs() }) {
+                    Text("Thôi")
+                }
+            }
+        )
+    }
+
+    // Dialog không đủ Rizz -> quay về hub
+    if (state.showNotEnoughDialog) {
+        AlertDialog(
+            onDismissRequest = { /* không cho bấm ra ngoài */ },
+            title = { Text("Không đủ Rizz") },
+            text = { Text("Bạn không đủ điểm Rizz để rút tiếp. Hẹn bạn lần sau nhé!") },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.onNotEnoughDialogHandled()
+                    navController.popBackStack(Screen.TarotHub.route, inclusive = false)
+                }) {
+                    Text("Quay về hub")
+                }
+            },
+            dismissButton = {}
+        )
+    }
+
     Scaffold(
         topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text(text = "Tarot tình yêu") },
+            TopAppBar(
+                title = { Text("Bói bài tây", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
                         Icon(
@@ -56,7 +94,8 @@ fun TarotScreen(
                     .fillMaxWidth()
                     .weight(1f)
                     .clickable(enabled = !state.isLoading) {
-                        viewModel.drawCard()
+                        // Chạm vào lá bài cũng coi như bấm nút rút
+                        viewModel.onDrawButtonClicked()
                     },
                 shape = RoundedCornerShape(24.dp),
                 elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
@@ -131,26 +170,22 @@ fun TarotScreen(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // ====== NÚT ACTION ======
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically
+            // ====== NÚT ACTION (một nút duy nhất, căn giữa) ======
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth(),
+                contentAlignment = Alignment.Center
             ) {
                 Button(
                     enabled = !state.isLoading,
-                    onClick = { viewModel.drawCard() }
+                    onClick = { viewModel.onDrawButtonClicked() },
+                    modifier = Modifier
+                        .fillMaxWidth(0.6f)   // ~60% chiều rộng, nhìn gọn
+                        .height(48.dp)
                 ) {
-                    Text(text = if (state.currentCard == null) "Rút bài" else "Rút lại")
-                }
-
-                if (state.currentCard != null) {
-                    Button(
-                        enabled = !state.isLoading,
-                        onClick = { viewModel.reset() }
-                    ) {
-                        Text(text = "Xoá")
-                    }
+                    Text(
+                        text = if (state.currentCard == null) "Rút bài" else "Rút lại"
+                    )
                 }
             }
 
