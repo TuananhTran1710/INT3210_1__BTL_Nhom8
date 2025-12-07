@@ -440,6 +440,78 @@ override suspend fun performDailyCheckIn(): AuthResult {
         }
     }
 
+    override suspend fun getUserById(userId: String): User? {
+        return try {
+            val document = firestore.collection("users")
+                .document(userId)
+                .get()
+                .await()
+
+            if (document.exists()) {
+                val data = document.data ?: return null
+                User(
+                    uid = data["uid"] as? String ?: userId,
+                    email = data["email"] as? String,
+                    username = data["username"] as? String ?: "Unknown",
+                    gender = data["gender"] as? String ?: "",
+                    preference = data["preference"] as? String ?: "",
+                    rizzPoints = (data["rizzPoints"] as? Long)?.toInt() ?: 0,
+                    loginStreak = (data["loginStreak"] as? Long)?.toInt() ?: 0,
+                    avatarUrl = data["avatarUrl"] as? String ?: "",
+                    lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
+                    longestStreak = (data["longestStreak"] as? Long)?.toInt() ?: 0,
+                    friendsList = data["friendsList"] as? List<String> ?: emptyList(),
+                    quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
+                )
+            } else {
+                null
+            }
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error getting user by id: $userId", e)
+            null
+        }
+    }
+
+    override suspend fun getUsersByIds(userIds: List<String>): List<User> {
+        if (userIds.isEmpty()) return emptyList()
+
+        return try {
+            val users = mutableListOf<User>()
+
+            // Firestore has a limit of 10 items per 'in' query, so we need to batch
+            userIds.chunked(10).forEach { chunk ->
+                val querySnapshot = firestore.collection("users")
+                    .whereIn("uid", chunk)
+                    .get()
+                    .await()
+
+                querySnapshot.documents.forEach { document ->
+                    val data = document.data ?: return@forEach
+                    val user = User(
+                        uid = data["uid"] as? String ?: document.id,
+                        email = data["email"] as? String,
+                        username = data["username"] as? String ?: "Unknown",
+                        gender = data["gender"] as? String ?: "",
+                        preference = data["preference"] as? String ?: "",
+                        rizzPoints = (data["rizzPoints"] as? Long)?.toInt() ?: 0,
+                        loginStreak = (data["loginStreak"] as? Long)?.toInt() ?: 0,
+                        avatarUrl = data["avatarUrl"] as? String ?: "",
+                        lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
+                        longestStreak = (data["longestStreak"] as? Long)?.toInt() ?: 0,
+                        friendsList = data["friendsList"] as? List<String> ?: emptyList(),
+                        quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
+                    )
+                    users.add(user)
+                }
+            }
+
+            users
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error getting users by ids", e)
+            emptyList()
+        }
+    }
+
 //
 //    override
 //    suspend fun ensureUserDocumentExists(): AuthResult {
