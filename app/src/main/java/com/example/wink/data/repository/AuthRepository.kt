@@ -22,4 +22,9 @@ interface AuthRepository {
 
     suspend fun updateUserProfile(uid: String, username: String, avatarUrl: String): Result<Unit>
     suspend fun updateEmail(newEmail: String): Result<Unit>
+    suspend fun updateUserPreferences(
+        gender: String,
+        preference: String,
+        personalities: List<String>
+    ): AuthResult
 }

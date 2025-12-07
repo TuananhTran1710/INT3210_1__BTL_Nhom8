@@ -7,6 +7,7 @@ import com.example.wink.ui.features.signup.SignupScreen
 import com.google.firebase.Timestamp
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.SetOptions
 import com.google.firebase.storage.FirebaseStorage
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -406,6 +407,35 @@ override suspend fun performDailyCheckIn(): AuthResult {
             }
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override suspend fun updateUserPreferences(
+        gender: String,
+        preference: String,
+        personalities: List<String>
+    ): AuthResult {
+        return try {
+            val uid = firebaseAuth.currentUser?.uid
+                ?: return Result.failure(Exception("User not logged in"))
+
+            // Tạo map dữ liệu cần cập nhật
+            val updates = hashMapOf(
+                "gender" to gender,
+                "preference" to preference,
+                "personalities" to personalities, // Lưu danh sách tính cách
+                "isOnboardingCompleted" to true   // Đánh dấu đã xong để lần sau ko hiện lại
+            )
+
+            // Dùng set + merge để an toàn (Tạo mới nếu chưa có, cập nhật nếu đã có)
+            firestore.collection("users")
+                .document(uid)
+                .set(updates, SetOptions.merge())
+                .await()
+
+            Result.success(Unit)
+        } catch (e: Exception) {
+            e.printStackTrace()
             Result.failure(e)
         }
     }
