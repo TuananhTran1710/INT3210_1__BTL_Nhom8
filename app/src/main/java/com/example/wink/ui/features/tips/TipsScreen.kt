@@ -9,9 +9,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.LockOpen
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -19,12 +21,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.wink.data.model.Tip
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,9 +44,17 @@ fun TipsScreen(
     // Lắng nghe sự kiện điều hướng (Khi mở bí kíp thành công)
     LaunchedEffect(true) {
         viewModel.navigationEvent.collect { tipId ->
-            // Navigate tới màn chi tiết (Cần định nghĩa trong Screen.kt sau)
-            // navController.navigate("tip_detail/$tipId")
-            println("Navigate to Tip: $tipId") // Log tạm
+            // Tìm object Tip tương ứng với ID (ViewModel chỉ gửi ID, ta cần tìm object đầy đủ)
+            // Tuy nhiên, để nhanh gọn, ta sửa ViewModel gửi nguyên object Tip luôn (Xem Bước 2 phụ bên dưới)
+            // HOẶC tìm trong list hiện tại:
+            val selectedTip = state.tips.find { it.id == tipId }
+
+            if (selectedTip != null) {
+                // 1. Nhét dữ liệu vào túi
+                navController.currentBackStackEntry?.savedStateHandle?.set("selectedTip", selectedTip)
+                // 2. Đi tới màn chi tiết
+                navController.navigate("tip_detail_screen")
+            }
         }
     }
 
@@ -106,80 +120,120 @@ fun TipsScreen(
 
 @Composable
 fun TipCard(tip: Tip, onClick: () -> Unit) {
-    val containerColor = if (tip.isLocked)
-        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f) // Màu tối hơn nếu khóa
-    else
-        MaterialTheme.colorScheme.surface
-
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = containerColor),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (tip.isLocked) 0.dp else 2.dp),
-        modifier = Modifier.fillMaxWidth()
+        // Nếu khóa thì nền xám, mở thì nền trắng/surface
+        colors = CardDefaults.cardColors(
+            containerColor = if (tip.isLocked) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            else MaterialTheme.colorScheme.surface
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min) // Để chiều cao Row tự co giãn đều
     ) {
         Row(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Icon Trạng thái (Khóa/Mở)
+            // --- 1. THUMBNAIL AREA ---
             Box(
                 modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (tip.isLocked) MaterialTheme.colorScheme.outlineVariant
-                        else MaterialTheme.colorScheme.primaryContainer
-                    ),
+                    .width(100.dp)
+                    .fillMaxHeight()
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    imageVector = if (tip.isLocked) Icons.Default.Lock else Icons.Default.LockOpen,
-                    contentDescription = null,
-                    tint = if (tip.isLocked) Color.Gray else MaterialTheme.colorScheme.primary
-                )
-            }
+                // Hiển thị ảnh nếu có URL
+                if (!tip.imageUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(tip.imageUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
 
-            Spacer(modifier = Modifier.width(16.dp))
-
-            // Nội dung
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = tip.title,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = if (tip.isLocked) Color.Gray else MaterialTheme.colorScheme.onSurface
-                )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = tip.description,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (tip.isLocked) Color.Gray else MaterialTheme.colorScheme.onSurfaceVariant,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
-
-                // Nếu khóa -> Hiện giá
+                // Nếu KHÓA -> Phủ lớp đen mờ + Icon Khóa
                 if (tip.isLocked) {
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = "${tip.price} RIZZ",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.Black.copy(alpha = 0.4f)) // Mờ đen
+                    )
+                    Icon(
+                        imageVector = Icons.Default.Lock,
+                        contentDescription = "Locked",
+                        tint = Color.White.copy(alpha = 0.9f),
+                        modifier = Modifier.size(32.dp)
+                    )
+                } else if (tip.imageUrl.isNullOrBlank()) {
+                    // Nếu không có ảnh và đã mở khóa -> Hiện icon sách mặc định
+                    Icon(
+                        imageVector = Icons.Default.MenuBook, // Hoặc icon nào đó
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(32.dp)
                     )
                 }
             }
 
-            // Mũi tên điều hướng (Chỉ hiện nếu đã mở)
-            if (!tip.isLocked) {
-                Icon(
-                    imageVector = Icons.Default.ArrowForward,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+            // --- 2. TEXT CONTENT AREA ---
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(16.dp)
+            ) {
+                Text(
+                    text = tip.title,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = if (tip.isLocked) Color.Gray else MaterialTheme.colorScheme.onSurface,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
                 )
+
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = tip.description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Footer: Giá tiền hoặc Mũi tên
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (tip.isLocked) {
+                        Text(
+                            text = "${tip.price} RIZZ",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.Bold
+                        )
+                    } else {
+                        Text(
+                            text = "Đọc ngay",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                            fontWeight = FontWeight.SemiBold
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            imageVector = Icons.Default.ArrowForward,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary
+                        )
+                    }
+                }
             }
         }
     }

@@ -11,6 +11,7 @@ import androidx.navigation.NavHostController // Changed from NavController
 import com.example.wink.ui.features.explore.ExploreScreen
 import androidx.navigation.NavType
 import androidx.navigation.navArgument
+import com.example.wink.data.model.Tip
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 import com.example.wink.ui.features.chat.ChatListScreen
@@ -21,6 +22,7 @@ import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.profile.UserDetailScreen
 import com.example.wink.ui.features.profile.SettingsScreen
 import com.example.wink.ui.features.social.SocialScreen
+import com.example.wink.ui.features.tips.TipDetailScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
 
@@ -69,7 +71,6 @@ fun MainNavHost(
         composable(Screen.Tips.route) {
             TipsScreen(navController = navController)
         }
-
         composable(Screen.Quiz.route) {
             QuizFeatureNavHost()
         }
@@ -83,6 +84,18 @@ fun MainNavHost(
                         popUpTo(0) { inclusive = true }
                     }
                 })
+        }
+        composable("tip_detail_screen") {
+            // Lấy dữ liệu từ màn hình trước đó gửi sang
+            val tip = navController.previousBackStackEntry?.savedStateHandle?.get<Tip>("selectedTip")
+
+            if (tip != null) {
+                // Gọi màn hình hiển thị
+                TipDetailScreen(
+                    tip = tip, // Truyền nguyên object Tip vào
+                    navController = navController
+                )
+            }
         }
     }
 }
