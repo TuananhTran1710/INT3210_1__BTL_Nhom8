@@ -465,7 +465,27 @@ fun CommentItem(comment: Comment) {
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
+            if (!comment.avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(comment.avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                // Avatar mặc định (Chữ cái đầu)
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = comment.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.width(8.dp))
         Column {
@@ -687,7 +707,27 @@ fun LeaderboardItem(rank: Int, user: User, onUserClick: (String) -> Unit) {
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(10.dp))
+            if (user.avatarUrl.isNotBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(user.avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                // Avatar mặc định nếu user chưa đặt ảnh
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = user.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
