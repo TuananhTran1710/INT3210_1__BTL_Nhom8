@@ -42,7 +42,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Size
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
@@ -215,12 +217,16 @@ fun FeedList(
         }
 
         // Các bài post bên dưới
-        items(posts) { post ->
+        items(
+            items = posts,
+            key = { post -> post.id },
+            contentType = { "post_item" }
+        ) { post ->
             FeedItem(post, onUserClick, onLikeClick, onCommentClick, onImageClick = onImageClick)
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
                 thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.67f)
             )
         }
     }
@@ -264,6 +270,9 @@ fun FeedItem(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(post.avatarUrl)
                             .crossfade(true)
+                            .size(Size.ORIGINAL)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = "Avatar",
                         contentScale = ContentScale.Crop,
@@ -308,11 +317,14 @@ fun FeedItem(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(imageUrl)
                             .crossfade(true)
+                            .size(Size.ORIGINAL)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = "Post Image",
                         contentScale = ContentScale.Crop, // Cắt ảnh thành hình vuông
                         modifier = Modifier
-                            .size(120.dp) // Kích thước cố định hình vuông nhỏ
+                            .size(250.dp) // Kích thước cố định hình vuông nhỏ
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { onImageClick(imageUrl) } // Bấm vào để xem full
