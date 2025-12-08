@@ -44,7 +44,7 @@ class AuthRepositoryImpl @Inject constructor(
                                 username = firebaseUser.displayName ?: "No Name",
                                 gender = "",
                                 preference = "",
-                                avatarUrl = firebaseUser.photoUrl?.toString() ?: ""
+                                avatarUrl = firebaseUser.photoUrl?.toString() ?: "",
                             )
                             trySend(basicUser)
                             return@addSnapshotListener
@@ -64,6 +64,7 @@ class AuthRepositoryImpl @Inject constructor(
                                     avatarUrl = data["avatarUrl"] as? String ?: "",
                                     lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
                                     friendsList = data["friendsList"] as? List<String> ?: emptyList(),
+                                    unlockedTips = data["unlockedTips"] as? List<String> ?: emptyList(),
                                     quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList(),
                                     quizzesUnlocked = data["quizzesUnlocked"] as? List<String> ?: listOf("rizz_001", "rizz_002", "rizz_003", "rizz_004")
                                 )
