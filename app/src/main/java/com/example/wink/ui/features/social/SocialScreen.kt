@@ -98,7 +98,9 @@ fun SocialScreen(
             onImagesSelected = { viewModel.onImagesSelected(it) }, // Callback chọn ảnh
             onRemoveImage = { viewModel.onRemoveSelectedImage(it) }, // Callback xóa ảnh
             onDismiss = { viewModel.onDismissPostDialog() },
-            onPost = { viewModel.onSendPost() }
+            onPost = { viewModel.onSendPost() },
+            isPosting = state.isPosting,
+            userAvatarUrl = state.currentUserAvatarUrl,
         )
     }
 
@@ -128,6 +130,7 @@ fun SocialScreen(
                 if (state.selectedTab == 0) {
                     FeedList(
                         posts = state.feedList,
+                        currentUserAvatarUrl = state.currentUserAvatarUrl,
                         onUserClick = { userId ->
                             // Chuyển sang màn hình hồ sơ người khác
                             navController.navigate(Screen.UserDetail.createRoute(userId))
@@ -135,7 +138,7 @@ fun SocialScreen(
                         onCreatePostClick = { viewModel.onFabClick() },
                         onLikeClick = { postId -> viewModel.onLikeClick(postId) },
                         onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) },
-                        onImageClick = { url -> viewingImageUrl = url }
+                        onImageClick = { url -> viewingImageUrl = url },
                     )
                 } else {
                     LeaderboardList(users = state.leaderboardList, onUserClick = { userId ->
@@ -148,7 +151,7 @@ fun SocialScreen(
 
 // --- 1. Thanh nhập liệu "Bạn đang nghĩ gì?" (Giống Facebook) ---
 @Composable
-fun CreatePostInputBar(onClick: () -> Unit) {
+fun CreatePostInputBar(currentUserAvatarUrl: String, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -166,12 +169,23 @@ fun CreatePostInputBar(onClick: () -> Unit) {
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.padding(8.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                if (currentUserAvatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(currentUserAvatarUrl)
+                            .crossfade(true).build(),
+                        contentDescription = "My Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -202,6 +216,7 @@ fun CreatePostInputBar(onClick: () -> Unit) {
 @Composable
 fun FeedList(
     posts: List<SocialPost>,
+    currentUserAvatarUrl: String,
     onUserClick: (String) -> Unit,
     onCreatePostClick: () -> Unit,
     onLikeClick: (String) -> Unit,      // Mới
@@ -211,7 +226,10 @@ fun FeedList(
     LazyColumn {
         // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
         item {
-            CreatePostInputBar(onClick = onCreatePostClick)
+            CreatePostInputBar(
+                currentUserAvatarUrl = currentUserAvatarUrl,
+                onClick = onCreatePostClick
+            )
             // Đường kẻ phân cách đậm hơn chút để tách phần nhập liệu với Feed
             HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         }
@@ -474,18 +492,17 @@ fun CreatePostDialog(
     onImagesSelected: (List<Uri>) -> Unit, // Callback khi chọn xong ảnh
     onRemoveImage: (Uri) -> Unit, // Callback xóa ảnh
     onDismiss: () -> Unit,
-    onPost: () -> Unit
+    onPost: () -> Unit,
+    userAvatarUrl: String, // Avatar user
+    isPosting: Boolean,
 ) {
-    // Launcher để mở thư viện ảnh
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5) // Chọn tối đa 5 ảnh
-    ) { uris ->
-        onImagesSelected(uris)
-    }
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5)
+    ) { uris -> onImagesSelected(uris) }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = !isPosting, dismissOnClickOutside = !isPosting)
     ) {
         Surface(
             modifier = Modifier
@@ -504,11 +521,38 @@ fun CreatePostDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Tạo bài viết", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Đóng")
+                    // Ẩn nút đóng khi đang đăng để tránh lỗi
+                    if (!isPosting) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Đóng")
+                        }
                     }
                 }
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // User Info Mini (Avatar thật)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(32.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        if (userAvatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = userAvatarUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Có thể thêm tên user ở đây nếu muốn
+                    Text("Công khai", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Text Input
                 OutlinedTextField(
@@ -521,10 +565,11 @@ fun CreatePostDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent
-                    )
+                    ),
+                    enabled = !isPosting // Khóa nhập khi đang đăng
                 )
 
-                // --- KHU VỰC HIỂN THỊ ẢNH ĐANG CHỌN ---
+                // ... (Phần hiển thị ảnh đã chọn giữ nguyên) ...
                 if (selectedImages.isNotEmpty()) {
                     LazyRow(
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -541,15 +586,16 @@ fun CreatePostDialog(
                                         .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.Crop
                                 )
-                                // Nút xóa ảnh nhỏ ở góc
-                                IconButton(
-                                    onClick = { onRemoveImage(uri) },
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .align(Alignment.TopEnd)
-                                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.White, modifier = Modifier.size(16.dp))
+                                if (!isPosting) { // Chỉ cho xóa khi chưa bấm đăng
+                                    IconButton(
+                                        onClick = { onRemoveImage(uri) },
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .align(Alignment.TopEnd)
+                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
@@ -572,7 +618,7 @@ fun CreatePostDialog(
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    }) {
+                    }, enabled = !isPosting) {
                         Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Thêm ảnh", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -581,9 +627,20 @@ fun CreatePostDialog(
                 Button(
                     onClick = onPost,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = content.isNotBlank() || selectedImages.isNotEmpty()
+                    enabled = (content.isNotBlank() || selectedImages.isNotEmpty()) && !isPosting
                 ) {
-                    Text("Đăng ngay")
+                    if (isPosting) {
+                        // Hiệu ứng xoay tròn
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Đang đăng...")
+                    } else {
+                        Text("Đăng ngay")
+                    }
                 }
             }
         }

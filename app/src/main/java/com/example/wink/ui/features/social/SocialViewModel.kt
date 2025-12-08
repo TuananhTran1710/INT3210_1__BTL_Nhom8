@@ -39,6 +39,9 @@ class SocialViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->
                 currentUser = user
+                _uiState.update {
+                    it.copy(currentUserAvatarUrl = user?.avatarUrl ?: "")
+                }
             }
         }
     }
@@ -87,23 +90,27 @@ class SocialViewModel @Inject constructor(
         if ((content.isBlank() && selectedImages.isEmpty()) || user == null) return
 
         viewModelScope.launch {
+            // 1. BẬT LOADING
+            _uiState.update { it.copy(isPosting = true) }
+
             val uploadedImageUrls = mutableListOf<String>()
 
-            // Dùng async/awaitAll nếu muốn tối ưu
+            // 2. Upload ảnh (nếu có)
             for (uri in selectedImages) {
                 val result = socialRepository.uploadImage(uri)
                 result.onSuccess { url ->
                     uploadedImageUrls.add(url)
                 }
-                // Nếu upload lỗi 1 ảnh, có thể chọn skip hoặc báo lỗi
             }
-            // Gọi Repo tạo post
+
+            // 3. Tạo bài viết
             socialRepository.createPost(content, uploadedImageUrls, user)
 
-            // Reset UI
+            // 4. TẮT LOADING & RESET & ĐÓNG DIALOG
             _uiState.update {
                 it.copy(
-                    isCreatingPost = false,
+                    isPosting = false, // Tắt loading
+                    isCreatingPost = false, // Đóng dialog
                     newPostContent = "",
                     selectedImageUris = emptyList()
                 )
