@@ -114,7 +114,7 @@ fun ProfileScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(bottom = padding.calculateBottomPadding()), // Trừ padding bottom bar
+                .padding(top = padding.calculateTopPadding()), // Trừ padding bottom bar
             contentPadding = PaddingValues(0.dp)
         ) {
             // 1. COVER & AVATAR SECTION

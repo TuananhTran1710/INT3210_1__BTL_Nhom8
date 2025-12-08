@@ -123,7 +123,7 @@ fun SocialScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(modifier = Modifier.padding(top = padding.calculateTopPadding()).fillMaxSize()) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
@@ -276,12 +276,14 @@ fun FeedItem(
             ) {
                 if (post.avatarUrl.isNullOrBlank()) {
                     // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.padding(8.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = post.username.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 } else {
                     // Trường hợp 2: Có avatar -> Load ảnh từ URL
                     AsyncImage(
