@@ -1,4 +1,4 @@
-// File: data/repository/UserRepositoryImpl.kt
+// data/repository/UserRepositoryImpl.kt
 package com.example.wink.data.repository
 
 import com.example.wink.data.model.User
@@ -14,10 +14,11 @@ class UserRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore
 ) : UserRepository {
 
+    private val usersCollection get() = firestore.collection("users")
+
     override suspend fun saveUserProfile(user: User) {
         val uid = user.uid
-        firestore.collection("users")
-            .document(uid)
+        usersCollection.document(uid)
             .set(user)
             .await()
     }
@@ -25,10 +26,10 @@ class UserRepositoryImpl @Inject constructor(
     override suspend fun getCurrentUid(): String? = auth.currentUser?.uid
     override suspend fun getCurrentUserEmail(): String? = auth.currentUser?.email
 
-    // --- RIZZ (ví dụ) ---
+    // --- RIZZ ---
     override suspend fun loadRizzPoints(): Int {
         val uid = getCurrentUid() ?: return 0
-        val snap = firestore.collection("users").document(uid).get().await()
+        val snap = usersCollection.document(uid).get().await()
         return (snap.getLong("rizzPoints") ?: 0L).toInt()
     }
 
@@ -38,7 +39,7 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun spendRizz(amount: Int): Boolean {
         val uid = getCurrentUid() ?: return false
-        val docRef = firestore.collection("users").document(uid)
+        val docRef = usersCollection.document(uid)
 
         return try {
             firestore.runTransaction { tx ->
@@ -56,12 +57,10 @@ class UserRepositoryImpl @Inject constructor(
     }
 
     // --------- TAROT FREE-USAGE --------------
-
     override suspend fun getTarotFreeUsage(): Map<String, Long> {
         val uid = getCurrentUid() ?: return emptyMap()
-        val snap = firestore.collection("users").document(uid).get().await()
+        val snap = usersCollection.document(uid).get().await()
 
-        // Trong user doc lưu 1 map "tarotFreeUsage": { "BY_NAME": 20000, "ZODIAC": 20001, ... }
         val raw = snap.get("tarotFreeUsage") as? Map<*, *> ?: emptyMap<Any, Any>()
         val result = mutableMapOf<String, Long>()
         raw.forEach { (k, v) ->
@@ -78,9 +77,35 @@ class UserRepositoryImpl @Inject constructor(
 
     override suspend fun markTarotFreeUsedToday(featureKey: String, todayEpochDay: Long) {
         val uid = getCurrentUid() ?: return
-        val docRef = firestore.collection("users").document(uid)
-
-        // cập nhật field "tarotFreeUsage.FEATURE_KEY" = todayEpochDay
+        val docRef = usersCollection.document(uid)
         docRef.update("tarotFreeUsage.$featureKey", todayEpochDay).await()
+    }
+
+    // --------- ICON SHOP --------------
+
+    override suspend fun loadIconShopState(): Pair<List<String>, String?> {
+        val uid = getCurrentUid() ?: return emptyList<String>() to null
+        val snap = usersCollection.document(uid).get().await()
+
+        val owned = (snap.get("ownedIconIds") as? List<*>)?.mapNotNull { it as? String }
+            ?: emptyList()
+        val selected = snap.getString("selectedIconId")
+
+        return owned to selected
+    }
+
+    override suspend fun updateIconShopState(
+        ownedIconIds: List<String>,
+        selectedIconId: String
+    ) {
+        val uid = getCurrentUid() ?: return
+        val docRef = usersCollection.document(uid)
+
+        val data = mapOf(
+            "ownedIconIds" to ownedIconIds,
+            "selectedIconId" to selectedIconId
+        )
+
+        docRef.update(data).await()
     }
 }

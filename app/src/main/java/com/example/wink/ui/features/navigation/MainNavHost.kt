@@ -1,5 +1,11 @@
 package com.example.wink.ui.features.navigation
 
+import androidx.compose.animation.ExperimentalAnimationApi
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.wrapContentSize
@@ -8,16 +14,24 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController // Changed from NavController
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.navArgument
 import com.example.wink.data.model.Answer
 import com.example.wink.data.model.Question
 import com.example.wink.data.model.Quiz
+import com.example.wink.ui.features.chat.ChatListScreen
+import com.example.wink.ui.features.chat.MessageScreen
 import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.quiz.QuizListScreen
 import com.example.wink.ui.features.dashboard.DashboardScreen
+import com.example.wink.ui.features.friends.FriendsScreen
+import com.example.wink.ui.features.iconshop.IconShopScreen
+import com.example.wink.ui.features.profile.SettingsScreen
+import com.example.wink.ui.features.profile.UserDetailScreen
 import com.example.wink.ui.features.social.SocialScreen
 import com.example.wink.ui.features.tarot.card.TarotCardScreen
 import com.example.wink.ui.features.tarot.TarotHubScreen
@@ -27,8 +41,10 @@ import com.example.wink.ui.features.tarot.zodiac.TarotZodiacScreen
 import com.example.wink.ui.features.tarot.zodiac.results.TarotZodiacResultScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
+import com.google.accompanist.navigation.animation.AnimatedNavHost
 
 
+@OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun MainNavHost(
     navController: NavHostController, // For bottom navigation

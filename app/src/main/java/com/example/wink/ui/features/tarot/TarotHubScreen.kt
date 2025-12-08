@@ -16,8 +16,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import com.example.wink.ui.navigation.Screen
-
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -25,6 +23,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.wink.ui.navigation.Screen
 import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,7 +53,6 @@ fun TarotHubScreen(
         }
     }
 
-
     // Dialog: không đủ điểm Rizz
     if (state.showNotEnoughDialogFor != null) {
         AlertDialog(
@@ -69,7 +67,7 @@ fun TarotHubScreen(
         )
     }
 
-    // Dialog: xác nhận dùng 50 Rizz
+    // Dialog: xác nhận dùng Rizz
     state.confirmingFor?.let { type ->
         val feature = state.features.first { it.type == type }
         AlertDialog(
@@ -113,7 +111,7 @@ fun TarotHubScreen(
             modifier = Modifier
                 .padding(padding)
                 .fillMaxSize()
-                .background(Color(0xFF050B1A))  // nền tối giống thiết kế
+                .background(MaterialTheme.colorScheme.background)
         ) {
             Column(
                 modifier = Modifier
@@ -137,18 +135,19 @@ private fun LoveFortuneItem(
     feature: TarotSubFeatureUi,
     onClick: () -> Unit
 ) {
-    // Gradient cho từng loại
+    // Gradient đổi theo theme nhưng vẫn khác nhau cho từng loại
+    val colorScheme = MaterialTheme.colorScheme
     val gradient = when (feature.type) {
         LoveFortuneType.BY_NAME -> Brush.horizontalGradient(
-            listOf(Color(0xFFFF4081), Color(0xFF8E24AA))
+            listOf(colorScheme.primary, colorScheme.secondary)
         )
 
         LoveFortuneType.ZODIAC -> Brush.horizontalGradient(
-            listOf(Color(0xFF5C6BC0), Color(0xFF283593))
+            listOf(colorScheme.tertiary, colorScheme.primaryContainer)
         )
 
         LoveFortuneType.TAROT_CARD -> Brush.horizontalGradient(
-            listOf(Color(0xFFFF7043), Color(0xFF5D4037))
+            listOf(colorScheme.secondary, colorScheme.tertiaryContainer)
         )
     }
 
@@ -167,12 +166,14 @@ private fun LoveFortuneItem(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon tròn bên trái (placeholder, cậu có thể đổi thành Image riêng)
+                // Icon tròn bên trái
                 Box(
                     modifier = Modifier
                         .size(56.dp)
                         .clip(CircleShape)
-                        .background(Color(0x33FFFFFF)),
+                        .background(
+                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
+                        ),
                     contentAlignment = Alignment.Center
                 ) {
                     Text("❤", fontSize = 24.sp)
@@ -187,13 +188,13 @@ private fun LoveFortuneItem(
                         text = feature.title,
                         fontSize = 18.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.White
+                        color = colorScheme.onPrimary
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = feature.description,
                         fontSize = 13.sp,
-                        color = Color(0xFFEEEEEE),
+                        color = colorScheme.onPrimary.copy(alpha = 0.9f),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
@@ -201,17 +202,24 @@ private fun LoveFortuneItem(
 
                 Spacer(modifier = Modifier.width(8.dp))
 
-                // Badge: "Miễn phí" hoặc "50 Rizz"
+                // Badge: "Miễn phí" hoặc "Rizz"
+                val badgeColor =
+                    if (feature.usedFreeToday) colorScheme.secondaryContainer
+                    else colorScheme.primaryContainer
+                val badgeTextColor =
+                    if (feature.usedFreeToday) colorScheme.onSecondaryContainer
+                    else colorScheme.onPrimaryContainer
+
                 Surface(
                     shape = RoundedCornerShape(8.dp),
-                    color = if (feature.usedFreeToday) Color(0xFFFFC107) else Color(0xFF388E3C)
+                    color = badgeColor
                 ) {
                     Text(
                         text = if (feature.usedFreeToday) "${feature.price} Rizz" else "Miễn phí",
                         modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = badgeTextColor
                     )
                 }
             }

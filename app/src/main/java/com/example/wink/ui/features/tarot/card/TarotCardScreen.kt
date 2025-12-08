@@ -57,7 +57,7 @@ fun TarotCardScreen(
                     viewModel.onNotEnoughDialogHandled()
                     navController.popBackStack(Screen.TarotHub.route, inclusive = false)
                 }) {
-                    Text("Quay về hub")
+                    Text("Quay về")
                 }
             },
             dismissButton = {}

@@ -1,4 +1,4 @@
-// File: data/repository/UserRepository.kt
+// data/repository/UserRepository.kt
 package com.example.wink.data.repository
 
 import com.example.wink.data.model.User
@@ -8,21 +8,19 @@ interface UserRepository {
     suspend fun getCurrentUid(): String?
     suspend fun getCurrentUserEmail(): String?
 
-    // --- RIZZ (cậu đã thêm) ---
+    // --- RIZZ ---
     suspend fun loadRizzPoints(): Int
     suspend fun canSpendRizz(amount: Int): Boolean
     suspend fun spendRizz(amount: Int): Boolean
 
     // --- Tarot free-usage ---
-    /**
-     * Lấy map ngày cuối cùng dùng free cho từng mini-feature.
-     * key: tên feature (vd: "BY_NAME", "ZODIAC", "TAROT_CARD")
-     * value: epochDay (Long) của ngày đó.
-     */
     suspend fun getTarotFreeUsage(): Map<String, Long>
-
-    /**
-     * Ghi nhận hôm nay đã dùng free cho featureKey.
-     */
     suspend fun markTarotFreeUsedToday(featureKey: String, todayEpochDay: Long)
+
+    // --- Icon shop: load & update trạng thái icon ---
+    suspend fun loadIconShopState(): Pair<List<String>, String?> // (ownedIds, selectedId)
+    suspend fun updateIconShopState(
+        ownedIconIds: List<String>,
+        selectedIconId: String
+    )
 }

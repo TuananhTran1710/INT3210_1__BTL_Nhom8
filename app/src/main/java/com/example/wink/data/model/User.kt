@@ -17,6 +17,9 @@ data class User(
     var longestStreak: Int = 0,
     val friends: List<String> = emptyList(),
 
+    // --- Icon shop ---
+    val selectedIconId: String? = null,
+    val ownedIconIds: List<String> = emptyList(),
     val friendsList: List<String> = emptyList(),      // list uid bạn bè
     val quizzesFinished: List<String> = emptyList()   // list quizId đã xong
 )

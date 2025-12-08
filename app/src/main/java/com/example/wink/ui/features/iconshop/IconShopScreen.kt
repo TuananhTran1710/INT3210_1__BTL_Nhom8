@@ -34,6 +34,7 @@ fun IconShopScreen(
     viewModel: IconShopViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
         topBar = {
@@ -54,7 +55,7 @@ fun IconShopScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFFF5F5F5))
+                .background(colorScheme.background)
                 .padding(padding)
                 .padding(16.dp)
         ) {
@@ -63,7 +64,7 @@ fun IconShopScreen(
             Card(
                 modifier = Modifier.fillMaxWidth(),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFFFFF3E0)
+                    containerColor = colorScheme.tertiaryContainer
                 ),
                 shape = RoundedCornerShape(16.dp)
             ) {
@@ -78,19 +79,19 @@ fun IconShopScreen(
                         Text(
                             text = "Điểm RIZZ của bạn",
                             fontSize = 14.sp,
-                            color = Color.DarkGray
+                            color = colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
                         )
                         Text(
                             text = state.rizzPoints.toString(),
                             fontSize = 24.sp,
                             fontWeight = FontWeight.Bold,
-                            color = Color(0xFFFF6F00)
+                            color = colorScheme.onTertiaryContainer
                         )
                     }
                     Icon(
                         imageVector = Icons.Default.Favorite,
                         contentDescription = null,
-                        tint = Color(0xFFFF6F00),
+                        tint = colorScheme.onTertiaryContainer,
                         modifier = Modifier.size(32.dp)
                     )
                 }
@@ -102,7 +103,7 @@ fun IconShopScreen(
             state.errorMessage?.let { msg ->
                 Text(
                     text = msg,
-                    color = MaterialTheme.colorScheme.error,
+                    color = colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
@@ -133,6 +134,8 @@ private fun IconItem(
     item: IconItemUi,
     onClick: () -> Unit
 ) {
+    val colorScheme = MaterialTheme.colorScheme
+
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         modifier = Modifier.width(70.dp)
@@ -141,6 +144,7 @@ private fun IconItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
+                // Màu nền base lấy từ item.color, để vẫn đủ “màu mè”
                 .background(item.color)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
@@ -150,7 +154,9 @@ private fun IconItem(
                     modifier = Modifier
                         .matchParentSize()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color.White.copy(alpha = 0.25f))
+                        .background(
+                            colorScheme.surface.copy(alpha = 0.25f)
+                        )
                 )
             }
 
@@ -159,13 +165,13 @@ private fun IconItem(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.8f)),
+                        .background(colorScheme.surface.copy(alpha = 0.9f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Favorite,
                         contentDescription = null,
-                        tint = Color(0xFFFF4081),
+                        tint = colorScheme.primary,
                         modifier = Modifier.size(20.dp)
                     )
                 }
@@ -174,13 +180,13 @@ private fun IconItem(
                     modifier = Modifier
                         .size(32.dp)
                         .clip(CircleShape)
-                        .background(Color.Black.copy(alpha = 0.65f)),
+                        .background(colorScheme.onSurface.copy(alpha = 0.65f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = colorScheme.surface,
                         modifier = Modifier.size(18.dp)
                     )
                 }
@@ -194,14 +200,14 @@ private fun IconItem(
                 text = "${item.price} RP",
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
-                color = Color.Gray
+                color = colorScheme.onSurfaceVariant
             )
         } else {
             Text(
                 text = if (item.isSelected) "Đang dùng" else "Đã mua",
                 fontSize = 11.sp,
                 textAlign = TextAlign.Center,
-                color = if (item.isSelected) Color(0xFF388E3C) else Color.Gray
+                color = if (item.isSelected) colorScheme.primary else colorScheme.onSurfaceVariant
             )
         }
     }
