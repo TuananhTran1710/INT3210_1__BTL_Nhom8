@@ -8,4 +8,7 @@ sealed interface QuizEvent {
     object MoveNext : QuizEvent
     object MovePrev : QuizEvent
     data class JumpTo(val index: Int) : QuizEvent
+    data class TryAgain(val quizId: String) : QuizEvent
+    object BackToList : QuizEvent
+    data class UnlockQuiz(val quizId: String, val cost: Int) : QuizEvent
 }

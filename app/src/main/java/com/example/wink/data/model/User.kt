@@ -5,7 +5,6 @@ import com.google.firebase.firestore.DocumentId
 import com.google.firebase.Timestamp
 
 data class User(
-    @DocumentId
     val uid: String = "",
     val email: String? = null,
     val username: String = "",
@@ -18,5 +17,5 @@ data class User(
     var longestStreak: Int = 0,
 
     val friendsList: List<String> = emptyList(),      // list uid bạn bè
-    val quizzesFinished: List<String> = emptyList()   // list quizId đã xong
-)
+    val quizzesFinished: List<String> = emptyList(),   // list quizId đã xong
+    val quizzesUnlocked: List<String> = listOf("rizz_001", "rizz_002", "rizz_003", "rizz_004"))
