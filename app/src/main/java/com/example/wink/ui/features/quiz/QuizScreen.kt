@@ -1,58 +1,34 @@
 package com.example.wink.ui.features.quiz
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.example.wink.data.model.Question
+import androidx.compose.ui.unit.sp
 import com.example.wink.data.model.Quiz
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -68,529 +44,319 @@ fun QuizListScreen(
     val unlockedIds = state.quizzesUnlocked
     val currentRizz = state.currentRizzPoints
 
-    var selectedCategoryIndex by remember { mutableStateOf(0) }
-    val categories = remember { listOf("Chưa làm", "Đã làm") }
-    val selectedCategory = categories[selectedCategoryIndex]
-
+    // 1. SỬA TAB: Chỉ còn "Chưa hoàn thành" và "Đã hoàn thành"
+    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    val categories = listOf("Chưa hoàn thành", "Đã hoàn thành")
     var searchQuery by remember { mutableStateOf("") }
 
-    val filteredQuizzes = remember(quizzes, finishedIds, searchQuery, selectedCategory) {
+    // State cho Popup xác nhận mua
+    var quizToUnlock by remember { mutableStateOf<Quiz?>(null) }
+
+    val filteredQuizzes = remember(quizzes, finishedIds, searchQuery, selectedCategoryIndex) {
         quizzes
             .filter { quiz ->
                 val isFinished = finishedIds.contains(quiz.id)
-                when (selectedCategory) {
-                    "Đã làm" -> isFinished
-                    "Chưa làm" -> !isFinished
+                when (selectedCategoryIndex) {
+                    0 -> !isFinished // Tab 0: Chưa làm xong (bao gồm cả chưa unlock)
+                    1 -> isFinished  // Tab 1: Đã xong
                     else -> true
                 }
             }
             .filter { quiz ->
-                if (searchQuery.isBlank()) {
-                    true
-                } else {
-                    quiz.title.contains(searchQuery.trim(), ignoreCase = true)
-                }
+                if (searchQuery.isBlank()) true
+                else quiz.title.contains(searchQuery.trim(), ignoreCase = true)
             }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(title = { Text("Quizzes") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
-                        )
-                    }
-                },
-                windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp)
-            )
-        }
-    ) { padding ->
-        LazyColumn(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize(),
-            contentPadding = PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            item {
-                SearchBarComponent(
-                    searchQuery = searchQuery,
-                    onSearchQueryChange = { searchQuery = it }
-                )
-            }
+    // --- POPUP XÁC NHẬN MỞ KHÓA ---
+    if (quizToUnlock != null) {
+        val quiz = quizToUnlock!!
+        val canAfford = currentRizz >= quiz.rizzUnlockCost
 
-            item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(48.dp)
-                ) {
-                    categories.forEachIndexed { index, category ->
-                        BalancedCategoryItem(
-                            category = category,
-                            isSelected = category == selectedCategory,
-                            onClick = { selectedCategoryIndex = index },
-                            modifier = Modifier.weight(1f)
-                        )
+        AlertDialog(
+            onDismissRequest = { quizToUnlock = null },
+            icon = { Icon(Icons.Default.Lock, contentDescription = null, tint = MaterialTheme.colorScheme.primary) },
+            title = { Text("Mở khóa thử thách?") },
+            text = {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text("Bạn có muốn dùng ${quiz.rizzUnlockCost} RIZZ để mở khóa bài \"${quiz.title}\" không?", textAlign = TextAlign.Center)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (!canAfford) {
+                        Text("Bạn không đủ điểm! (Hiện có: $currentRizz)", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                    } else {
+                        Text("Số dư sau khi mua: ${currentRizz - quiz.rizzUnlockCost} RIZZ", color = Color.Gray, fontSize = 12.sp)
                     }
                 }
-                Spacer(modifier = Modifier
-                    .fillMaxWidth()
-                    .height(1.dp)
-                    .background(MaterialTheme.colorScheme.outlineVariant))
-            }
-
-            items(filteredQuizzes) { quiz ->
-                val isFinished = finishedIds.contains(quiz.id)
-                QuizCard(
-                    quiz = quiz,
-                    isFinished = isFinished,
-                    isUnlocked = unlockedIds.contains(quiz.id),
-                    currentRizzPoints = currentRizz,
-                    onClick = { onOpen(quiz.id) },
-                    onUnlock = onUnlock
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun SearchBarComponent(
-    searchQuery: String,
-    onSearchQueryChange: (String) -> Unit
-) {
-    OutlinedTextField(
-        value = searchQuery,
-        onValueChange = onSearchQueryChange,
-        label = { Text("Bạn đang tìm quiz nào?") },
-        leadingIcon = {
-            Icon(
-                imageVector = Icons.Default.Search,
-                contentDescription = "Search",
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        },
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        singleLine = true
-    )
-}
-
-@Composable
-fun BalancedCategoryItem(category: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
-    Column(
-        modifier = modifier
-            .clickable(onClick = onClick)
-            .height(48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            text = category,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.SemiBold,
-            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 12.dp)
-        )
-        Spacer(modifier = Modifier.weight(1f))
-
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(2.dp)
-                .background(
-                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
-                )
-        )
-    }
-}
-
-@Composable
-fun QuizCard(
-    quiz: Quiz,
-    isFinished: Boolean,
-    isUnlocked: Boolean,
-    currentRizzPoints: Int,
-    onClick: () -> Unit,
-    onUnlock: (String, Int) -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth(),
-        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-        shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        )
-    ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .fillMaxWidth()
-        ) {
-            Text(
-                text = quiz.title,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(Modifier.height(4.dp))
-
-            Text(
-                text = quiz.description,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis
-            )
-
-            Spacer(Modifier.height(12.dp))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val durationText = "3 phút"
-
-                    Text(
-                        text = "5 câu hỏi",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = "|",
-                        color = MaterialTheme.colorScheme.outline
-                    )
-
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(
-                        text = durationText,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-
-                val isLocked = !isFinished && !isUnlocked
-                val canAffordUnlock = currentRizzPoints >= quiz.rizzUnlockCost
-
+            },
+            confirmButton = {
                 Button(
                     onClick = {
-                        when {
-                            isFinished || isUnlocked -> onClick()
-                            isLocked && canAffordUnlock -> onUnlock(quiz.id, quiz.rizzUnlockCost)
-                        }
+                        onUnlock(quiz.id, quiz.rizzUnlockCost)
+                        quizToUnlock = null
                     },
-                    enabled = !isLocked || canAffordUnlock,
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp)
+                    enabled = canAfford
                 ) {
-                    val buttonText = when {
-                        isFinished -> "Ôn lại"
-                        isUnlocked -> "Bắt đầu"
-                        else -> "Unlock: ${quiz.rizzUnlockCost} Rizz"
-                    }
-                    Text(buttonText)
+                    Text("Mở khóa ngay")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { quizToUnlock = null }) {
+                    Text("Hủy")
                 }
             }
-        }
+        )
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun QuizDetailScreen(
-    state: QuizUiState.QuizDetail,
-    onSelect: (String, Int?) -> Unit,
-    onSubmit: () -> Unit,
-    onMovePrev: () -> Unit,
-    onMoveNext: () -> Unit,
-    onJumpTo: (Int) -> Unit,
-    onBack: () -> Unit
-) {
-    val quiz = state.quiz
-    val currentIndex = state.currentQuestionIndex
-    val currentQuestion = quiz.questions[currentIndex]
-    var showQuestionPicker by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(quiz.title) },
+                title = { Text("Thử thách EQ", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
                 actions = {
-                    IconButton(onClick = { showQuestionPicker = true }) {
-                        Text("Danh sách")
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700), modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = "$currentRizz",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
                     }
                 },
                 windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp)
             )
-        }
+        },
+        containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         Column(
             modifier = Modifier
-                .padding(padding)
-                .padding(16.dp)
+                .padding(top = padding.calculateTopPadding())
                 .fillMaxSize()
         ) {
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .verticalScroll(rememberScrollState())
+            // 1. Search Bar Compact
+            SearchBarCompact(
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it }
+            )
+
+            // 2. Filter Tabs
+            TabRow(
+                selectedTabIndex = selectedCategoryIndex,
+                containerColor = Color.Transparent,
+                contentColor = MaterialTheme.colorScheme.primary,
+                divider = { HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)) }
             ) {
-                Text(
-                    text = "Câu hỏi ${currentIndex + 1}/${quiz.questions.size}",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                categories.forEachIndexed { index, title ->
+                    Tab(
+                        selected = selectedCategoryIndex == index,
+                        onClick = { selectedCategoryIndex = index },
+                        text = { Text(title, fontWeight = FontWeight.Medium) },
+                        selectedContentColor = MaterialTheme.colorScheme.primary,
+                        unselectedContentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
-                QuestionItem(
-                    question = currentQuestion,
-                    selectedIndex = state.selectedAnswers[currentQuestion.id],
-                    isSubmitted = state.isSubmitted,
-                    onSelect = { idx -> onSelect(currentQuestion.id, idx) }
-                )
-
-                Spacer(modifier = Modifier.height(24.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        enabled = currentIndex > 0,
-                        onClick = onMovePrev,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("← Trước")
-                    }
-
-                    Button(
-                        enabled = currentIndex < quiz.questions.size - 1,
-                        onClick = onMoveNext,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Text("Sau →")
+            // 3. Quiz List
+            LazyColumn(
+                contentPadding = PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                if (filteredQuizzes.isEmpty()) {
+                    item {
+                        Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                            Text("Chưa có bài quiz nào ở mục này", color = MaterialTheme.colorScheme.outline)
+                        }
                     }
                 }
+                items(filteredQuizzes) { quiz ->
+                    val isFinished = finishedIds.contains(quiz.id)
+                    // Logic check unlock: đã mở nếu user đã mua HOẶC giá = 0
+                    val isUnlocked = unlockedIds.contains(quiz.id) || quiz.rizzUnlockCost == 0
 
-                Spacer(modifier = Modifier.height(24.dp))
-            }
-
-            Button(
-                onClick = onSubmit,
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !state.isSubmitted
-            ) {
-                Text("Nộp")
-            }
-
-            if (state.isSubmitted) {
-                Spacer(Modifier.height(16.dp))
-                Text(
-                    text = "Result: ${state.score} / ${quiz.questions.size}",
-                    style = MaterialTheme.typography.titleMedium
-                )
+                    QuizCard(
+                        quiz = quiz,
+                        isFinished = isFinished,
+                        isUnlocked = isUnlocked,
+                        onClick = {
+                            if (isUnlocked || isFinished) onOpen(quiz.id)
+                            else quizToUnlock = quiz // Hiện popup thay vì gọi trực tiếp
+                        }
+                    )
+                }
             }
         }
+    }
+}
 
-        if (showQuestionPicker) {
-            QuestionPickerDialog(
-                state = state,
-                onSelectQuestion = { idx ->
-                    onJumpTo(idx)
-                    showQuestionPicker = false
+// --- 1. SEARCH BAR COMPACT (Nhỏ gọn hơn) ---
+@Composable
+fun SearchBarCompact(
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit
+) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .height(42.dp), // Chiều cao cố định nhỏ hơn
+        shape = RoundedCornerShape(24.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = 12.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Search,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(20.dp)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+            BasicTextField(
+                value = searchQuery,
+                onValueChange = onSearchQueryChange,
+                singleLine = true,
+                textStyle = TextStyle(
+                    fontSize = 14.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                ),
+                decorationBox = { innerTextField ->
+                    if (searchQuery.isEmpty()) {
+                        Text("Tìm kiếm chủ đề...", style = TextStyle(fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurfaceVariant))
+                    }
+                    innerTextField()
                 },
-                onSubmit = {
-                    onSubmit()
-                    showQuestionPicker = false
-                },
-                onDismiss = { showQuestionPicker = false }
+                modifier = Modifier.weight(1f)
             )
         }
     }
 }
 
+// --- 2. QUIZ CARD MỚI (Đẹp hơn cho Locked Item) ---
 @Composable
-private fun QuestionItem(
-    question: Question,
-    selectedIndex: Int?,
-    isSubmitted: Boolean,
-    onSelect: (Int?) -> Unit
+fun QuizCard(
+    quiz: Quiz,
+    isFinished: Boolean,
+    isUnlocked: Boolean,
+    onClick: () -> Unit
 ) {
-    Card(modifier = Modifier.fillMaxWidth(), elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)) {
-        Column(modifier = Modifier.padding(12.dp)) {
-            Text(text = question.text, style = MaterialTheme.typography.bodyLarge, fontWeight = FontWeight.SemiBold)
-            Spacer(modifier = Modifier.height(8.dp))
-            question.answers.forEachIndexed { index, answer ->
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable(enabled = !isSubmitted) {
-                        if (!isSubmitted) {
-                            if (selectedIndex == index) onSelect(null) else onSelect(index)
-                        }
+    val isLocked = !isFinished && !isUnlocked
+
+    ElevatedCard(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (isLocked) 0.dp else 4.dp),
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = if (isFinished) MaterialTheme.colorScheme.surfaceContainerHigh
+            else MaterialTheme.colorScheme.surface
+        )
+    ) {
+        Box {
+            // Nội dung chính
+            Row(
+                modifier = Modifier
+                    .padding(16.dp)
+                    .fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon trạng thái
+                Surface(
+                    modifier = Modifier.size(40.dp),
+                    shape = CircleShape,
+                    color = when {
+                        isFinished -> MaterialTheme.colorScheme.primaryContainer
+                        else -> MaterialTheme.colorScheme.tertiaryContainer
                     }
-                    .padding(vertical = 6.dp)
                 ) {
-                    RadioButton(
-                        selected = selectedIndex == index,
-                        onClick = {
-                            if (!isSubmitted) {
-                                if (selectedIndex == index) onSelect(null) else onSelect(index)
-                            }
-                        }
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = answer.text)
-                    if (isSubmitted) {
-                        Spacer(modifier = Modifier.weight(1f))
-                        if (index == question.correctIndex) {
-                            Text(text = "✓", fontWeight = FontWeight.Bold)
-                        } else if (selectedIndex == index) {
-                            Text(text = "✗", fontWeight = FontWeight.Bold)
-                        }
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = if (isFinished) Icons.Default.CheckCircle else Icons.Default.Quiz,
+                            contentDescription = null,
+                            tint = if (isFinished) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.tertiary,
+                            modifier = Modifier.size(28.dp)
+                        )
                     }
                 }
-            }
-        }
-    }
-}
 
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-fun QuestionPickerDialog(
-    state: QuizUiState.QuizDetail,
-    onSelectQuestion: (Int) -> Unit,
-    onSubmit: () -> Unit,
-    onDismiss: () -> Unit
-) {
-    androidx.compose.material3.AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Câu hỏi") },
-        text = {
-            FlowRow(
-                maxItemsInEachRow = 6,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                state.quiz.questions.forEachIndexed { index, q ->
-                    val answered = state.selectedAnswers[q.id] != null
+                Spacer(modifier = Modifier.width(16.dp))
 
-                    val bg = if (answered)
-                        MaterialTheme.colorScheme.primaryContainer
-                    else
-                        MaterialTheme.colorScheme.surfaceVariant
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = quiz.title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(
+                        text = quiz.description,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .size(48.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(bg)
-                            .clickable { onSelectQuestion(index) }
-                            .padding(8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Timer, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+                        Spacer(modifier = Modifier.width(4.dp))
                         Text(
-                            text = "${index + 1}",
-                            style = MaterialTheme.typography.bodyLarge,
-                            fontWeight = FontWeight.Bold
+                            text = "${quiz.questionCount} câu hỏi",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.outline
                         )
                     }
                 }
             }
-        },
-        confirmButton = {
-            Button(onClick = onSubmit, enabled = !state.isSubmitted) {
-                Text("Nộp")
-            }
-        },
-        dismissButton = {
-            Button(onClick = onDismiss) {
-                Text("Đóng")
-            }
-        }
-    )
-}
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun QuizResultScreen(
-    state: QuizUiState.QuizResult,
-    onBackToList: () -> Unit,
-    onTryAgain: (String) -> Unit
-) {
-    Scaffold(
-        topBar = { TopAppBar(title = { Text("Kết quả") }) }
-    ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .padding(32.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            val title = if (state.isPerfectScore) "Hoàn Thành!" else "Cần cố gắng hơn!"
-            val message = if (state.isPerfectScore)
-                "Bạn đã trả lời đúng tất cả ${state.maxScore} câu hỏi. Thật tuyệt vời!"
-            else
-                "Bạn đã đúng ${state.score} trên ${state.maxScore} câu. Đừng bỏ cuộc!"
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.headlineLarge,
-                fontWeight = FontWeight.Bold,
-                color = if (state.isPerfectScore) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Text(
-                text = message,
-                style = MaterialTheme.typography.titleMedium,
-                textAlign = TextAlign.Center
-            )
-
-            if (state.rizzPointsEarned > 0) {
-                Spacer(Modifier.height(24.dp))
-                Text(
-                    text = "🎉 +${state.rizzPointsEarned} Rizz!",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.primary
-                )
-            }
-
-            Spacer(Modifier.height(40.dp))
-
-            if (!state.isPerfectScore) {
-                Button(onClick = { onTryAgain(state.quiz.id) }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Làm lại")
+            // --- LỚP PHỦ CHO QUIZ BỊ KHÓA ---
+            if (isLocked) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize() // Phủ kín card
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)) // Làm mờ nội dung bên dưới
+                        .clickable { onClick() }, // Bắt sự kiện click để hiện popup
+                    contentAlignment = Alignment.Center
+                ) {
+                    // Nút Mở khóa nằm giữa
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primary,
+                        shadowElevation = 6.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Lock, null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Mở khóa ${quiz.rizzUnlockCost} RIZZ",
+                                fontWeight = FontWeight.Bold,
+                                style = MaterialTheme.typography.labelLarge
+                            )
+                        }
+                    }
                 }
-                Spacer(Modifier.height(16.dp))
-            }
-
-            Button(
-                onClick = onBackToList,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Về danh sách Quiz")
             }
         }
     }

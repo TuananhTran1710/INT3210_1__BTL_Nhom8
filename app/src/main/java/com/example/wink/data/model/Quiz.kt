@@ -11,5 +11,6 @@ data class Quiz(
     val rizzUnlockCost: Int = 0,
 
     @get:Exclude @Exclude
-    val questions: List<Question> = emptyList()
+    val questions: List<Question> = emptyList(),
+    val questionCount: Int = 0
 )

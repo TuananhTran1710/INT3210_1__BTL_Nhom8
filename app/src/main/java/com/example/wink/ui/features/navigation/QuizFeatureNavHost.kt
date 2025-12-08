@@ -1,5 +1,7 @@
 package com.example.wink.ui.features.navigation
 
+import QuizDetailScreen
+import QuizResultScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
