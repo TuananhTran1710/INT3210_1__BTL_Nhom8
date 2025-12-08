@@ -1,15 +1,23 @@
 package com.example.wink.ui.features.navigation
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.navigation.NavHostController
-import androidx.navigation.NavType
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.navigation.NavHostController // Changed from NavController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-import com.example.wink.ui.features.dashboard.DashboardScreen
+import com.example.wink.data.model.Answer
+import com.example.wink.data.model.Question
+import com.example.wink.data.model.Quiz
 import com.example.wink.ui.features.explore.ExploreScreen
-import com.example.wink.ui.features.iconshop.IconShopScreen
+import com.example.wink.ui.features.navigation.BottomNavItem
 import com.example.wink.ui.features.profile.ProfileScreen
+import com.example.wink.ui.features.quiz.QuizListScreen
+import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.social.SocialScreen
 import com.example.wink.ui.features.tarot.card.TarotCardScreen
 import com.example.wink.ui.features.tarot.TarotHubScreen
@@ -20,20 +28,41 @@ import com.example.wink.ui.features.tarot.zodiac.results.TarotZodiacResultScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
 
+
 @Composable
 fun MainNavHost(
-    navController: NavHostController,
-    mainNavController: NavHostController
+    navController: NavHostController, // For bottom navigation
+    mainNavController: NavHostController // For main app navigation (logout)
 ) {
-    NavHost(
+    AnimatedNavHost(
         navController = navController,
-        startDestination = BottomNavItem.Dashboard.route
+        startDestination = BottomNavItem.Dashboard.route,
+        enterTransition = { slideInHorizontally(initialOffsetX = { 1000 }, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)) },
+        exitTransition = { slideOutHorizontally(targetOffsetX = { -1000 }, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)) },
+        popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)) },
+        popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)) }
     ) {
         composable(BottomNavItem.Dashboard.route) {
-            DashboardScreen(navController = mainNavController)
+            DashboardScreen(navController = navController) // Use main nav controller for navigation
+        }
+        composable(BottomNavItem.Message.route) {
+            ChatListScreen(navController = navController)
+        }
+        composable(
+            route = "message/{chatId}",
+            arguments = listOf(navArgument("chatId") { type = NavType.StringType })
+        ) {
+            MessageScreen(navController = navController)
         }
         composable(BottomNavItem.Profile.route) {
-            ProfileScreen(navController = mainNavController)
+            ProfileScreen(navController = navController) // Use main nav controller for logout
+        }
+        composable(
+            route = Screen.UserDetail.route,
+            // Không cần arguments = listOf(...) vì NavHost tự parse {userId}
+        ) { backStackEntry ->
+            // Hilt sẽ tự inject ViewModel và lấy userId từ SavedStateHandle
+            UserDetailScreen(navController = navController)
         }
         composable(BottomNavItem.Social.route) {
             SocialScreen(navController = mainNavController)
@@ -80,6 +109,17 @@ fun MainNavHost(
         }
         composable(Screen.Quiz.route) {
             QuizFeatureNavHost()
+        }
+        composable(Screen.Friends.route) {
+            FriendsScreen(navController = navController)
+        }
+        composable(Screen.Settings.route) {
+            SettingsScreen(navController = navController,
+                onLogout = {
+                    mainNavController.navigate(Screen.Login.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                })
         }
 
         composable(Screen.ChangeIcon.route) {

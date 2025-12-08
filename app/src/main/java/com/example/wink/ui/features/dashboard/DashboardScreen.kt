@@ -1,8 +1,12 @@
 package com.example.wink.ui.features.dashboard
 
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.alpha
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
@@ -26,20 +30,23 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import androidx.compose.ui.res.painterResource
 import com.example.wink.R
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.annotation.DrawableRes
-import com.example.wink.ui.navigation.Screen
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.animation.core.*
+import androidx.compose.ui.res.painterResource
 
 
-enum class FeatureType {
-    SECRET_BOOK, // Bí kíp
-    CHANGE_ICON, // Đổi icon
-    TAROT        // Bói Tarot
-}
+
+data class DailyTask(
+    val id: Int,
+    val title: String,
+    val reward: Int,
+    val isCompleted: Boolean = false
+)
+
 @Composable
 fun DashboardScreen(
     navController: NavController,
@@ -47,141 +54,100 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color(0xFFF5F5F5))
-    ) {
-        // Main content
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            DashboardTopBar()
+        }
+    ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
-                .weight(1f)
+                .fillMaxSize()
+                .padding(paddingValues)
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header
-            item {
-                DashboardHeader()
-            }
-
-            // Weekly Calendar
-            item {
-                WeeklyCalendar(
-                    streakDays = uiState.dailyStreak,
-                    onDayClick = { viewModel.onEvent(DashboardEvent.OnDailyCheckIn) }
-                )
-            }
-
             // RIZZ Points Card
             item {
-                RizzPointsCard(
-                    points = uiState.rizzPoints,
-                    streakDays = uiState.dailyStreak,
-                    attended = uiState.hasDailyCheckIn,
-                    onStreakClick = {
-                        viewModel.onEvent(DashboardEvent.OnDailyCheckIn) }
-                )
+                AnimatedDashboardItem(delay = 0) {
+                    RizzPointsCard(
+                        points = uiState.rizzPoints,
+                        streakDays = uiState.dailyStreak,
+                        attended = uiState.hasDailyCheckIn,
+                        onStreakClick = {
+                            viewModel.onEvent(DashboardEvent.OnDailyCheckIn)
+                        }
+                    )
+                }
             }
 
             // AI Chat Feature
             item {
-                AIFeatureCard(
-                    onClick = { viewModel.onEvent(DashboardEvent.OnStartAIChat) }
-                )
+                AnimatedDashboardItem(delay = 100) {
+                    AIFeatureCard(
+                        onClick = {
+
+                            viewModel.onEvent(DashboardEvent.OnStartAIChat) }
+                    )
+                }
             }
 
-            // Daily Tasks
+            // Daily Tasks Section
             item {
-                TasksSection(
-                    onTaskClick = { viewModel.onEvent(DashboardEvent.OnCompleteTask) },
-                    onGameClick = { viewModel.onEvent(DashboardEvent.OnPlayGame) }
-                )
-            }
-            item {
-                ProgressFeaturesSection(
-                    onFeatureClick = { featureType ->
-                        when (featureType) {
-                            FeatureType.SECRET_BOOK -> {
-                                navController.navigate("secret_book")
-                            }
-
-                            FeatureType.CHANGE_ICON -> {
-                                navController.navigate("change_icon")
-                            }
-
-                            FeatureType.TAROT -> {
-                                navController.navigate(Screen.TarotHub.route)
-                            }
-                        }
-
-                    }
-                )
+                AnimatedDashboardItem(delay = 200) {
+                    DailyTasksSection(
+                        onTaskClick = { viewModel.onEvent(DashboardEvent.OnCompleteTask) }
+                    )
+                }
             }
 
         }
-
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun DashboardHeader() {
-    Text(
-        text = "TRANG CHỦ",
-        fontSize = 18.sp,
-        fontWeight = FontWeight.Bold,
-        color = Color.Black,
-        modifier = Modifier.fillMaxWidth(),
-        textAlign = TextAlign.Center
+private fun DashboardTopBar() {
+    TopAppBar(
+        title = {
+            Text(
+                text = "TRANG CHỦ",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        )
     )
 }
 
 @Composable
-private fun WeeklyCalendar(
-    streakDays: Int,
-    onDayClick: () -> Unit
+private fun AnimatedDashboardItem(
+    delay: Int,
+    content: @Composable () -> Unit
 ) {
-    val days = listOf("Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat")
+    var isVisible by remember { mutableStateOf(false) }
+    
+    LaunchedEffect(Unit) {
+        kotlinx.coroutines.delay(delay.toLong())
+        isVisible = true
+    }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceEvenly
+    val alpha by animateFloatAsState(
+        targetValue = if (isVisible) 1f else 0f,
+        animationSpec = tween(500),
+        label = "alpha_animation"
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .alpha(alpha)
     ) {
-        days.forEachIndexed { index, day ->
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-//                modifier = Modifier.clickable { onDayClick() }
-            ) {
-                Text(
-                    text = day,
-                    fontSize = 12.sp,
-                    color = Color.Gray,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-
-                Box(
-                    modifier = Modifier
-                        .size(40.dp)
-                    ,
-                    contentAlignment = Alignment.Center
-                ) {
-                    if (index < streakDays) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.fire1),
-                            contentDescription = null,
-                            tint = Color.Unspecified, // Giữ nguyên màu gốc của SVG
-                            modifier = Modifier.size(48.dp)
-                        )
-                    } else {
-                        Icon(
-                            painter = painterResource(id = R.drawable.fire2),
-                            contentDescription = null,
-                            tint = Color.Unspecified, // Giữ nguyên màu gốc của SVG
-                            modifier = Modifier.size(48.dp)
-                        )
-                    }
-                }
-            }
-        }
+        content()
     }
 }
 
@@ -192,111 +158,143 @@ private fun RizzPointsCard(
     attended: Boolean,
     onStreakClick: () -> Unit
 ) {
-    // 1. Định nghĩa màu Gradient giống Figma
+    var isPressed by remember { mutableStateOf(false) }
+    val isDarkMode = isSystemInDarkTheme()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = tween(300),
+        label = "rizz_card_scale"
+    )
+
+    // Adaptive gradient colors for light and dark mode
+    val gradientColors = if (isDarkMode) {
+        listOf(
+            Color(0xFFB8478A),  // Darker pink for dark mode
+            Color(0xFF5A4BA3)   // Darker purple for dark mode
+        )
+    } else {
+        listOf(
+            Color(0xFFDA47B5),  // Original pink
+            Color(0xFF7B5DFF)   // Original purple
+        )
+    }
+
     val brush = Brush.linearGradient(
-        colors = listOf(
-            Color(0xFFFFD6E8), // Màu Hồng phấn (Góc trên trái)
-            Color(0xFFC5B0FF)  // Màu Tím nhạt (Góc dưới phải)
-        ),
+        colors = gradientColors,
         start = Offset(0f, 0f),
         end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
     )
 
-    // 2. Dùng Box để dễ dàng vẽ nền Gradient
-    Box(
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(20.dp)) // Bo góc 20dp
-            .background(brush = brush)       // <--- Set gradient ở đây
-            .clickable { onStreakClick() }
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    isPressed = true
+                    onStreakClick()
+                }
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = Color.Transparent
+        ),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 4.dp
+        )
     ) {
-        Column(
-            modifier = Modifier.padding(20.dp)
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(brush = brush)
         ) {
-            // Text tiêu đề
-            Text(
-                text = "Tổng điểm RIZZ",
-                fontSize = 14.sp,
-                color = Color.Black,
-                fontWeight = FontWeight.Medium
-            )
-
-            // Số điểm to đùng
-            Text(
-                text = points.toString(),
-                fontSize = 40.sp,
-                fontWeight = FontWeight.Bold,
-                color = Color.Black,
-                modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
-            )
-
-            // 3. Thanh Streak bên trong (Màu đen mờ - giống Figma)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    // Màu đen mờ 10% (0.1f)
-                    .background(Color.Black.copy(alpha = 0.1f), RoundedCornerShape(12.dp))
-                    .padding(horizontal = 12.dp, vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            Column(
+                modifier = Modifier.padding(24.dp)
             ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    // Icon lửa (Nền trắng mờ)
-                    Box(
+                Text(
+                    text = "Tổng điểm RIZZ",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color.White.copy(alpha = 0.9f),
+                    fontWeight = FontWeight.Medium
+                )
+
+                Text(
+                    text = points.toString(),
+                    style = MaterialTheme.typography.displayMedium,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                )
+
+                // Streak Section
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = Color.White.copy(alpha = 0.15f),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Row(
                         modifier = Modifier
-                            .size(36.dp),
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        if (attended) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.fire1),
-                                contentDescription = null,
-                                tint = Color.Unspecified, // Giữ nguyên màu gốc của SVG
-                                modifier = Modifier.size(48.dp)
-                            )
-                        } else {
-                            Icon(
-                                painter = painterResource(id = R.drawable.fire2),
-                                contentDescription = null,
-                                tint = Color.Unspecified, // Giữ nguyên màu gốc của SVG
-                                modifier = Modifier.size(48.dp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Box(
+                                modifier = Modifier.size(32.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(
+                                        id = if (attended) R.drawable.fire1 else R.drawable.fire2
+                                    ),
+                                    contentDescription = "Streak",
+                                    tint = Color.Unspecified,
+                                    modifier = Modifier.size(40.dp)
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column {
+                                Text(
+                                    text = "$streakDays ngày",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = Color.White,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = "Streak đăng nhập",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = Color.White.copy(alpha = 0.7f)
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = onStreakClick,
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color.White,
+                                contentColor = if (isDarkMode) Color(0xFF5A4BA3) else Color(0xFF7B5DFF)
+                            ),
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.height(34.dp)
+                        ) {
+                            Text(
+                                text = if (attended) "Đã điểm danh" else "Điểm danh",
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
                             )
                         }
                     }
-
-                    Spacer(modifier = Modifier.width(12.dp))
-
-                    Column {
-                        Text(
-                            text = "$streakDays ngày",
-                            color = Color.Black,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                        Text(
-                            text = "Streak đăng nhập",
-                            color = Color.Black.copy(alpha = 0.7f),
-                            fontSize = 12.sp
-                        )
-                    }
-                }
-
-                // Nút Điểm danh
-                Button(
-                    onClick = onStreakClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.White
-                    ),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Text(
-                        text = "Điểm danh",
-                        color = Color.Black,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 12.sp
-                    )
                 }
             }
         }
@@ -306,128 +304,171 @@ private fun RizzPointsCard(
 private fun AIFeatureCard(
     onClick: () -> Unit
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    val isDarkMode = isSystemInDarkTheme()
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.97f else 1f,
+        animationSpec = tween(300),
+        label = "ai_card_scale"
+    )
+
+    // Adaptive gradient colors for light and dark mode
+    val gradientColors = if (isDarkMode) {
+        listOf(
+            Color(0xFFD88940),  // Darker orange for dark mode
+            Color(0xFF6D4BA8)   // Darker purple for dark mode
+        )
+    } else {
+        listOf(
+            Color(0xFFF9A546),  // Original orange
+            Color(0xFF8F5FF3)   // Original purple
+        )
+    }
+
+    val brush = Brush.linearGradient(
+        colors = gradientColors,
+        start = Offset(0f, 0f),
+        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    isPressed = true
+                    onClick()
+                }
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE8C5FF)
+            containerColor = Color.Transparent
         ),
-        shape = RoundedCornerShape(16.dp)
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 2.dp
+        )
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(brush = brush)
         ) {
-            Column(
-                modifier = Modifier.weight(1f)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text(
-                    text = "AI crush",
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-                Text(
-                    text = "Lan Anh",
-                    fontSize = 14.sp,
-                    color = Color.Black,
-                    modifier = Modifier.padding(bottom = 12.dp)
-                )
-
-                Button(
-                    onClick = onClick,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF9C27B0)
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    modifier = Modifier.fillMaxWidth()
+                Column(
+                    modifier = Modifier.weight(1f)
                 ) {
                     Text(
-                        text = "Bắt đầu hội thoại ngay",
+                        text = "AI Crush",
+                        style = MaterialTheme.typography.titleMedium,
                         color = Color.White,
-                        fontSize = 12.sp
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp
                     )
+                    Text(
+                        text = "Lan Anh",
+                        style = MaterialTheme.typography.headlineSmall,
+                        color = Color.White,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp,
+                        modifier = Modifier.padding(bottom = 16.dp)
+                    )
+
+                    Button(
+                        onClick = onClick,
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.White,
+                            contentColor = if (isDarkMode) Color(0xFFD88940) else Color(0xFFF9A546)
+                        ),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(40.dp),
+                        contentPadding = PaddingValues(12.dp)
+                    ) {
+                        Text(
+                            text = "Vào hâm nóng",
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 13.sp
+                        )
+                    }
+                }
+
+                // Avatar placeholder
+                Surface(
+                    modifier = Modifier
+                        .size(100.dp)
+                        .clip(RoundedCornerShape(16.dp)),
+                    color = Color.White.copy(alpha = 0.2f)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .background(Color.White.copy(alpha = 0.1f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Person,
+                            contentDescription = "AI Avatar",
+                            tint = Color.White,
+                            modifier = Modifier.size(50.dp)
+                        )
+                    }
                 }
             }
+        }
+    }
+}
 
-            Spacer(modifier = Modifier.width(12.dp))
+@Composable
+private fun DailyTasksSection(
+    onTaskClick: () -> Unit
+) {
+    val tasks = listOf(
+        DailyTask(1, "Nhắn tin với AI Crush 6 lần", 150, false),
+        DailyTask(2, "Bình luận vào 3 bài viết khác nhau", 100, false),
+        DailyTask(3, "Đăng một bài viết lên Bảng tin", 67, false)
+    )
 
-            // Avatar placeholder
-            Box(
-                modifier = Modifier
-                    .size(80.dp)
-                    .background(
-                        brush = Brush.verticalGradient(
-                            colors = listOf(
-                                Color(0xFFFF9800),
-                                Color(0xFFFF5722)
-                            )
-                        ),
-                        shape = RoundedCornerShape(12.dp)
-                    )
+    Column {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.CheckCircle,
+                contentDescription = "Tasks",
+                tint = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = "Nhiệm vụ hôm nay",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
             )
         }
-    }
-}
 
-@Composable
-private fun TasksSection(
-    onTaskClick: () -> Unit,
-    onGameClick: () -> Unit
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Daily Task Card
-        Card(
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onTaskClick() },
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFE0E0E0)
-            ),
-            shape = RoundedCornerShape(12.dp)
+        Column(
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Nhiệm vụ hôm nay",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center
-                )
-            }
-        }
-
-        // Game Card
-        Card(
-            modifier = Modifier
-                .weight(1f)
-                .clickable { onGameClick() },
-            colors = CardDefaults.cardColors(
-                containerColor = Color(0xFFE0E0E0)
-            ),
-            shape = RoundedCornerShape(12.dp)
-        ) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(80.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "Game: AI hay thật?",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Medium,
-                    color = Color.Black,
-                    textAlign = TextAlign.Center
+            tasks.forEach { task ->
+                DailyTaskItem(
+                    task = task,
+                    onClick = onTaskClick
                 )
             }
         }
@@ -435,159 +476,93 @@ private fun TasksSection(
 }
 
 @Composable
-private fun ProgressFeaturesSection(
-    onFeatureClick: (FeatureType) -> Unit
-) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        // Bí kíp đang khóa
-        ProgressFeatureCard(
-            title = "Bí kíp đang khóa",
-            R.drawable.book,
-            onClick = {onFeatureClick(FeatureType.SECRET_BOOK)}
-        )
-
-        // Thay đổi icon
-        ProgressFeatureCard(
-            title = "Thay đổi icon",
-            R.drawable.change,
-            onClick = {onFeatureClick(FeatureType.CHANGE_ICON)}
-        )
-
-        // Bói Tarot
-        ProgressFeatureCard(
-            title = "Bói Tarot",
-            R.drawable.change,
-            onClick = { onFeatureClick(FeatureType.TAROT) }
-        )
-    }
-}
-
-@Composable
-private fun ProgressFeatureCard(
-    title: String,
-    @DrawableRes iconRes: Int,
+private fun DailyTaskItem(
+    task: DailyTask,
     onClick: () -> Unit
 ) {
+    var isPressed by remember { mutableStateOf(false) }
+    
+    val scale by animateFloatAsState(
+        targetValue = if (isPressed) 0.98f else 1f,
+        animationSpec = tween(300),
+        label = "task_item_scale"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
+            .scale(scale)
+            .clickable(
+                interactionSource = remember { MutableInteractionSource() },
+                indication = null,
+                onClick = {
+                    isPressed = true
+                    onClick()
+                }
+            ),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFE0E0E0)
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
         ),
-        shape = RoundedCornerShape(12.dp)
-    ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                painter = painterResource(id = iconRes),
-                contentDescription = null,
-                tint = Color.Unspecified, // Giữ nguyên màu gốc của SVG
-                modifier = Modifier.size(48.dp)
-            )
-
-            Spacer(modifier = Modifier.width(12.dp))
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
-                Text(
-                    text = title,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.Black
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun BottomNavigationBar() {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.White
-        ),
-        shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
+        shape = RoundedCornerShape(12.dp),
+        elevation = CardDefaults.cardElevation(
+            defaultElevation = 1.dp
+        )
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-            horizontalArrangement = Arrangement.SpaceEvenly
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            BottomNavItem(
-                icon = Icons.Default.Home,
-                label = "Home",
-                isSelected = true
-            )
-            BottomNavItem(
-                icon = Icons.Default.ChatBubble,
-                label = "Chat",
-                isSelected = false
-            )
-            BottomNavItem(
-                icon = Icons.Default.Group,
-                label = "Social",
-                isSelected = false
-            )
-            BottomNavItem(
-                icon = Icons.Default.Explore,
-                label = "Explore",
-                isSelected = false
-            )
-            BottomNavItem(
-                icon = Icons.Default.Person,
-                label = "Profile",
-                isSelected = false
+            Surface(
+                modifier = Modifier
+                    .size(20.dp)
+                    .clip(CircleShape),
+                color = if (task.isCompleted)
+                    MaterialTheme.colorScheme.primary
+                else
+                    MaterialTheme.colorScheme.surfaceVariant
+            ) {
+                if (task.isCompleted) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = "Completed",
+                        tint = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(2.dp)
+                    )
+                }
+            }
+
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = task.title,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Medium
+                )
+            }
+
+            Text(
+                text = "+${task.reward} RIZZ",
+                style = MaterialTheme.typography.labelMedium,
+                color = Color(0xFFF9A546),
+                fontWeight = FontWeight.Bold
             )
         }
     }
 }
 
-@Composable
-private fun BottomNavItem(
-    icon: ImageVector,
-    label: String,
-    isSelected: Boolean
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = label,
-            tint = if (isSelected) Color(0xFF9C27B0) else Color.Gray,
-            modifier = Modifier.size(24.dp)
-        )
-        Text(
-            text = label,
-            fontSize = 10.sp,
-            color = if (isSelected) Color(0xFF9C27B0) else Color.Gray,
-            modifier = Modifier.padding(top = 4.dp)
-        )
-    }
-}
 
 // Preview functions
 @Preview(showBackground = true)
 @Composable
-private fun DashboardHeaderPreview() {
-    DashboardHeader()
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun WeeklyCalendarPreview() {
-    WeeklyCalendar(
-        streakDays = 3,
-        onDayClick = { }
-    )
+private fun DashboardTopBarPreview() {
+    DashboardTopBar()
 }
 
 @Preview(showBackground = true)
@@ -595,7 +570,7 @@ private fun WeeklyCalendarPreview() {
 private fun RizzPointsCardPreview() {
     RizzPointsCard(
         points = 1250,
-        streakDays = 3,
+        streakDays = 2,
         attended = false,
         onStreakClick = { }
     )
@@ -611,48 +586,8 @@ private fun AIFeatureCardPreview() {
 
 @Preview(showBackground = true)
 @Composable
-private fun TasksSectionPreview() {
-    TasksSection(
-        onTaskClick = { },
-        onGameClick = { }
+private fun DailyTasksSectionPreview() {
+    DailyTasksSection(
+        onTaskClick = { }
     )
 }
-
-@Preview(showBackground = true)
-@Composable
-private fun ProgressFeaturesSectionPreview() {
-    ProgressFeaturesSection(
-        onFeatureClick = { }
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun BottomNavigationBarPreview() {
-    BottomNavigationBar()
-}
-
-//@Preview(showBackground = true, showSystemUi = true)
-//@Composable
-//private fun DashboardScreenContentPreview() {
-//    Column(
-//        modifier = Modifier
-//            .fillMaxSize()
-//            .background(Color(0xFFF5F5F5))
-//    ) {
-//        LazyColumn(
-//            modifier = Modifier
-//                .weight(1f)
-//                .padding(16.dp),
-//            verticalArrangement = Arrangement.spacedBy(16.dp)
-//        ) {
-//            item { DashboardHeader() }
-//            item { WeeklyCalendar(streakDays = 3, onDayClick = { }) }
-//            item { RizzPointsCard(points = 1250, streakDays = 3, attended = true, onStreakClick = { }) }
-//            item { AIFeatureCard(onClick = { }) }
-//            item { TasksSection(onTaskClick = { }, onGameClick = { }) }
-//            item { ProgressFeaturesSection(onFeatureClick = { }) }
-//        }
-//        BottomNavigationBar()
-//    }
-//}

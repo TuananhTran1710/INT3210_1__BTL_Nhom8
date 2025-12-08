@@ -23,7 +23,18 @@ class OnboardingViewModel @Inject constructor(
         when (event) {
             is OnboardingEvent.SelectGender -> state = state.copy(selectedGender = event.gender)
             is OnboardingEvent.SelectPreference -> state = state.copy(selectedPreference = event.preference)
-            is OnboardingEvent.SelectPersonality -> state = state.copy(selectedPersonality = event.personality)
+
+            // LOGIC CHỌN NHIỀU (TOGGLE)
+            is OnboardingEvent.TogglePersonality -> {
+                val currentList = state.selectedPersonalities.toMutableList()
+                if (currentList.contains(event.personality)) {
+                    currentList.remove(event.personality) // Bỏ chọn
+                } else {
+                    currentList.add(event.personality)    // Chọn thêm
+                }
+                state = state.copy(selectedPersonalities = currentList)
+            }
+
             OnboardingEvent.NextPage -> state = state.copy(currentPage = state.currentPage + 1)
             OnboardingEvent.PreviousPage -> state = state.copy(currentPage = state.currentPage - 1)
             OnboardingEvent.FinishOnboarding -> saveOnboardingResult()
@@ -38,25 +49,36 @@ class OnboardingViewModel @Inject constructor(
                     ?: throw IllegalStateException("No logged in user")
                 val email = userRepo.getCurrentUserEmail()
 
-                val prefGender = when (state.selectedPreference) {
-                    "male" -> "thích con trai"
-                    "female" -> "thích con gái"
-                    "both" -> "thích cả hai"
-                    else -> "chưa chọn"
+                // 1. Tạo chuỗi mô tả giới tính quan tâm
+                val prefGenderText = when (state.selectedPreference) {
+                    "male" -> "Thích Nam"
+                    "female" -> "Thích Nữ"
+                    "both" -> "Thích cả hai"
+                    else -> ""
                 }
 
-                val personalityPart = state.selectedPersonality?.let { "thích người $it" } ?: "chưa chọn"
+                // 2. Gộp danh sách tính cách thành chuỗi: "Vui vẻ, Hòa đồng, ..."
+                val personalitiesText = state.selectedPersonalities.joinToString(", ")
 
-                val combinedPreference = "$prefGender, $personalityPart"
+                // 3. TẠO CHUỖI PREFERENCE DÀI
+                // Kết quả ví dụ: "Thích Nữ. Gu: Hài hước, Thông minh"
+                val finalPreferenceString = if (personalitiesText.isNotEmpty()) {
+                    "$prefGenderText. Gu: $personalitiesText"
+                } else {
+                    prefGenderText
+                }
 
                 val user = User(
                     uid = uid,
                     email = email,
                     username = email?.substringBefore("@") ?: "user_$uid",
-                    gender = state.selectedGender ?: "other",
-                    preference = combinedPreference,
+                    gender = state.selectedGender,
+
+                    // LƯU CHUỖI ĐÃ GỘP VÀO ĐÂY
+                    preference = finalPreferenceString,
+
                     rizzPoints = 0,
-                    loginStreak = 0,
+                    loginStreak = 1,
                     avatarUrl = "",
                     friendsList = emptyList(),
                     quizzesFinished = emptyList()
@@ -64,7 +86,7 @@ class OnboardingViewModel @Inject constructor(
 
                 userRepo.saveUserProfile(user)
 
-                state = state.copy(isLoading = false)
+                state = state.copy(isLoading = false, isSavedSuccess = true) // Kích hoạt chuyển màn hình
             } catch (e: Exception) {
                 state = state.copy(isLoading = false, errorMessage = e.message)
             }
