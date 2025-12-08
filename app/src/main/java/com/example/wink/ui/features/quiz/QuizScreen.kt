@@ -25,10 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Search // Import icon Search
-import androidx.compose.material.icons.filled.Star // Import icon Star (dùng làm placeholder)
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -51,7 +49,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow // Thêm import cho TextOverflow
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.wink.data.model.Question
 import com.example.wink.data.model.Quiz
@@ -61,7 +59,8 @@ import com.example.wink.data.model.Quiz
 fun QuizListScreen(
     state: QuizUiState.QuizList,
     onOpen: (String) -> Unit,
-    onUnlock: (String, Int) -> Unit
+    onUnlock: (String, Int) -> Unit,
+    onBack: () -> Unit
 ) {
     val quizzes = state.quizzes
     val finishedIds = state.finishedQuizIds
@@ -93,9 +92,19 @@ fun QuizListScreen(
             }
     }
 
-
     Scaffold(
-        topBar = { TopAppBar(title = { Text("Quizzes") }) }
+        topBar = {
+            TopAppBar(title = { Text("Quizzes") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
     ) { padding ->
         LazyColumn(
             modifier = Modifier
@@ -112,17 +121,24 @@ fun QuizListScreen(
             }
 
             item {
-                LazyRow(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(48.dp)
                 ) {
-                    itemsIndexed(categories) { index, category ->
-                        CategoryChip(
+                    categories.forEachIndexed { index, category ->
+                        BalancedCategoryItem(
                             category = category,
                             isSelected = category == selectedCategory,
-                            onClick = { selectedCategoryIndex = index } // Thêm onClick
+                            onClick = { selectedCategoryIndex = index },
+                            modifier = Modifier.weight(1f)
                         )
                     }
                 }
+                Spacer(modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(MaterialTheme.colorScheme.outlineVariant))
             }
 
             items(filteredQuizzes) { quiz ->
@@ -148,7 +164,7 @@ fun SearchBarComponent(
     OutlinedTextField(
         value = searchQuery,
         onValueChange = onSearchQueryChange,
-        label = { Text("Tìm kiếm quiz") },
+        label = { Text("Bạn đang tìm quiz nào?") },
         leadingIcon = {
             Icon(
                 imageVector = Icons.Default.Search,
@@ -163,25 +179,29 @@ fun SearchBarComponent(
 }
 
 @Composable
-fun CategoryChip(category: String, isSelected: Boolean, onClick: () -> Unit) {
-    Card(
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = if (isSelected)
-                MaterialTheme.colorScheme.primaryContainer
-            else
-                MaterialTheme.colorScheme.surface
-        ),
-        modifier = Modifier.clickable(onClick = onClick)
+fun BalancedCategoryItem(category: String, isSelected: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier
+            .clickable(onClick = onClick)
+            .height(48.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
         Text(
             text = category,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            style = MaterialTheme.typography.labelMedium,
-            color = if (isSelected)
-                MaterialTheme.colorScheme.onPrimaryContainer
-            else
-                MaterialTheme.colorScheme.onSurface
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.SemiBold,
+            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(top = 12.dp)
+        )
+        Spacer(modifier = Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(2.dp)
+                .background(
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+                )
         )
     }
 }
@@ -313,7 +333,7 @@ fun QuizDetailScreen(
                 },
                 actions = {
                     IconButton(onClick = { showQuestionPicker = true }) {
-                        Text("List")
+                        Text("Danh sách")
                     }
                 }
             )
@@ -331,7 +351,7 @@ fun QuizDetailScreen(
                     .verticalScroll(rememberScrollState())
             ) {
                 Text(
-                    text = "Question ${currentIndex + 1}/${quiz.questions.size}",
+                    text = "Câu hỏi ${currentIndex + 1}/${quiz.questions.size}",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
                 )
@@ -355,7 +375,7 @@ fun QuizDetailScreen(
                         onClick = onMovePrev,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("← Prev")
+                        Text("← Trước")
                     }
 
                     Button(
@@ -363,7 +383,7 @@ fun QuizDetailScreen(
                         onClick = onMoveNext,
                         modifier = Modifier.weight(1f)
                     ) {
-                        Text("Next →")
+                        Text("Sau →")
                     }
                 }
 
@@ -375,7 +395,7 @@ fun QuizDetailScreen(
                 modifier = Modifier.fillMaxWidth(),
                 enabled = !state.isSubmitted
             ) {
-                Text("Submit")
+                Text("Nộp")
             }
 
             if (state.isSubmitted) {
@@ -459,7 +479,7 @@ fun QuestionPickerDialog(
 ) {
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Questions") },
+        title = { Text("Câu hỏi") },
         text = {
             FlowRow(
                 maxItemsInEachRow = 6,
@@ -494,12 +514,12 @@ fun QuestionPickerDialog(
         },
         confirmButton = {
             Button(onClick = onSubmit, enabled = !state.isSubmitted) {
-                Text("Submit")
+                Text("Nộp")
             }
         },
         dismissButton = {
             Button(onClick = onDismiss) {
-                Text("Close")
+                Text("Đóng")
             }
         }
     )
@@ -523,7 +543,7 @@ fun QuizResultScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            val title = if (state.isPerfectScore) "Hoàn Thành Xuất Sắc! 🎉" else "Cần cố gắng hơn!"
+            val title = if (state.isPerfectScore) "Hoàn Thành!" else "Cần cố gắng hơn!"
             val message = if (state.isPerfectScore)
                 "Bạn đã trả lời đúng tất cả ${state.maxScore} câu hỏi. Thật tuyệt vời!"
             else
@@ -547,7 +567,7 @@ fun QuizResultScreen(
             if (state.rizzPointsEarned > 0) {
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "🎉 +${state.rizzPointsEarned} Rizz Points!",
+                    text = "🎉 +${state.rizzPointsEarned} Rizz!",
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.primary

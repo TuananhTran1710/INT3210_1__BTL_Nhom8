@@ -34,7 +34,8 @@ fun QuizFeatureNavHost(
                 },
                 onUnlock = { quizId, cost ->
                     viewModel.onEvent(QuizEvent.UnlockQuiz(quizId, cost))
-                }
+                },
+                onBack = onBack
             )
 
         is QuizUiState.QuizDetail ->
