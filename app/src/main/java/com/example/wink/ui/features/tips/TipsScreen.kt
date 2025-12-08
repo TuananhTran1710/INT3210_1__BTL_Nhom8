@@ -102,7 +102,8 @@ fun TipsScreen(
                             )
                         }
                     }
-                }
+                },
+                windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp)
             )
         }
     ) { padding ->

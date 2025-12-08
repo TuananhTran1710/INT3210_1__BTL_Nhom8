@@ -120,7 +120,8 @@ private fun DashboardTopBar() {
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onSurface
-        )
+        ),
+        windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp)
     )
 }
 
