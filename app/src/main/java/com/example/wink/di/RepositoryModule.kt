@@ -4,6 +4,7 @@ import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.AuthRepositoryImpl
 import com.example.wink.data.repository.FakeQuizRepositoryImpl
 import com.example.wink.data.repository.QuizRepository
+import com.example.wink.data.repository.QuizRepositoryImpl
 import com.example.wink.data.repository.UserRepository
 import com.example.wink.data.repository.UserRepositoryImpl
 import com.example.wink.data.repository.SocialRepository
@@ -29,7 +30,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindQuizRepository(
-        impl: FakeQuizRepositoryImpl
+        impl: QuizRepositoryImpl
     ): QuizRepository
 
     @Binds

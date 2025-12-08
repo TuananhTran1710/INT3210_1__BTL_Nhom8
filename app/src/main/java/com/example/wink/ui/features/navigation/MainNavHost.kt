@@ -72,7 +72,9 @@ fun MainNavHost(
             TipsScreen(navController = navController)
         }
         composable(Screen.Quiz.route) {
-            QuizFeatureNavHost()
+            QuizFeatureNavHost(onBack = {
+                navController.popBackStack()
+            })
         }
         composable(Screen.Friends.route) {
             FriendsScreen(navController = navController)
