@@ -14,7 +14,6 @@ interface AuthRepository {
     suspend fun login(email: String, pass: String): AuthResult
     suspend fun signup(email: String, pass: String, username: String): AuthResult
     suspend fun logout()
-
     suspend fun hasLoggedInUser() : Boolean
     suspend fun performDailyCheckIn() : AuthResult
 
@@ -29,4 +28,10 @@ interface AuthRepository {
     ): AuthResult
     suspend fun getUserById(userId: String): User?
     suspend fun getUsersByIds(userIds: List<String>): List<User>
+    suspend fun completeQuizAndAwardPoints(
+        quizId: String,
+        firstTimeAward: Int = 50,
+        isPerfectScore: Boolean
+    ): Int
+    suspend fun unlockQuiz(quizId: String, cost: Int): Boolean
 }

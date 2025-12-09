@@ -63,8 +63,8 @@ fun DashboardScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues)
-                .padding(16.dp),
+                .padding(top = paddingValues.calculateTopPadding())
+                .padding(horizontal = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             // RIZZ Points Card
@@ -120,7 +120,8 @@ private fun DashboardTopBar() {
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.background,
             titleContentColor = MaterialTheme.colorScheme.onSurface
-        )
+        ),
+        windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp)
     )
 }
 

@@ -5,6 +5,7 @@ plugins {
     id("com.google.dagger.hilt.android")
     id("org.jetbrains.kotlin.kapt")
     alias(libs.plugins.google.services)
+    id("kotlin-parcelize")
 }
 
 android {
@@ -71,6 +72,8 @@ dependencies {
     implementation("androidx.hilt:hilt-navigation-compose:1.0.0")
     implementation("com.google.accompanist:accompanist-navigation-animation:0.32.0")
     implementation("io.coil-kt:coil-compose:2.6.0")
+    implementation("com.github.jeziellago:compose-markdown:0.5.7")
+    implementation("nl.dionsegijn:konfetti-compose:2.0.4")
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

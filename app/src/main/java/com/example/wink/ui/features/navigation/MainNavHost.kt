@@ -6,42 +6,32 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.wrapContentSize
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.navigation.NavHostController // Changed from NavController
+import androidx.navigation.NavHostController
 import androidx.navigation.NavType
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
-import com.example.wink.data.model.Answer
-import com.example.wink.data.model.Question
-import com.example.wink.data.model.Quiz
+import com.example.wink.data.model.Tip
 import com.example.wink.ui.features.chat.ChatListScreen
 import com.example.wink.ui.features.chat.MessageScreen
-import com.example.wink.ui.features.explore.ExploreScreen
-import com.example.wink.ui.features.navigation.BottomNavItem
-import com.example.wink.ui.features.profile.ProfileScreen
-import com.example.wink.ui.features.quiz.QuizListScreen
 import com.example.wink.ui.features.dashboard.DashboardScreen
+import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.friends.FriendsScreen
 import com.example.wink.ui.features.iconshop.IconShopScreen
+import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.profile.SettingsScreen
 import com.example.wink.ui.features.profile.UserDetailScreen
 import com.example.wink.ui.features.social.SocialScreen
-import com.example.wink.ui.features.tarot.card.TarotCardScreen
 import com.example.wink.ui.features.tarot.TarotHubScreen
+import com.example.wink.ui.features.tarot.card.TarotCardScreen
 import com.example.wink.ui.features.tarot.name.TarotNameScreen
 import com.example.wink.ui.features.tarot.name.results.TarotNameResultScreen
 import com.example.wink.ui.features.tarot.zodiac.TarotZodiacScreen
 import com.example.wink.ui.features.tarot.zodiac.results.TarotZodiacResultScreen
+import com.example.wink.ui.features.tips.TipDetailScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
 import com.google.accompanist.navigation.animation.AnimatedNavHost
+import com.google.accompanist.navigation.animation.composable
 
 
 @OptIn(ExperimentalAnimationApi::class)
@@ -81,7 +71,7 @@ fun MainNavHost(
             UserDetailScreen(navController = navController)
         }
         composable(BottomNavItem.Social.route) {
-            SocialScreen(navController = mainNavController)
+            SocialScreen(navController = navController)
         }
         composable(BottomNavItem.Explore.route) {
             ExploreScreen(navController = navController)
@@ -124,7 +114,9 @@ fun MainNavHost(
             TarotZodiacResultScreen(navController = navController)
         }
         composable(Screen.Quiz.route) {
-            QuizFeatureNavHost()
+            QuizFeatureNavHost(onBack = {
+                navController.popBackStack()
+            })
         }
         composable(Screen.Friends.route) {
             FriendsScreen(navController = navController)
@@ -136,6 +128,18 @@ fun MainNavHost(
                         popUpTo(0) { inclusive = true }
                     }
                 })
+        }
+        composable("tip_detail_screen") {
+            // Lấy dữ liệu từ màn hình trước đó gửi sang
+            val tip = navController.previousBackStackEntry?.savedStateHandle?.get<Tip>("selectedTip")
+
+            if (tip != null) {
+                // Gọi màn hình hiển thị
+                TipDetailScreen(
+                    tip = tip, // Truyền nguyên object Tip vào
+                    navController = navController
+                )
+            }
         }
 
         composable(Screen.ChangeIcon.route) {

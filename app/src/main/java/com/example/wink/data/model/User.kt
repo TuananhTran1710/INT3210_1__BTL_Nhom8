@@ -21,5 +21,8 @@ data class User(
     val selectedIconId: String? = null,
     val ownedIconIds: List<String> = emptyList(),
     val friendsList: List<String> = emptyList(),      // list uid bạn bè
-    val quizzesFinished: List<String> = emptyList()   // list quizId đã xong
+
+    val unlockedTips: List<String> = emptyList(),
+    val quizzesFinished: List<String> = emptyList(),   // list quizId đã xong
+    val quizzesUnlocked: List<String> = listOf("rizz_001", "rizz_002", "rizz_003", "rizz_004")
 )

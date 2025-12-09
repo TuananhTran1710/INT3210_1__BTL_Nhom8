@@ -1,5 +1,8 @@
 package com.example.wink.data.model
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class SocialPost(
     val id: String,
     val userId: String,

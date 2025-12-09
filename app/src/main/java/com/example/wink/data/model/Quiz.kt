@@ -1,8 +1,16 @@
 package com.example.wink.data.model
 
+import com.google.firebase.firestore.Exclude
+
 data class Quiz(
-    val id: String,
-    val title: String,
-    val description: String,
-    val questions: List<Question>
+    @get:Exclude @Exclude
+    val id: String = "",
+
+    val title: String = "",
+    val description: String = "",
+    val rizzUnlockCost: Int = 0,
+
+    @get:Exclude @Exclude
+    val questions: List<Question> = emptyList(),
+    val questionCount: Int = 0
 )
