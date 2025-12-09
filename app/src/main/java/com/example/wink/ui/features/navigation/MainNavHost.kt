@@ -13,6 +13,7 @@ import androidx.navigation.navArgument
 import com.example.wink.data.model.Tip
 import com.example.wink.ui.features.chat.ChatListScreen
 import com.example.wink.ui.features.chat.MessageScreen
+import com.example.wink.ui.features.chat.MessageScreenForAI
 import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.friends.FriendsScreen
@@ -57,8 +58,13 @@ fun MainNavHost(
         composable(
             route = "message/{chatId}",
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
-        ) {
-            MessageScreen(navController = navController)
+        ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId")
+            if (chatId == "ai_chat") {
+                MessageScreenForAI(navController = navController)
+            } else {
+                MessageScreen(navController = navController)
+            }
         }
         composable(BottomNavItem.Profile.route) {
             ProfileScreen(navController = navController) // Use main nav controller for logout

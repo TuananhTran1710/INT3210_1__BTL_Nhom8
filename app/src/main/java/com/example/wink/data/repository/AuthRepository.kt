@@ -14,6 +14,7 @@ interface AuthRepository {
     suspend fun login(email: String, pass: String): AuthResult
     suspend fun signup(email: String, pass: String, username: String): AuthResult
     suspend fun logout()
+
     suspend fun hasLoggedInUser() : Boolean
     suspend fun performDailyCheckIn() : AuthResult
 
