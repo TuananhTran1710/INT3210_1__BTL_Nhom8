@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -32,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -50,9 +52,31 @@ fun OnboardingScreen(
         pagerState.animateScrollToPage(state.currentPage)
     }
 
+    LaunchedEffect(state.isSavedSuccess) {
+        if (state.isSavedSuccess) {
+            // Lưu xong -> Vào Dashboard
+            // Xóa hết backstack cũ (Login, Signup, Onboarding) để không back lại được
+            navController.navigate(Screen.MAIN_GRAPH_ROUTE) {
+                popUpTo(0) { inclusive = true }
+            }
+        }
+    }
+
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
+
+        if (state.isLoading) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f))
+                    .clickable(enabled = false) {}, // Chặn click khi đang loading
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator()
+            }
+        }
 
         HorizontalPager(
             state = pagerState,
@@ -72,9 +96,7 @@ fun OnboardingScreen(
                 if (state.currentPage < 3) {
                     viewModel.onEvent(OnboardingEvent.NextPage)
                 } else {
-                    navController.navigate(Screen.Login.route) {
-                        popUpTo(Screen.AUTH_GRAPH_ROUTE) { inclusive = true }
-                    }
+                    viewModel.onEvent(OnboardingEvent.FinishOnboarding)
                 }
             },
             onBack = {
@@ -164,8 +186,7 @@ fun PreferencePage(state: OnboardingState, viewModel: OnboardingViewModel) {
 
 @Composable
 fun PersonalityPage(state: OnboardingState, viewModel: OnboardingViewModel) {
-    val personalities = listOf("Hài hước", "Lãng mạn", "Thông minh", "Gia trưởng", "Cơ bắp")
-    var selectedPersonality by remember { mutableStateOf<String?>(null) }
+    val personalities = listOf("Hài hước", "Lãng mạn", "Thông minh", "Gia trưởng", "Cơ bắp", "Tinh tế", "Hướng nội")
 
     Column(
         Modifier
@@ -174,28 +195,40 @@ fun PersonalityPage(state: OnboardingState, viewModel: OnboardingViewModel) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Chọn tính cách mà bạn thích ở người khác", fontWeight = FontWeight.Bold, fontSize = 22.sp)
+        Text("Chọn những tính cách bạn ấn tượng\n(Có thể chọn nhiều)",
+            fontWeight = FontWeight.Bold,
+            fontSize = 20.sp,
+            textAlign = TextAlign.Center
+        )
         Spacer(Modifier.height(24.dp))
 
-        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        // Dùng LazyColumn hoặc Column cuộn được nếu danh sách dài
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             personalities.forEach { personality ->
+                // Kiểm tra xem item này có trong list đã chọn không
+                val isSelected = state.selectedPersonalities.contains(personality)
+
                 Card(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clickable {
-                            selectedPersonality = personality
-                            viewModel.onEvent(OnboardingEvent.SelectPersonality(personality))
+                            // Gọi event Toggle
+                            viewModel.onEvent(OnboardingEvent.TogglePersonality(personality))
                         }
-                        .shadow(if (selectedPersonality == personality) 8.dp else 2.dp, RoundedCornerShape(16.dp)),
-                    shape = RoundedCornerShape(16.dp),
+                        .shadow(if (isSelected) 4.dp else 1.dp, RoundedCornerShape(12.dp)),
+                    shape = RoundedCornerShape(12.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = if (selectedPersonality == personality) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+                        // Đổi màu nền nếu được chọn
+                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
+                        else MaterialTheme.colorScheme.surface
                     )
                 ) {
                     Text(
-                        personality,
+                        text = personality,
                         modifier = Modifier.padding(16.dp),
-                        color = if (selectedPersonality == personality) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
+                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
+                        else MaterialTheme.colorScheme.onSurface,
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                     )
                 }
             }

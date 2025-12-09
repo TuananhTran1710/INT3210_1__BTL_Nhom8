@@ -83,13 +83,28 @@ class ChatRepository @Inject constructor(
         awaitClose { listener.remove() }
     }
 
+    suspend fun getLastMessage(chatId: String): Message? {
+        return try {
+            val snapshot = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(1)
+                .get()
+                .await()
+            snapshot.documents.firstOrNull()?.toObject(Message::class.java)
+        } catch (e: Exception) {
+            null
+        }
+    }
+
     /**
      * Gửi tin nhắn vào chat subcollection
      * - Đồng thời update updatedAt của chat
      */
     suspend fun sendMessage(chatId: String, message: Message): Result<Unit> = try {
         val chatRef = firestore.collection("chats").document(chatId)
-        
+
         val messageData = hashMapOf<String, Any?>(
             "senderId" to message.senderId,
             "receiverId" to message.receiverId,
@@ -106,6 +121,50 @@ class ChatRepository @Inject constructor(
 
         // Update updatedAt của chat
         chatRef.update("updatedAt", message.timestamp).await()
+
+        // Update lastMessage của chat
+        chatRef.update("lastMessage", message.content).await()
+
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    /** ---------------------------
+     * AI Chat
+     * --------------------------- */
+
+    fun listenAiMessages(userId: String): Flow<List<Message>> = callbackFlow {
+        val listener = firestore.collection("ai_chats")
+            .document(userId)
+            .collection("messages")
+            .orderBy("timestamp", Query.Direction.DESCENDING)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                val messages = snapshot?.documents?.mapNotNull { document ->
+                    document.toObject(Message::class.java)?.copy(messageId = document.id)
+                } ?: emptyList()
+                trySend(messages).isSuccess
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    suspend fun sendAiMessage(userId: String, message: Message): Result<Unit> = try {
+        val messageData = hashMapOf<String, Any?>(
+            "senderId" to message.senderId,
+            "content" to message.content,
+            "timestamp" to message.timestamp,
+        )
+
+        firestore.collection("ai_chats")
+            .document(userId)
+            .collection("messages")
+            .add(messageData)
+            .await()
 
         Result.success(Unit)
     } catch (e: Exception) {

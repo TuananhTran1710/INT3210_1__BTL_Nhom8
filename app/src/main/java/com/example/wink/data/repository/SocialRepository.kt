@@ -25,4 +25,5 @@ interface SocialRepository {
     // Lấy bảng xếp hạng
     suspend fun getLeaderboard(): Result<List<User>>
     suspend fun uploadImage(uri: Uri): Result<String>
+    fun getUserPosts(userId: String): Flow<List<SocialPost>>
 }

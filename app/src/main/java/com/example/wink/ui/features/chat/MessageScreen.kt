@@ -16,15 +16,16 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.Button
+import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,34 +67,47 @@ fun MessageScreen(
             )
         },
         bottomBar = {
-            Row(
-                modifier = Modifier.padding(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                TextField(
-                    value = messageText,
-                    onValueChange = { messageText = it },
-                    modifier = Modifier.weight(1f),
-                    placeholder = { Text("Type a message") }
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Button(
-                    onClick = {
-                        if (messageText.isNotBlank()) {
-                            viewModel.sendMessage(messageText)
-                            messageText = ""
-                        }
-                    }
+            Surface(tonalElevation = 4.dp) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Send")
+                    IconButton(onClick = { /* TODO: Handle image picking */ }) {
+                        Icon(
+                            Icons.Default.Photo,
+                            contentDescription = "Add image"
+                        )
+                    }
+                    OutlinedTextField(
+                        value = messageText,
+                        onValueChange = { messageText = it },
+                        modifier = Modifier.weight(1f),
+                        placeholder = { Text("Type a message") },
+                        shape = CircleShape
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    IconButton(
+                        onClick = {
+                            if (messageText.isNotBlank()) {
+                                viewModel.sendMessage(messageText)
+                                messageText = ""
+                            }
+                        },
+                        enabled = messageText.isNotBlank()
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Send,
+                            contentDescription = "Send"
+                        )
+                    }
                 }
             }
         }
-    ) {
+    ) { paddingValues ->
         MessageContainer(
             messages = messages,
             currentUserId = viewModel.currentUserId,
-            modifier = Modifier.padding(it)
+            modifier = Modifier.padding(paddingValues)
         )
     }
 }
@@ -129,12 +143,17 @@ fun MessageTopBar(title: String, avatarUrl: String?, onBackClick: () -> Unit) {
 }
 
 @Composable
-fun MessageContainer(messages: List<Message>, currentUserId: String, modifier: Modifier = Modifier) {
+fun MessageContainer(
+    messages: List<Message>,
+    currentUserId: String,
+    modifier: Modifier = Modifier,
+    isTyping: Boolean = false
+) {
     val listState = rememberLazyListState()
 
     // When new messages arrive, scroll to the top of the list (which is the bottom of the screen)
-    LaunchedEffect(messages) {
-        if (messages.isNotEmpty()) {
+    LaunchedEffect(messages, isTyping) {
+        if (messages.isNotEmpty() || isTyping) {
             listState.animateScrollToItem(0)
         }
     }
@@ -147,6 +166,12 @@ fun MessageContainer(messages: List<Message>, currentUserId: String, modifier: M
     ) {
         items(messages) { message ->
             MessageItem(message = message, isSentByCurrentUser = message.senderId == currentUserId)
+        }
+
+        if (isTyping) {
+            item {
+                TypingIndicator()
+            }
         }
     }
 }
@@ -169,6 +194,28 @@ fun MessageItem(message: Message, isSentByCurrentUser: Boolean) {
         ) {
             Text(
                 text = message.content,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TypingIndicator() {
+    val backgroundColor = MaterialTheme.colorScheme.secondaryContainer
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = backgroundColor,
+            tonalElevation = 2.dp
+        ) {
+            Text(
+                text = "...",
                 modifier = Modifier.padding(12.dp)
             )
         }
