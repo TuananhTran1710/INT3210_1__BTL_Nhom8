@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.profile
 
+import android.util.Log
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -51,12 +52,12 @@ data class PostData(
     val comments: Int
 )
 
-data class FriendProfile(
-    val id: String,
-    val name: String,
-    val rizz: Int,
-    val avatar: String = ""
-)
+//data class FriendProfile(
+//    val id: String,
+//    val name: String,
+//    val rizz: Int,
+//    val avatar: String = ""
+//)
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -70,17 +71,6 @@ fun ProfileScreen(
     val tabs = listOf("Bài viết", "Bạn bè")
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
-
-    // Mock Data
-    val mockPosts = listOf(
-        PostData("1", uiState.username.ifBlank { "User" }, "2 giờ trước", "Hôm nay trời đẹp quá! ☀️", 120, 15),
-        PostData("2", uiState.username.ifBlank { "User" }, "1 ngày trước", "Đã đạt mốc 1000 RIZZ \uD83D\uDE0E", 342, 40)
-    )
-    val mockFriends = listOf(
-        FriendProfile("1", "Crush số 1", 150),
-        FriendProfile("2", "Best Friend", 900),
-        FriendProfile("3", "Rizz Master", 2100)
-    )
 
     // Handle Logout
     LaunchedEffect(uiState.isLoggedOut) {
@@ -183,7 +173,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        ProfileStatItem("${uiState.rizzPoint}", "RIZZ")
+                        ProfileStatItem("${uiState.rizzPoints}", "RIZZ")
                         ProfileVerticalDivider()
                         ProfileStatItem("12", "Streak")
                         ProfileVerticalDivider()
@@ -229,10 +219,12 @@ fun ProfileScreen(
                 }
             } else if (selectedTabIndex == 1) {
                 // --- TAB BẠN BÈ ---
-                if (mockFriends.isEmpty()) {
+                if (uiState.loadedFriends.isEmpty()) {
+                    Log.d("ProfileScreen", "No friends loaded")
                     item { EmptyStateView("Chưa có bạn bè") }
                 } else {
-                    items(mockFriends) { friend ->
+                    Log.d("ProfileScreen", "Friends loaded: ${uiState.loadedFriends.size}")
+                    items(uiState.loadedFriends) { friend ->
                         FriendListItem(friend)
                     }
                 }
@@ -280,6 +272,31 @@ fun ProfilePostItem(post: SocialPost) {
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
+        // Retweet Badge - hiển thị khi đây là bài đăng lại
+        if (post.isRepost) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Repeat,
+                    contentDescription = "Retweet",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = if (!post.originalUsername.isNullOrBlank()) 
+                        "Đã đăng lại từ @${post.originalUsername}" 
+                    else "Đã đăng lại",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                 // Load Avatar thật
@@ -305,22 +322,46 @@ fun ProfilePostItem(post: SocialPost) {
         // Hiển thị ảnh (nếu có)
         if (post.imageUrls.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            AsyncImage(
-                model = post.imageUrls.first(),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+            if (post.imageUrls.size == 1) {
+                AsyncImage(
+                    model = post.imageUrls.first(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    post.imageUrls.take(3).forEach { imageUrl ->
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // Reaction Bar
         Row(modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Outlined.FavoriteBorder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
+            Icon(
+                if (post.isLikedByMe) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder, 
+                null, 
+                Modifier.size(20.dp), 
+                tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
             Spacer(Modifier.width(4.dp))
             Text("${post.likes}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
 
@@ -329,31 +370,44 @@ fun ProfilePostItem(post: SocialPost) {
             Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.width(4.dp))
             Text("${post.comments}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+
+            Spacer(Modifier.width(24.dp))
+
+            Icon(
+                Icons.Default.Repeat, 
+                null, 
+                Modifier.size(20.dp), 
+                tint = if (post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("${post.retweetCount}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
         }
     }
     HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainerLow)
 }
 
 @Composable
-fun FriendListItem(friend: FriendProfile) {
+fun FriendListItem(friend: FriendUi,
+                   onClick: () -> Unit = {},
+                   onMessageClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable {onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(shape = CircleShape, modifier = Modifier.size(50.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
             Box(contentAlignment = Alignment.Center) {
-                Text(friend.name.take(1), style = MaterialTheme.typography.titleMedium)
+                Text(friend.name?:"", style = MaterialTheme.typography.titleMedium)
             }
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(friend.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
-            Text("${friend.rizz} RIZZ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            Text(friend.name?:"", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("${friend.rizzPoints} RIZZ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
-        FilledTonalButton(onClick = { }) {
+        FilledTonalButton(onClick = { onMessageClick }) {
             Text("Nhắn tin")
         }
     }

@@ -18,11 +18,14 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.AddPhotoAlternate
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +37,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,7 +86,9 @@ fun SocialScreen(
                 comments = state.commentsForActivePost,
                 newComment = state.newCommentContent,
                 onValueChange = { viewModel.onCommentContentChange(it) },
-                onSend = { viewModel.onSendComment() }
+                onSend = { viewModel.onSendComment() },
+                onCommentLikeClick = { commentId -> viewModel.onCommentLikeClick(commentId) },
+                onEditComment = { commentId, newContent -> viewModel.onEditComment(commentId, newContent) }
             )
         }
     }
@@ -133,7 +139,12 @@ fun SocialScreen(
                         onCreatePostClick = { viewModel.onFabClick() },
                         onLikeClick = { postId -> viewModel.onLikeClick(postId) },
                         onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) },
-                        onImageClick = { url -> viewingImageUrl = url }
+                        onImageClick = { url -> viewingImageUrl = url },
+                        onRetweetClick = { postId -> viewModel.onRetweetClick(postId) },
+                        onDeletePost = { postId -> viewModel.onDeletePost(postId) },
+                        onEditPost = { postId, content, imageUrls -> 
+                            viewModel.onEditPost(postId, content, imageUrls)
+                        }
                     )
                 } else {
                     LeaderboardList(users = state.leaderboardList, onUserClick = { userId ->
@@ -202,9 +213,12 @@ fun FeedList(
     posts: List<SocialPost>,
     onUserClick: (String) -> Unit,
     onCreatePostClick: () -> Unit,
-    onLikeClick: (String) -> Unit,      // Mới
-    onCommentClick: (String) -> Unit,    // Mới
-    onImageClick: (String) -> Unit
+    onLikeClick: (String) -> Unit,
+    onCommentClick: (String) -> Unit,
+    onImageClick: (String) -> Unit,
+    onRetweetClick: (String) -> Unit = {},
+    onDeletePost: (String) -> Unit = {},
+    onEditPost: (String, String, List<String>) -> Unit = { _, _, _ -> }
 ) {
     LazyColumn {
         // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
@@ -216,7 +230,16 @@ fun FeedList(
 
         // Các bài post bên dưới
         items(posts) { post ->
-            FeedItem(post, onUserClick, onLikeClick, onCommentClick, onImageClick = onImageClick)
+            FeedItem(
+                post, 
+                onUserClick, 
+                onLikeClick, 
+                onCommentClick, 
+                onImageClick = onImageClick,
+                onRetweetClick = onRetweetClick,
+                onDeletePost = onDeletePost,
+                onEditPost = onEditPost
+            )
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
                 thickness = 0.5.dp,
@@ -232,18 +255,49 @@ fun FeedItem(
     onUserClick: (String) -> Unit,
     onLikeClick: (String) -> Unit = {},
     onCommentClick: (String) -> Unit = {},
-    onImageClick: (String) -> Unit = {}
+    onImageClick: (String) -> Unit = {},
+    onRetweetClick: (String) -> Unit = {},
+    onDeletePost: (String) -> Unit = {},
+    onEditPost: (String, String, List<String>) -> Unit = { _, _, _ -> }
 ) {
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editContent by remember { mutableStateOf(post.content) }
+    
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
             .padding(top = 12.dp, bottom = 4.dp)
     ) {
-        // 1. Header (Avatar + Tên)
+        // Retweet Badge (if applicable)
+        if (post.isRepost && !post.originalUsername.isNullOrBlank()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = "Retweet",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.outline
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "Retweeted from @${post.originalUsername}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        }
+
+        // 1. Header (Avatar + Tên + More Button)
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         ) {
             Surface(
                 modifier = Modifier.size(40.dp).clickable { onUserClick(post.userId) },
@@ -272,7 +326,7 @@ fun FeedItem(
                 }
             }
             Spacer(modifier = Modifier.width(10.dp))
-            Column {
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = post.username,
                     style = MaterialTheme.typography.titleSmall,
@@ -284,6 +338,71 @@ fun FeedItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+            
+            // More Menu (Edit/Delete)
+            if (post.canDelete || post.canEdit) {
+                var showMenu by remember { mutableStateOf(false) }
+                Box {
+                    IconButton(onClick = { showMenu = true }) {
+                        Icon(Icons.Default.MoreVert, contentDescription = "More")
+                    }
+                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                        if (post.canEdit) {
+                            DropdownMenuItem(
+                                text = { Text("Chỉnh sửa") },
+                                onClick = { 
+                                    editContent = post.content
+                                    showEditDialog = true
+                                    showMenu = false
+                                }
+                            )
+                        }
+                        if (post.canDelete) {
+                            DropdownMenuItem(
+                                text = { Text("Xóa") },
+                                onClick = { 
+                                    onDeletePost(post.id)
+                                    showMenu = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Edit Post Dialog
+        if (showEditDialog) {
+            AlertDialog(
+                onDismissRequest = { showEditDialog = false },
+                title = { Text("Chỉnh sửa bài viết") },
+                text = {
+                    OutlinedTextField(
+                        value = editContent,
+                        onValueChange = { editContent = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text("Nội dung bài viết") },
+                        minLines = 3
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            if (editContent.isNotBlank()) {
+                                onEditPost(post.id, editContent, post.imageUrls)
+                                showEditDialog = false
+                            }
+                        }
+                    ) {
+                        Text("Lưu")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showEditDialog = false }) {
+                        Text("Hủy")
+                    }
+                }
+            )
         }
 
         // 2. Nội dung chữ
@@ -321,11 +440,13 @@ fun FeedItem(
             }
         }
 
-        // 4. Action Bar (Like/Comment)
+        // 4. Action Bar (Like/Comment/Retweet)
         Spacer(modifier = Modifier.height(12.dp))
         Row(
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.padding(horizontal = 16.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
         ) {
             // Nút Like
             Row(
@@ -366,6 +487,27 @@ fun FeedItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            Spacer(modifier = Modifier.width(24.dp))
+
+            // Nút Retweet
+            Row(
+                modifier = Modifier.clickable { onRetweetClick(post.id) },
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Share,
+                    contentDescription = null,
+                    tint = if(post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "${post.retweetCount}",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(8.dp))
@@ -378,7 +520,9 @@ fun CommentSheetContent(
     comments: List<Comment>,
     newComment: String,
     onValueChange: (String) -> Unit,
-    onSend: () -> Unit
+    onSend: () -> Unit,
+    onCommentLikeClick: (String) -> Unit = {},
+    onEditComment: (String, String) -> Unit = { _, _ -> }
 ) {
     Column(
         modifier = Modifier
@@ -398,7 +542,7 @@ fun CommentSheetContent(
                 item { Text("Chưa có bình luận nào. Hãy là người đầu tiên!", style = MaterialTheme.typography.bodyMedium, color = Color.Gray) }
             }
             items(comments) { comment ->
-                CommentItem(comment)
+                CommentItem(comment, onCommentLikeClick, onEditComment)
             }
         }
 
@@ -428,7 +572,15 @@ fun CommentSheetContent(
 }
 
 @Composable
-fun CommentItem(comment: Comment) {
+fun CommentItem(
+    comment: Comment,
+    onLikeClick: (String) -> Unit = {},
+    onEditComment: (String, String) -> Unit = { _, _ -> }
+) {
+    var showEditDialog by remember { mutableStateOf(false) }
+    var editContent by remember { mutableStateOf(comment.content) }
+    var showMenu by remember { mutableStateOf(false) }
+
     Row(verticalAlignment = Alignment.Top) {
         Surface(
             modifier = Modifier.size(32.dp),
@@ -438,7 +590,7 @@ fun CommentItem(comment: Comment) {
             Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
         }
         Spacer(modifier = Modifier.width(8.dp))
-        Column {
+        Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(comment.username, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.width(8.dp))
@@ -447,9 +599,106 @@ fun CommentItem(comment: Comment) {
                     style = MaterialTheme.typography.bodySmall,
                     color = Color.Gray
                 )
+                if (comment.isEdited) {
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "(đã sửa)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Gray,
+                        fontStyle = FontStyle.Italic
+                    )
+                }
             }
             Text(comment.content, style = MaterialTheme.typography.bodyMedium)
+            
+            // Like button + Edit button for comment
+            Row(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    modifier = Modifier.clickable { onLikeClick(comment.id) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (comment.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = "Like",
+                        modifier = Modifier.size(14.dp),
+                        tint = if (comment.isLikedByMe) MaterialTheme.colorScheme.primary else Color.Gray
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = comment.likeCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = Color.Gray
+                    )
+                }
+                
+                // Nút chỉnh sửa (chỉ hiện nếu user là chủ comment)
+                if (comment.canEdit) {
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Box {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Tùy chọn",
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clickable { showMenu = true },
+                            tint = Color.Gray
+                        )
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Chỉnh sửa") },
+                                onClick = {
+                                    showMenu = false
+                                    editContent = comment.content
+                                    showEditDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = null)
+                                }
+                            )
+                        }
+                    }
+                }
+            }
         }
+    }
+    
+    // Dialog chỉnh sửa comment
+    if (showEditDialog) {
+        AlertDialog(
+            onDismissRequest = { showEditDialog = false },
+            title = { Text("Chỉnh sửa bình luận") },
+            text = {
+                OutlinedTextField(
+                    value = editContent,
+                    onValueChange = { editContent = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text("Nội dung bình luận") }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        if (editContent.isNotBlank()) {
+                            onEditComment(comment.id, editContent)
+                            showEditDialog = false
+                        }
+                    }
+                ) {
+                    Text("Lưu")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
     }
 }
 

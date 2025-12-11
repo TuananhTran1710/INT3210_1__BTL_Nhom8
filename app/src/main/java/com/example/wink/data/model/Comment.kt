@@ -6,5 +6,10 @@ data class Comment(
     val username: String,
     val avatarUrl: String?,
     val content: String,
-    val timestamp: Long
+    val timestamp: Long,
+    val likedBy: List<String> = emptyList(),
+    val likeCount: Int = 0,
+    val isLikedByMe: Boolean = false,
+    val isEdited: Boolean = false,
+    val canEdit: Boolean = false
 )

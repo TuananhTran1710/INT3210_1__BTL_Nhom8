@@ -3,11 +3,14 @@ package com.example.wink.ui.features.profile
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.data.repository.SocialRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
@@ -15,6 +18,7 @@ import javax.inject.Inject
 
 data class UserDetailState(
     val user: User? = null,
+    val userPosts: List<SocialPost> = emptyList(),
     val isLoading: Boolean = true,
     val isFriend: Boolean = false, // Giả lập trạng thái bạn bè
     val requestSent: Boolean = false
@@ -23,7 +27,8 @@ data class UserDetailState(
 @HiltViewModel
 class UserDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val socialRepository: SocialRepository
 ) : ViewModel() {
 
     private val userId: String = checkNotNull(savedStateHandle["userId"])
@@ -33,6 +38,7 @@ class UserDetailViewModel @Inject constructor(
 
     init {
         loadUserProfile()
+        loadUserPosts()
     }
 
     private fun loadUserProfile() {
@@ -50,6 +56,22 @@ class UserDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 e.printStackTrace()
                 _uiState.update { it.copy(isLoading = false) }
+            }
+        }
+    }
+
+    private var postsJob: kotlinx.coroutines.Job? = null
+
+    private fun loadUserPosts() {
+        // Cancel previous job to avoid multiple listeners
+        postsJob?.cancel()
+        postsJob = viewModelScope.launch {
+            try {
+                socialRepository.getUserPosts(userId).collectLatest { posts ->
+                    _uiState.update { it.copy(userPosts = posts) }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
             }
         }
     }
