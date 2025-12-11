@@ -2,6 +2,7 @@ package com.example.wink.data.repository
 
 import android.net.Uri
 import android.util.Log
+import com.example.wink.data.model.FriendRequest
 import com.example.wink.data.model.User
 import com.example.wink.ui.features.signup.SignupScreen
 import com.google.firebase.Timestamp
@@ -544,4 +545,34 @@ override suspend fun performDailyCheckIn(): AuthResult {
 //            Result.failure(e)
 //        }
 //    }
+
+    override fun getFriendRequestsStream(): Flow<List<FriendRequest>> = callbackFlow {
+        val currentUid = firebaseAuth.currentUser?.uid ?: run {
+            close()
+            return@callbackFlow
+        }
+
+        // Lắng nghe vào sub-collection "friendRequests"
+        val listener = firestore.collection("users").document(currentUid)
+            .collection("friendRequests")
+            .whereEqualTo("status", "pending") // Chỉ lấy các lời mời đang chờ
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error) // Báo lỗi nếu có
+                    return@addSnapshotListener
+                }
+
+                if (snapshot != null) {
+                    // Map dữ liệu từ Firestore sang List<FriendRequest>
+                    val requests = snapshot.documents.mapNotNull { doc ->
+                        doc.toObject(FriendRequest::class.java)
+                    }
+                    // Bắn dữ liệu mới ra ngoài
+                    trySend(requests)
+                }
+            }
+
+        // Khi Coroutine bị hủy (người dùng thoát màn hình), tự động gỡ listener để tiết kiệm pin
+        awaitClose { listener.remove() }
+    }
 }

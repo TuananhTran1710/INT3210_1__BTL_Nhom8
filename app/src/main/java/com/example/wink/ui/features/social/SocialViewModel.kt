@@ -4,15 +4,19 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Comment
+import com.example.wink.data.model.FriendRequest
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.SocialRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
+//import kotlinx.coroutines.flow.Channel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.UUID
@@ -27,12 +31,21 @@ class SocialViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(SocialState())
     val uiState = _uiState.asStateFlow()
 
+    // Danh sách lời mời để hiển thị lên UI
+    private val _friendRequests = MutableStateFlow<List<FriendRequest>>(emptyList())
+    val friendRequests = _friendRequests.asStateFlow()
+
+    // Channel để bắn thông báo (Side Effect)
+    private val _effectChannel = Channel<SocialSideEffect>()
+    val effect = _effectChannel.receiveAsFlow()
+
     private var currentUser: User? = null
 
     init {
         getCurrentUserInfo()
         loadFeed()
         loadLeaderboard()
+        observeRequests()
     }
 
     private fun getCurrentUserInfo() {
@@ -63,6 +76,39 @@ class SocialViewModel @Inject constructor(
             }
         }
     }
+
+    private fun observeRequests() {
+        viewModelScope.launch {
+            authRepository.getFriendRequestsStream()
+                .collect { newRequests ->
+                    // Lấy danh sách hiện tại
+                    val oldRequests = _friendRequests.value
+
+                    // LOGIC THÔNG BÁO:
+                    // Nếu danh sách mới dài hơn danh sách cũ -> Có người mới gửi!
+                    // (Lưu ý: Bỏ qua lần load đầu tiên khi oldList rỗng để tránh báo ầm ĩ lúc mở app)
+                    if (oldRequests.isNotEmpty() && newRequests.size > oldRequests.size) {
+                        
+                        // Tìm ra thằng mới nhất vừa được thêm vào
+                        val diff = newRequests.filter { new -> 
+                            oldRequests.none { old -> old.uid == new.uid } 
+                        }
+                        
+                        diff.forEach { newFriend ->
+                            viewModelScope.launch {
+                                _effectChannel.send(
+                                    SocialSideEffect.ShowToast("Bạn có lời mời mới từ ${newFriend.displayName}!")
+                                )
+                            }
+                        }
+                    }
+
+                    // Cập nhật UI
+                    _friendRequests.value = newRequests
+                }
+        }
+    }
+
     fun onTabSelected(index: Int) {
         _uiState.update { it.copy(selectedTab = index) }
     }
@@ -130,7 +176,7 @@ class SocialViewModel @Inject constructor(
         }
 
         viewModelScope.launch {
-            // Gọi API thật, truyền vào mảng likedBy hiện tại để biết đường thêm/xóa
+            // Gọi API thật, truyền vào mảy likedBy hiện tại để biết đường thêm/xóa
             // Lưu ý: Logic toggleLike trong Repo cần danh sách likedBy hoặc userId
             // Ở đây ta truyền rỗng tạm, nhưng đúng ra nên truyền list like cũ
             // Để đơn giản, repository sẽ tự xử lý logic arrayUnion/arrayRemove
@@ -183,4 +229,8 @@ class SocialViewModel @Inject constructor(
             state.copy(selectedImageUris = state.selectedImageUris - uri)
         }
     }
+}
+
+sealed class SocialSideEffect {
+    data class ShowToast(val message: String) : SocialSideEffect()
 }

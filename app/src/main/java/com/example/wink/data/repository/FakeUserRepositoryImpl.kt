@@ -67,4 +67,7 @@ class FakeUserRepositoryImpl @Inject constructor() : UserRepository {
             selectedIconId = selectedIconId
         )
     }
+    override suspend fun sendAddFriendRequest(targetUid: String) {
+
+    }
 }
