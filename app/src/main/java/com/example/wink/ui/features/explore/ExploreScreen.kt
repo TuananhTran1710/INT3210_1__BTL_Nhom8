@@ -126,7 +126,8 @@ fun ExploreScreen(
                     when (item.id) {
                         "tips" -> navController.navigate(Screen.Tips.route)
                         "quiz" -> navController.navigate(Screen.Quiz.route)
-
+                        "tarot" -> navController.navigate(Screen.TarotHub.route)
+                        "shop"  -> navController.navigate(Screen.ChangeIcon.route)
                     }
                 }
             }
