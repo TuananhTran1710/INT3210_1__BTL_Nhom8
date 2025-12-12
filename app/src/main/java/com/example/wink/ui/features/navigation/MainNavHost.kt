@@ -17,6 +17,7 @@ import com.example.wink.ui.features.chat.MessageScreenForAI
 import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.friends.FriendsScreen
+import com.example.wink.ui.features.games.humanai.HumanAiGameScreen
 import com.example.wink.ui.features.iconshop.IconShopScreen
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.profile.SettingsScreen
@@ -150,6 +151,10 @@ fun MainNavHost(
 
         composable(Screen.ChangeIcon.route) {
             IconShopScreen(navController = navController)
+        }
+
+        composable(Screen.HumanAiGame.route) {
+            HumanAiGameScreen(navController = navController)
         }
     }
 }

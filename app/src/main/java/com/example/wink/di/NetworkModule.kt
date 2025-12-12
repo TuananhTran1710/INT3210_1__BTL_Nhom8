@@ -1,6 +1,7 @@
 package com.example.wink.di
 
 import com.example.wink.data.remote.ChatGptApiService
+import com.example.wink.data.remote.OpenRouterApiService
 import com.jakewharton.retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dagger.Module
 import dagger.Provides
@@ -11,6 +12,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import javax.inject.Named
 import javax.inject.Singleton
 
 @Module
@@ -47,5 +49,23 @@ object NetworkModule {
     @Singleton
     fun provideChatGptApiService(retrofit: Retrofit): ChatGptApiService {
         return retrofit.create(ChatGptApiService::class.java)
+    }
+
+    // 2. RETROFIT (Cho OpenRouter)
+    @Provides
+    @Singleton
+    @Named("OpenRouter")
+    fun provideOpenRouterRetrofit(json: Json, okHttpClient: OkHttpClient): Retrofit {
+        return Retrofit.Builder()
+            .baseUrl("https://openrouter.ai/api/")
+            .client(okHttpClient)
+            .addConverterFactory(json.asConverterFactory("application/json".toMediaType()))
+            .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideOpenRouterApiService(@Named("OpenRouter") retrofit: Retrofit): OpenRouterApiService {
+        return retrofit.create(OpenRouterApiService::class.java)
     }
 }

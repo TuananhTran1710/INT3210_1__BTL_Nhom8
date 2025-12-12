@@ -24,5 +24,8 @@ data class ChatGptResponse(
 
 @Serializable
 data class ChatGptChoice(
-    val message: ChatGptMessage
+    val message: ChatGptMessage,
+    // Thêm dòng này để biết tại sao model dừng lại
+    @SerialName("finish_reason")
+    val finishReason: String? = null
 )
