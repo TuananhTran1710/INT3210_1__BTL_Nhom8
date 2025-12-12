@@ -4,6 +4,7 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +25,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.example.wink.data.model.Message
 import com.example.wink.ui.features.chat.MessageContainer
 import com.example.wink.ui.features.chat.MessageTopBar
 import nl.dionsegijn.konfetti.compose.KonfettiView
@@ -165,12 +167,10 @@ fun SearchingView(time: Int) {
 fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
     var text by remember { mutableStateOf("") }
 
-    // Progress Bar đếm ngược
     val progress = state.timeLeft / 60f
     val progressColor = if (state.timeLeft < 10) Color.Red else MaterialTheme.colorScheme.primary
 
     Column(Modifier.fillMaxSize()) {
-        // Header Timer
         LinearProgressIndicator(
             progress = { progress },
             modifier = Modifier.fillMaxWidth().height(8.dp),
@@ -188,10 +188,9 @@ fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
             )
         }
 
-        // Chat Area
-        MessageContainer(
+        // SỬA: Dùng GameMessageList thay vì MessageContainer mặc định
+        GameMessageList(
             messages = state.messages,
-            currentUserId = "me",
             modifier = Modifier.weight(1f),
             isTyping = state.isOpponentTyping
         )
@@ -205,8 +204,13 @@ fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
                 value = text,
                 onValueChange = { text = it },
                 modifier = Modifier.weight(1f),
-                placeholder = { Text("Nhắn tin nhanh...") },
-                shape = RoundedCornerShape(24.dp)
+                // Hiển thị placeholder tùy theo lượt
+                placeholder = {
+                    Text(if (state.isMyTurn) "Đến lượt bạn..." else "Đợi đối phương...")
+                },
+                shape = RoundedCornerShape(24.dp),
+                // KHÓA NHẬP LIỆU NẾU KHÔNG PHẢI LƯỢT
+                enabled = state.isMyTurn
             )
             IconButton(
                 onClick = {
@@ -215,10 +219,78 @@ fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
                         text = ""
                     }
                 },
-                enabled = text.isNotBlank()
+                // Chỉ cho bấm nút gửi khi có text VÀ đúng lượt
+                enabled = text.isNotBlank() && state.isMyTurn
             ) {
-                Icon(Icons.Default.Send, null, tint = MaterialTheme.colorScheme.primary)
+                Icon(
+                    Icons.Default.Send,
+                    null,
+                    tint = if (state.isMyTurn) MaterialTheme.colorScheme.primary else Color.Gray
+                )
             }
+        }
+    }
+}
+
+@Composable
+fun GameMessageList(
+    messages: List<Message>,
+    modifier: Modifier = Modifier,
+    isTyping: Boolean = false
+) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    // Auto scroll
+    LaunchedEffect(messages.size, isTyping) {
+        listState.animateScrollToItem(0)
+    }
+
+    androidx.compose.foundation.lazy.LazyColumn(
+        state = listState,
+        modifier = modifier.fillMaxSize(),
+        contentPadding = PaddingValues(8.dp),
+        reverseLayout = true
+    ) {
+        if (isTyping) {
+            item {
+                com.example.wink.ui.features.chat.TypingIndicator()
+            }
+        }
+
+        items(messages) { message ->
+            if (message.senderId == "system") {
+                // Hiển thị tin nhắn hệ thống
+                SystemMessageItem(content = message.content)
+            } else {
+                // Hiển thị tin nhắn chat bình thường
+                com.example.wink.ui.features.chat.MessageItem(
+                    message = message,
+                    isSentByCurrentUser = message.senderId == "me"
+                )
+            }
+        }
+    }
+}
+
+// UI cho tin nhắn hệ thống (Căn giữa, chữ nhỏ, màu xám)
+@Composable
+fun SystemMessageItem(content: String) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 8.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Surface(
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ) {
+            Text(
+                text = content,
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+            )
         }
     }
 }

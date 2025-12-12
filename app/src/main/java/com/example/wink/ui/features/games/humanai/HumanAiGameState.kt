@@ -20,5 +20,6 @@ data class HumanAiGameState(
     // Logic game
     val isOpponentActuallyAi: Boolean = false, // True = AI, False = Human
     val didWin: Boolean = false,
-    val earnedRizz: Int = 0
+    val earnedRizz: Int = 0,
+    val isMyTurn: Boolean = false
 )
