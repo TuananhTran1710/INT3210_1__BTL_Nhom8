@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.PlayArrow
@@ -29,6 +30,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
 import com.example.wink.data.model.Quiz
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -37,7 +39,8 @@ fun QuizListScreen(
     state: QuizUiState.QuizList,
     onOpen: (String) -> Unit,
     onUnlock: (String, Int) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    viewModel: QuizViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
 ) {
     val quizzes = state.quizzes
     val finishedIds = state.finishedQuizIds
@@ -107,6 +110,64 @@ fun QuizListScreen(
         )
     }
 
+    if (state.showGenerateDialog) {
+        var topicInput by remember { mutableStateOf("") }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.onEvent(QuizEvent.DismissGenerateDialog) },
+            title = { Text("Tạo Quiz bằng AI") },
+            text = {
+                Column {
+                    Text("Nhập chủ đề bạn muốn (VD: Bóng đá, Tình yêu, Lịch sử...).\nPhí tạo: 250 RIZZ.")
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = topicInput,
+                        onValueChange = { topicInput = it },
+                        label = { Text("Chủ đề") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = { viewModel.onEvent(QuizEvent.GenerateQuiz(topicInput)) },
+                    enabled = topicInput.isNotBlank() && state.currentRizzPoints >= 250
+                ) {
+                    Text("Tạo ngay (-250 Rizz)")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { viewModel.onEvent(QuizEvent.DismissGenerateDialog) }) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
+
+    // -- THÊM: LOADING OVERLAY KHI ĐANG GENERATE --
+    if (state.isGenerating) {
+        Dialog(onDismissRequest = {}) {
+            Card(shape = RoundedCornerShape(16.dp)) {
+                Column(
+                    modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    CircularProgressIndicator()
+                    Spacer(Modifier.height(16.dp))
+                    Text("AI đang soạn câu hỏi...", fontWeight = FontWeight.Bold)
+                    Text("Vui lòng đợi giây lát", fontSize = 12.sp, color = Color.Gray)
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(state.generateError) {
+        state.generateError?.let {
+            // Có thể dùng Toast hoặc Snackbar ở đây
+            // Log.e("Quiz", it)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -151,6 +212,17 @@ fun QuizListScreen(
             SearchBarCompact(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it }
+            )
+
+            ExtendedFloatingActionButton(
+                onClick = { viewModel.onEvent(QuizEvent.ShowGenerateDialog) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp), // Thêm padding để cách lề
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
+                text = { Text("Tạo Quiz AI (-250 RIZZ)") } // Thêm chi phí vào text
             )
 
             // 2. Filter Tabs
