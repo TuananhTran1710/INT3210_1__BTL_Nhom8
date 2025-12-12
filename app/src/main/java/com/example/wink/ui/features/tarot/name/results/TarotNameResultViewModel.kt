@@ -3,6 +3,7 @@ package com.example.wink.ui.features.tarot.name.results
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.UserRepository
+import com.example.wink.ui.features.tarot.name.NameResultCache
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlin.random.Random
 import javax.inject.Inject
@@ -37,22 +38,35 @@ class TarotNameResultViewModel @Inject constructor(
     /** Được gọi lần đầu từ Screen để khởi tạo dữ liệu */
     fun init(yourName: String, crushName: String) {
         if (_uiState.value.initialized) return
+        val cached = NameResultCache.lastResult
 
-        val score = Random.nextInt(0, 101)
-        val msg = when {
-            score >= 80 -> "Trời sinh một cặp! Hai bạn cực kỳ hợp nhau."
-            score >= 50 -> "Có tiềm năng, hãy chủ động nói chuyện nhiều hơn nhé."
-            else -> "Hợp nhau kiểu bạn thân hơi nhiều hơn là người yêu."
-        }
+        if (cached != null) {
+            _uiState.update {
+                it.copy(
+                    yourName = cached.yourName,
+                    crushName = cached.crushName,
+                    score = cached.score,
+                    message = cached.message,
+                    initialized = true
+                )
+            }
+        } else {
+            val score = Random.nextInt(0, 101)
+            val msg = when {
+                score >= 80 -> "Trời sinh một cặp! Hai bạn cực kỳ hợp nhau."
+                score >= 50 -> "Có tiềm năng, hãy chủ động nói chuyện nhiều hơn nhé."
+                else -> "Hợp nhau kiểu bạn thân hơi nhiều hơn là người yêu."
+            }
 
-        _uiState.update {
-            it.copy(
-                yourName = yourName,
-                crushName = crushName,
-                score = score,
-                message = msg,
-                initialized = true
-            )
+            _uiState.update {
+                it.copy(
+                    yourName = yourName,
+                    crushName = crushName,
+                    score = score,
+                    message = msg,
+                    initialized = true
+                )
+            }
         }
     }
 

@@ -88,9 +88,17 @@ fun TarotNameScreen(
 
             Button(
                 onClick = { viewModel.onAnalyze() },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.isLoading // Disable khi đang load
             ) {
-                Text("Xem kết quả")
+                if (state.isLoading) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp),
+                        color = MaterialTheme.colorScheme.onPrimary
+                    )
+                } else {
+                    Text("Xem kết quả")
+                }
             }
         }
     }
