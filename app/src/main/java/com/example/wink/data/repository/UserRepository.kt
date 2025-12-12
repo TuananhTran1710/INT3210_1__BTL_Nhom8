@@ -23,4 +23,6 @@ interface UserRepository {
         ownedIconIds: List<String>,
         selectedIconId: String
     )
+    suspend fun sendAddFriendRequest(uid: String)
+
 }

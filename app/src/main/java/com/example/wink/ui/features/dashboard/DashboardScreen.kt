@@ -139,7 +139,7 @@ private fun DashboardTopBar(
         ),
         label = "bell_rotation"
     )
-    
+
     val bellScale by infiniteTransition.animateFloat(
         initialValue = 1f,
         targetValue = 1.15f,
@@ -178,9 +178,9 @@ private fun DashboardTopBar(
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Thông báo kết bạn",
-                        tint = if (pendingRequestsCount > 0) 
-                            MaterialTheme.colorScheme.primary 
-                        else 
+                        tint = if (pendingRequestsCount > 0)
+                            MaterialTheme.colorScheme.primary
+                        else
                             MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -215,7 +215,7 @@ private fun AnimatedDashboardItem(
     content: @Composable () -> Unit
 ) {
     var isVisible by remember { mutableStateOf(false) }
-    
+
     LaunchedEffect(Unit) {
         kotlinx.coroutines.delay(delay.toLong())
         isVisible = true
@@ -245,7 +245,7 @@ private fun RizzPointsCard(
 ) {
     var isPressed by remember { mutableStateOf(false) }
     val isDarkMode = isSystemInDarkTheme()
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = tween(300),
@@ -391,7 +391,7 @@ private fun AIFeatureCard(
 ) {
     var isPressed by remember { mutableStateOf(false) }
     val isDarkMode = isSystemInDarkTheme()
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.97f else 1f,
         animationSpec = tween(300),
@@ -566,7 +566,7 @@ private fun DailyTaskItem(
     onClick: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
-    
+
     val scale by animateFloatAsState(
         targetValue = if (isPressed) 0.98f else 1f,
         animationSpec = tween(300),

@@ -3,6 +3,7 @@ package com.example.wink.data.repository
 
 import com.example.wink.data.model.User
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
@@ -107,5 +108,31 @@ class UserRepositoryImpl @Inject constructor(
         )
 
         docRef.update(data).await()
+    }
+
+    override suspend fun sendAddFriendRequest(targetUid: String) {
+        val currentUid = getCurrentUid() ?: return
+
+        // 1. Lấy thông tin đầy đủ của bản thân (Người gửi)
+        // Để gửi kèm sang cho người nhận thấy
+        val currentUserSnapshot = usersCollection.document(currentUid).get().await()
+        val myName = currentUserSnapshot.getString("displayName") ?: "Unknown" // Cần đảm bảo field này có trong DB
+        val myAvatar = currentUserSnapshot.getString("avatarUrl") ?: ""
+
+        // 2. Tạo data đầy đủ
+        val requestData = hashMapOf(
+            "uid" to currentUid,           // ID người gửi
+            "displayName" to myName,       // Tên người gửi (Snapshot)
+            "avatarUrl" to myAvatar,       // Avatar người gửi (Snapshot)
+            "status" to "pending",
+            "timestamp" to FieldValue.serverTimestamp()
+        )
+
+        // 3. Ghi vào Sub-collection của người nhận
+        usersCollection.document(targetUid)
+            .collection("friendRequests") // Tên sub-collection
+            .document(currentUid)         // Dùng ID mình làm key
+            .set(requestData)
+            .await()
     }
 }
