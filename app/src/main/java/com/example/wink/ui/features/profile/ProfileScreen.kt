@@ -42,23 +42,6 @@ import com.example.wink.ui.navigation.Screen
 import com.example.wink.util.TimeUtils
 import kotlinx.coroutines.launch
 
-// --- Model Mock Data ---
-data class PostData(
-    val id: String,
-    val author: String,
-    val timeAgo: String,
-    val content: String,
-    val likes: Int,
-    val comments: Int
-)
-
-//data class FriendProfile(
-//    val id: String,
-//    val name: String,
-//    val rizz: Int,
-//    val avatar: String = ""
-//)
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
@@ -225,7 +208,9 @@ fun ProfileScreen(
                 } else {
                     Log.d("ProfileScreen", "Friends loaded: ${uiState.loadedFriends.size}")
                     items(uiState.loadedFriends) { friend ->
-                        FriendListItem(friend)
+                        FriendListItem(friend,
+                            onClick = { navController.navigate(Screen.UserDetail.createRoute(friend.id)) }
+                        )
                     }
                 }
             }

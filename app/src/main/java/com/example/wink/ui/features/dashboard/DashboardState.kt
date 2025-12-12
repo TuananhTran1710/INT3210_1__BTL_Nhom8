@@ -1,5 +1,7 @@
 package com.example.wink.ui.features.dashboard
 
+import com.example.wink.data.model.FriendRequest
+
 data class DashboardTask(
     val id: String,
     val title: String,
@@ -43,5 +45,9 @@ data class DashboardState(
     
     // Error states
     val errorMessage: String? = null,
-    val isRefreshing: Boolean = false
+    val isRefreshing: Boolean = false,
+    
+    // Friend requests
+    val pendingFriendRequests: List<FriendRequest> = emptyList(),
+    val showFriendRequestsDialog: Boolean = false
 )
