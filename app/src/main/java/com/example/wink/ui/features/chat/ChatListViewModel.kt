@@ -27,6 +27,9 @@ class ChatListViewModel @Inject constructor(
     private val _chats = MutableStateFlow<List<UiChat>>(emptyList())
     val chats: StateFlow<List<UiChat>> = _chats.asStateFlow()
 
+    private val _isLoading = MutableStateFlow(true)
+    val isLoading: StateFlow<Boolean> = _isLoading.asStateFlow()
+
     private val currentUserId: String?
         get() = auth.currentUser?.uid
 
@@ -37,6 +40,7 @@ class ChatListViewModel @Inject constructor(
     private fun loadChats() {
         currentUserId?.let {
             viewModelScope.launch {
+                _isLoading.value = true
                 chatRepository.listenChats(it)
                     .map { chats ->
                         chats.map {  chat ->
@@ -45,8 +49,9 @@ class ChatListViewModel @Inject constructor(
                         }
                     }
                     .collect {
-                    _chats.value = it
-                }
+                        _chats.value = it
+                        _isLoading.value = false
+                    }
             }
         }
     }

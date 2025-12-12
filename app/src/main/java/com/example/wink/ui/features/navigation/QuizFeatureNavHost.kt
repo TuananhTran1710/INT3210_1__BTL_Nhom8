@@ -1,5 +1,7 @@
 package com.example.wink.ui.features.navigation
 
+import QuizDetailScreen
+import QuizResultScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -28,10 +30,14 @@ fun QuizFeatureNavHost(
 
         is QuizUiState.QuizList ->
             QuizListScreen(
-                quizzes = (state as QuizUiState.QuizList).quizzes,
+                state = state as QuizUiState.QuizList,
                 onOpen = { id ->
                     viewModel.onEvent(QuizEvent.OpenQuiz(id))
-                }
+                },
+                onUnlock = { quizId, cost ->
+                    viewModel.onEvent(QuizEvent.UnlockQuiz(quizId, cost))
+                },
+                onBack = onBack
             )
 
         is QuizUiState.QuizDetail ->
@@ -54,6 +60,17 @@ fun QuizFeatureNavHost(
                 },
                 onBack = {
                     viewModel.onEvent(QuizEvent.LoadList)
+                }
+            )
+
+        is QuizUiState.QuizResult ->
+            QuizResultScreen(
+                state = state as QuizUiState.QuizResult,
+                onBackToList = {
+                    viewModel.onEvent(QuizEvent.LoadList)
+                },
+                onTryAgain = { quizId ->
+                    viewModel.onEvent(QuizEvent.TryAgain(quizId))
                 }
             )
     }

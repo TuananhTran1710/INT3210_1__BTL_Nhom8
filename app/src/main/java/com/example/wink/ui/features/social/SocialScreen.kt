@@ -46,7 +46,9 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
+import coil.request.CachePolicy
 import coil.request.ImageRequest
+import coil.size.Size
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
@@ -102,7 +104,9 @@ fun SocialScreen(
             onImagesSelected = { viewModel.onImagesSelected(it) }, // Callback chọn ảnh
             onRemoveImage = { viewModel.onRemoveSelectedImage(it) }, // Callback xóa ảnh
             onDismiss = { viewModel.onDismissPostDialog() },
-            onPost = { viewModel.onSendPost() }
+            onPost = { viewModel.onSendPost() },
+            isPosting = state.isPosting,
+            userAvatarUrl = state.currentUserAvatarUrl,
         )
     }
 
@@ -125,13 +129,14 @@ fun SocialScreen(
             }
         }
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        Box(modifier = Modifier.padding(top = padding.calculateTopPadding()).fillMaxSize()) {
             if (state.isLoading) {
                 CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
             } else {
                 if (state.selectedTab == 0) {
                     FeedList(
                         posts = state.feedList,
+                        currentUserAvatarUrl = state.currentUserAvatarUrl,
                         onUserClick = { userId ->
                             // Chuyển sang màn hình hồ sơ người khác
                             navController.navigate(Screen.UserDetail.createRoute(userId))
@@ -142,7 +147,7 @@ fun SocialScreen(
                         onImageClick = { url -> viewingImageUrl = url },
                         onRetweetClick = { postId -> viewModel.onRetweetClick(postId) },
                         onDeletePost = { postId -> viewModel.onDeletePost(postId) },
-                        onEditPost = { postId, content, imageUrls -> 
+                        onEditPost = { postId, content, imageUrls ->
                             viewModel.onEditPost(postId, content, imageUrls)
                         }
                     )
@@ -157,7 +162,7 @@ fun SocialScreen(
 
 // --- 1. Thanh nhập liệu "Bạn đang nghĩ gì?" (Giống Facebook) ---
 @Composable
-fun CreatePostInputBar(onClick: () -> Unit) {
+fun CreatePostInputBar(currentUserAvatarUrl: String, onClick: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -175,12 +180,23 @@ fun CreatePostInputBar(onClick: () -> Unit) {
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.primaryContainer
             ) {
-                Icon(
-                    imageVector = Icons.Default.Person,
-                    contentDescription = null,
-                    modifier = Modifier.padding(8.dp),
-                    tint = MaterialTheme.colorScheme.onPrimaryContainer
-                )
+                if (currentUserAvatarUrl.isNotBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(currentUserAvatarUrl)
+                            .crossfade(true).build(),
+                        contentDescription = "My Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        modifier = Modifier.padding(8.dp),
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.width(12.dp))
@@ -211,6 +227,7 @@ fun CreatePostInputBar(onClick: () -> Unit) {
 @Composable
 fun FeedList(
     posts: List<SocialPost>,
+    currentUserAvatarUrl: String,
     onUserClick: (String) -> Unit,
     onCreatePostClick: () -> Unit,
     onLikeClick: (String) -> Unit,
@@ -223,7 +240,10 @@ fun FeedList(
     LazyColumn {
         // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
         item {
-            CreatePostInputBar(onClick = onCreatePostClick)
+            CreatePostInputBar(
+                currentUserAvatarUrl = currentUserAvatarUrl,
+                onClick = onCreatePostClick
+            )
             // Đường kẻ phân cách đậm hơn chút để tách phần nhập liệu với Feed
             HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         }
@@ -231,10 +251,10 @@ fun FeedList(
         // Các bài post bên dưới
         items(posts) { post ->
             FeedItem(
-                post, 
-                onUserClick, 
-                onLikeClick, 
-                onCommentClick, 
+                post,
+                onUserClick,
+                onLikeClick,
+                onCommentClick,
                 onImageClick = onImageClick,
                 onRetweetClick = onRetweetClick,
                 onDeletePost = onDeletePost,
@@ -243,7 +263,7 @@ fun FeedList(
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
                 thickness = 0.5.dp,
-                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.67f)
             )
         }
     }
@@ -262,7 +282,7 @@ fun FeedItem(
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var editContent by remember { mutableStateOf(post.content) }
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -306,18 +326,23 @@ fun FeedItem(
             ) {
                 if (post.avatarUrl.isNullOrBlank()) {
                     // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
-                    Icon(
-                        imageVector = Icons.Default.Person,
-                        contentDescription = null,
-                        modifier = Modifier.padding(8.dp),
-                        tint = MaterialTheme.colorScheme.onSecondaryContainer
-                    )
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = post.username.take(1).uppercase(),
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
                 } else {
                     // Trường hợp 2: Có avatar -> Load ảnh từ URL
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(post.avatarUrl)
                             .crossfade(true)
+                            .size(Size.ORIGINAL)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = "Avatar",
                         contentScale = ContentScale.Crop,
@@ -338,7 +363,7 @@ fun FeedItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             // More Menu (Edit/Delete)
             if (post.canDelete || post.canEdit) {
                 var showMenu by remember { mutableStateOf(false) }
@@ -350,7 +375,7 @@ fun FeedItem(
                         if (post.canEdit) {
                             DropdownMenuItem(
                                 text = { Text("Chỉnh sửa") },
-                                onClick = { 
+                                onClick = {
                                     editContent = post.content
                                     showEditDialog = true
                                     showMenu = false
@@ -360,7 +385,7 @@ fun FeedItem(
                         if (post.canDelete) {
                             DropdownMenuItem(
                                 text = { Text("Xóa") },
-                                onClick = { 
+                                onClick = {
                                     onDeletePost(post.id)
                                     showMenu = false
                                 }
@@ -370,7 +395,7 @@ fun FeedItem(
                 }
             }
         }
-        
+
         // Edit Post Dialog
         if (showEditDialog) {
             AlertDialog(
@@ -427,11 +452,14 @@ fun FeedItem(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(imageUrl)
                             .crossfade(true)
+                            .size(Size.ORIGINAL)
+                            .diskCachePolicy(CachePolicy.ENABLED)
+                            .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = "Post Image",
                         contentScale = ContentScale.Crop, // Cắt ảnh thành hình vuông
                         modifier = Modifier
-                            .size(120.dp) // Kích thước cố định hình vuông nhỏ
+                            .size(250.dp) // Kích thước cố định hình vuông nhỏ
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
                             .clickable { onImageClick(imageUrl) } // Bấm vào để xem full
@@ -587,7 +615,27 @@ fun CommentItem(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
+            if (!comment.avatarUrl.isNullOrBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(comment.avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                // Avatar mặc định (Chữ cái đầu)
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = comment.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.width(8.dp))
         Column(modifier = Modifier.weight(1f)) {
@@ -610,7 +658,7 @@ fun CommentItem(
                 }
             }
             Text(comment.content, style = MaterialTheme.typography.bodyMedium)
-            
+
             // Like button + Edit button for comment
             Row(
                 modifier = Modifier.padding(top = 4.dp),
@@ -633,7 +681,7 @@ fun CommentItem(
                         color = Color.Gray
                     )
                 }
-                
+
                 // Nút chỉnh sửa (chỉ hiện nếu user là chủ comment)
                 if (comment.canEdit) {
                     Spacer(modifier = Modifier.width(16.dp))
@@ -667,7 +715,7 @@ fun CommentItem(
             }
         }
     }
-    
+
     // Dialog chỉnh sửa comment
     if (showEditDialog) {
         AlertDialog(
@@ -711,18 +759,17 @@ fun CreatePostDialog(
     onImagesSelected: (List<Uri>) -> Unit, // Callback khi chọn xong ảnh
     onRemoveImage: (Uri) -> Unit, // Callback xóa ảnh
     onDismiss: () -> Unit,
-    onPost: () -> Unit
+    onPost: () -> Unit,
+    userAvatarUrl: String, // Avatar user
+    isPosting: Boolean,
 ) {
-    // Launcher để mở thư viện ảnh
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5) // Chọn tối đa 5 ảnh
-    ) { uris ->
-        onImagesSelected(uris)
-    }
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 5)
+    ) { uris -> onImagesSelected(uris) }
 
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(usePlatformDefaultWidth = false, dismissOnBackPress = !isPosting, dismissOnClickOutside = !isPosting)
     ) {
         Surface(
             modifier = Modifier
@@ -741,11 +788,38 @@ fun CreatePostDialog(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text("Tạo bài viết", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Default.Close, contentDescription = "Đóng")
+                    // Ẩn nút đóng khi đang đăng để tránh lỗi
+                    if (!isPosting) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Default.Close, contentDescription = "Đóng")
+                        }
                     }
                 }
                 Divider(modifier = Modifier.padding(vertical = 8.dp))
+
+                // User Info Mini (Avatar thật)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        modifier = Modifier.size(32.dp),
+                        shape = CircleShape,
+                        color = MaterialTheme.colorScheme.primaryContainer
+                    ) {
+                        if (userAvatarUrl.isNotBlank()) {
+                            AsyncImage(
+                                model = userAvatarUrl,
+                                contentDescription = null,
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(6.dp))
+                        }
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
+                    // Có thể thêm tên user ở đây nếu muốn
+                    Text("Công khai", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
 
                 // Text Input
                 OutlinedTextField(
@@ -758,10 +832,11 @@ fun CreatePostDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
                         unfocusedBorderColor = Color.Transparent
-                    )
+                    ),
+                    enabled = !isPosting // Khóa nhập khi đang đăng
                 )
 
-                // --- KHU VỰC HIỂN THỊ ẢNH ĐANG CHỌN ---
+                // ... (Phần hiển thị ảnh đã chọn giữ nguyên) ...
                 if (selectedImages.isNotEmpty()) {
                     LazyRow(
                         modifier = Modifier.padding(vertical = 8.dp),
@@ -778,15 +853,16 @@ fun CreatePostDialog(
                                         .border(1.dp, Color.Gray, RoundedCornerShape(8.dp)),
                                     contentScale = ContentScale.Crop
                                 )
-                                // Nút xóa ảnh nhỏ ở góc
-                                IconButton(
-                                    onClick = { onRemoveImage(uri) },
-                                    modifier = Modifier
-                                        .size(24.dp)
-                                        .align(Alignment.TopEnd)
-                                        .background(Color.Black.copy(alpha = 0.6f), CircleShape)
-                                ) {
-                                    Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.White, modifier = Modifier.size(16.dp))
+                                if (!isPosting) { // Chỉ cho xóa khi chưa bấm đăng
+                                    IconButton(
+                                        onClick = { onRemoveImage(uri) },
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .align(Alignment.TopEnd)
+                                            .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                    ) {
+                                        Icon(Icons.Default.Close, contentDescription = "Xóa", tint = Color.White, modifier = Modifier.size(16.dp))
+                                    }
                                 }
                             }
                         }
@@ -809,7 +885,7 @@ fun CreatePostDialog(
                         photoPickerLauncher.launch(
                             PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
                         )
-                    }) {
+                    }, enabled = !isPosting) {
                         Icon(Icons.Default.AddPhotoAlternate, contentDescription = "Thêm ảnh", tint = MaterialTheme.colorScheme.primary)
                     }
                 }
@@ -818,9 +894,20 @@ fun CreatePostDialog(
                 Button(
                     onClick = onPost,
                     modifier = Modifier.fillMaxWidth(),
-                    enabled = content.isNotBlank() || selectedImages.isNotEmpty()
+                    enabled = (content.isNotBlank() || selectedImages.isNotEmpty()) && !isPosting
                 ) {
-                    Text("Đăng ngay")
+                    if (isPosting) {
+                        // Hiệu ứng xoay tròn
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(20.dp),
+                            color = MaterialTheme.colorScheme.onPrimary,
+                            strokeWidth = 2.dp
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Đang đăng...")
+                    } else {
+                        Text("Đăng ngay")
+                    }
                 }
             }
         }
@@ -867,7 +954,27 @@ fun LeaderboardItem(rank: Int, user: User, onUserClick: (String) -> Unit) {
             shape = CircleShape,
             color = MaterialTheme.colorScheme.primaryContainer
         ) {
-            Icon(Icons.Default.Person, contentDescription = null, modifier = Modifier.padding(10.dp))
+            if (user.avatarUrl.isNotBlank()) {
+                AsyncImage(
+                    model = ImageRequest.Builder(LocalContext.current)
+                        .data(user.avatarUrl)
+                        .crossfade(true)
+                        .build(),
+                    contentDescription = "Avatar",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+            } else {
+                // Avatar mặc định nếu user chưa đặt ảnh
+                Box(contentAlignment = Alignment.Center) {
+                    Text(
+                        text = user.username.take(1).uppercase(),
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onPrimaryContainer
+                    )
+                }
+            }
         }
         Spacer(modifier = Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {

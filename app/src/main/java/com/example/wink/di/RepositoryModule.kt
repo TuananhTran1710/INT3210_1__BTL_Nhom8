@@ -4,10 +4,12 @@ import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.AuthRepositoryImpl
 import com.example.wink.data.repository.FakeQuizRepositoryImpl
 import com.example.wink.data.repository.QuizRepository
+import com.example.wink.data.repository.QuizRepositoryImpl
 import com.example.wink.data.repository.UserRepository
 import com.example.wink.data.repository.UserRepositoryImpl
 import com.example.wink.data.repository.SocialRepository
 import com.example.wink.data.repository.SocialRepositoryImpl
+import com.example.wink.data.repository.TipsRepository
 // import com.example.wink.data.repository.AuthRepositoryImpl // <--- Sau này dùng cái này
 import dagger.Binds
 import dagger.Module
@@ -28,7 +30,7 @@ abstract class RepositoryModule {
     @Binds
     @Singleton
     abstract fun bindQuizRepository(
-        impl: FakeQuizRepositoryImpl
+        impl: QuizRepositoryImpl
     ): QuizRepository
 
     @Binds
@@ -44,4 +46,10 @@ abstract class RepositoryModule {
     abstract fun bindSocialRepository(
         impl: SocialRepositoryImpl
     ): SocialRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTipsRepository(
+        impl: com.example.wink.data.repository.TipsRepositoryImpl
+    ): TipsRepository
 }

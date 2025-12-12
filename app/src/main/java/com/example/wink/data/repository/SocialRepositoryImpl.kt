@@ -1,14 +1,17 @@
 package com.example.wink.data.repository
 
+import android.content.Context
 import android.net.Uri
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.util.ImageUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,7 +22,8 @@ import javax.inject.Inject
 class SocialRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    @ApplicationContext private val context: Context
 ) : SocialRepository {
 
     private val currentUserId get() = auth.currentUser?.uid ?: ""
@@ -217,11 +221,11 @@ class SocialRepositoryImpl @Inject constructor(
         return try {
             val commentRef = firestore.collection("posts").document(postId)
                 .collection("comments").document(commentId)
-            
+
             // Kiểm tra quyền sở hữu
             val doc = commentRef.get().await()
             val ownerId = doc.getString("userId")
-            
+
             if (ownerId != userId) {
                 return Result.failure(Exception("Bạn không có quyền sửa comment này"))
             }
@@ -233,7 +237,7 @@ class SocialRepositoryImpl @Inject constructor(
                     "editedAt" to System.currentTimeMillis()
                 )
             ).await()
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -244,11 +248,11 @@ class SocialRepositoryImpl @Inject constructor(
     override suspend fun deletePost(postId: String, userId: String): Result<Unit> {
         return try {
             val postRef = firestore.collection("posts").document(postId)
-            
+
             // Kiểm tra quyền sở hữu
             val doc = postRef.get().await()
             val ownerId = doc.getString("userId")
-            
+
             if (ownerId != userId) {
                 return Result.failure(Exception("Bạn không có quyền xóa bài viết này"))
             }
@@ -261,7 +265,7 @@ class SocialRepositoryImpl @Inject constructor(
 
             // Xóa bài viết
             postRef.delete().await()
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -272,11 +276,11 @@ class SocialRepositoryImpl @Inject constructor(
     override suspend fun editPost(postId: String, userId: String, newContent: String, newImageUrls: List<String>): Result<Unit> {
         return try {
             val postRef = firestore.collection("posts").document(postId)
-            
+
             // Kiểm tra quyền sở hữu
             val doc = postRef.get().await()
             val ownerId = doc.getString("userId")
-            
+
             if (ownerId != userId) {
                 return Result.failure(Exception("Bạn không có quyền sửa bài viết này"))
             }
@@ -289,7 +293,7 @@ class SocialRepositoryImpl @Inject constructor(
                     "editedAt" to System.currentTimeMillis()
                 )
             ).await()
-            
+
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -406,6 +410,7 @@ class SocialRepositoryImpl @Inject constructor(
                 .await()
 
             val users = snapshot.documents.mapNotNull { doc ->
+                // Map thủ công để tránh lỗi crash nếu thiếu trường
                 User(
                     uid = doc.getString("uid") ?: "",
                     email = doc.getString("email"),
@@ -423,13 +428,20 @@ class SocialRepositoryImpl @Inject constructor(
         }
     }
 
-    // 12. UPLOAD ẢNH
     override suspend fun uploadImage(uri: Uri): Result<String> {
         return try {
+            // --- BƯỚC NÉN ẢNH Ở ĐÂY ---
+            // Biến uri gốc (nặng) thành uri đã nén (nhẹ)
+            val compressedUri = ImageUtils.compressImage(context, uri)
+            // ---------------------------
+
             val filename = UUID.randomUUID().toString()
             val ref = storage.reference.child("images/$filename.jpg")
 
             ref.putFile(uri).await()
+            // Upload ảnh nén thay vì ảnh gốc
+            ref.putFile(compressedUri).await() // Dùng compressedUri
+
             val downloadUrl = ref.downloadUrl.await()
             Result.success(downloadUrl.toString())
         } catch (e: Exception) {

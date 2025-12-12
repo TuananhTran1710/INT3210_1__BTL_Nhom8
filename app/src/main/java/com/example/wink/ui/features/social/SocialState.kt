@@ -4,6 +4,7 @@ import android.net.Uri
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+
 data class SocialState(
     val feedList: List<SocialPost> = emptyList(),
     val leaderboardList: List<User> = emptyList(),
@@ -12,9 +13,12 @@ data class SocialState(
 
     val isCreatingPost: Boolean = false,
     val newPostContent: String = "",
+    val activePostId: String? = null,
+    val commentsForActivePost: List<Comment> = emptyList(),
+    val newCommentContent: String = "",
+    val selectedImageUris: List<Uri> = emptyList(),
 
-    val activePostId: String? = null, // ID bài viết đang mở comment (null = đóng)
-    val commentsForActivePost: List<Comment> = emptyList(), // List comment của bài đó
-    val newCommentContent: String = "", // Nội dung đang nhập bình luận
-    val selectedImageUris: List<Uri> = emptyList()
+    // --- THÊM MỚI ---
+    val isPosting: Boolean = false,       // Trạng thái đang đăng bài (để hiện loading)
+    val currentUserAvatarUrl: String = ""
 )
