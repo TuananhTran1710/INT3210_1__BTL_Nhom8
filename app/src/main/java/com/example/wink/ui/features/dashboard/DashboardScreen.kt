@@ -1,44 +1,32 @@
 package com.example.wink.ui.features.dashboard
 
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.scale
-import androidx.compose.ui.draw.alpha
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
-import com.example.wink.R
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.animation.core.*
-import androidx.compose.ui.res.painterResource
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import com.example.wink.ui.features.social.SocialViewModel
+import com.example.wink.ui.navigation.Screen
 
 
+<<<<<<< HEAD
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun DashboardScreen(
+    navController: NavController,
+    viewModel: DashboardViewModel = hiltViewModel(),
+    socialViewModel: SocialViewModel = hiltViewModel()
+=======
 
 data class DailyTask(
     val id: Int,
@@ -129,466 +117,75 @@ private fun DashboardTopBar() {
 private fun AnimatedDashboardItem(
     delay: Int,
     content: @Composable () -> Unit
+>>>>>>> main
 ) {
-    var isVisible by remember { mutableStateOf(false) }
-    
-    LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(delay.toLong())
-        isVisible = true
-    }
+    val uiState by viewModel.uiState.collectAsState()
+    val friendRequests by socialViewModel.friendRequests.collectAsState()
 
-    val alpha by animateFloatAsState(
-        targetValue = if (isVisible) 1f else 0f,
-        animationSpec = tween(500),
-        label = "alpha_animation"
-    )
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .alpha(alpha)
-    ) {
-        content()
-    }
-}
-
-@Composable
-private fun RizzPointsCard(
-    points: Int,
-    streakDays: Int,
-    attended: Boolean,
-    onStreakClick: () -> Unit
-) {
-    var isPressed by remember { mutableStateOf(false) }
-    val isDarkMode = isSystemInDarkTheme()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(300),
-        label = "rizz_card_scale"
-    )
-
-    // Adaptive gradient colors for light and dark mode
-    val gradientColors = if (isDarkMode) {
-        listOf(
-            Color(0xFFB8478A),  // Darker pink for dark mode
-            Color(0xFF5A4BA3)   // Darker purple for dark mode
-        )
-    } else {
-        listOf(
-            Color(0xFFDA47B5),  // Original pink
-            Color(0xFF7B5DFF)   // Original purple
-        )
-    }
-
-    val brush = Brush.linearGradient(
-        colors = gradientColors,
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    isPressed = true
-                    onStreakClick()
-                }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(brush = brush)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Text(
-                    text = "Tổng điểm RIZZ",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontWeight = FontWeight.Medium
-                )
-
-                Text(
-                    text = points.toString(),
-                    style = MaterialTheme.typography.displayMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
-                )
-
-                // Streak Section
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.White.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier.size(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (attended) R.drawable.fire1 else R.drawable.fire2
-                                    ),
-                                    contentDescription = "Streak",
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.width(12.dp))
-
-                            Column {
-                                Text(
-                                    text = "$streakDays ngày",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Streak đăng nhập",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.7f)
-                                )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Trang chủ") },
+                actions = {
+                    // Notification icon with badge
+                    BadgedBox(
+                        badge = {
+                            if (friendRequests.isNotEmpty()) {
+                                Badge {
+                                    Text("${friendRequests.size}")
+                                }
                             }
                         }
-
-                        Button(
-                            onClick = onStreakClick,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = if (isDarkMode) Color(0xFF5A4BA3) else Color(0xFF7B5DFF)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(34.dp)
+                    ) {
+                        IconButton(
+                            onClick = {
+                                navController.navigate("friend_requests")
+                            }
                         ) {
-                            Text(
-                                text = if (attended) "Đã điểm danh" else "Điểm danh",
-                                style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
+                            Icon(
+                                imageVector = Icons.Filled.Notifications,
+                                contentDescription = "Thông báo"
                             )
                         }
                     }
-                }
-            }
-        }
-    }
-}
-@Composable
-private fun AIFeatureCard(
-    onClick: () -> Unit
-) {
-    var isPressed by remember { mutableStateOf(false) }
-    val isDarkMode = isSystemInDarkTheme()
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.97f else 1f,
-        animationSpec = tween(300),
-        label = "ai_card_scale"
-    )
-
-    // Adaptive gradient colors for light and dark mode
-    val gradientColors = if (isDarkMode) {
-        listOf(
-            Color(0xFFD88940),  // Darker orange for dark mode
-            Color(0xFF6D4BA8)   // Darker purple for dark mode
-        )
-    } else {
-        listOf(
-            Color(0xFFF9A546),  // Original orange
-            Color(0xFF8F5FF3)   // Original purple
-        )
-    }
-
-    val brush = Brush.linearGradient(
-        colors = gradientColors,
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    isPressed = true
-                    onClick()
-                }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 2.dp
-        )
-    ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(brush = brush)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(20.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text(
-                        text = "AI Crush",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        text = "Lan Anh",
-                        style = MaterialTheme.typography.headlineSmall,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
-                        modifier = Modifier.padding(bottom = 16.dp)
-                    )
-
-                    Button(
-                        onClick = onClick,
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.White,
-                            contentColor = if (isDarkMode) Color(0xFFD88940) else Color(0xFFF9A546)
-                        ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
-                        contentPadding = PaddingValues(12.dp)
-                    ) {
-                        Text(
-                            text = "Vào hâm nóng",
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
-                        )
-                    }
-                }
-
-                // Avatar placeholder
-                Surface(
-                    modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    color = Color.White.copy(alpha = 0.2f)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
+                    
+                    Spacer(modifier = Modifier.width(8.dp))
+                    
+                    // Profile icon
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.Profile.route)
+                        }
                     ) {
                         Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "AI Avatar",
-                            tint = Color.White,
-                            modifier = Modifier.size(50.dp)
+                            imageVector = Icons.Filled.Person,
+                            contentDescription = "Hồ sơ"
                         )
                     }
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyTasksSection(
-    onTaskClick: () -> Unit
-) {
-    val tasks = listOf(
-        DailyTask(1, "Nhắn tin với AI Crush 6 lần", 150, false),
-        DailyTask(2, "Bình luận vào 3 bài viết khác nhau", 100, false),
-        DailyTask(3, "Đăng một bài viết lên Bảng tin", 67, false)
-    )
-
-    Column {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = "Tasks",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
-            )
-            Text(
-                text = "Nhiệm vụ hôm nay",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
             )
         }
-
+    ) { paddingValues ->
         Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            tasks.forEach { task ->
-                DailyTaskItem(
-                    task = task,
-                    onClick = onTaskClick
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun DailyTaskItem(
-    task: DailyTask,
-    onClick: () -> Unit
-) {
-    var isPressed by remember { mutableStateOf(false) }
-    
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(300),
-        label = "task_item_scale"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    isPressed = true
-                    onClick()
-                }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
-    ) {
-        Row(
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .fillMaxSize()
+                .padding(paddingValues),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Surface(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape),
-                color = if (task.isCompleted)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.surfaceVariant
-            ) {
-                if (task.isCompleted) {
-                    Icon(
-                        imageVector = Icons.Default.Check,
-                        contentDescription = "Completed",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(2.dp)
-                    )
-                }
-            }
-
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator()
+            } else {
                 Text(
-                    text = task.title,
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium
+                    text = "Chào mừng trở lại!",
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = uiState.userEmail,
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
-
-            Text(
-                text = "+${task.reward} RIZZ",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFFF9A546),
-                fontWeight = FontWeight.Bold
-            )
         }
     }
-}
-
-
-// Preview functions
-@Preview(showBackground = true)
-@Composable
-private fun DashboardTopBarPreview() {
-    DashboardTopBar()
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun RizzPointsCardPreview() {
-    RizzPointsCard(
-        points = 1250,
-        streakDays = 2,
-        attended = false,
-        onStreakClick = { }
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun AIFeatureCardPreview() {
-    AIFeatureCard(
-        onClick = { }
-    )
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun DailyTasksSectionPreview() {
-    DailyTasksSection(
-        onTaskClick = { }
-    )
 }

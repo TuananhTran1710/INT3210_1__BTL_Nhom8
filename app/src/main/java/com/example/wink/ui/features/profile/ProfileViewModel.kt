@@ -5,10 +5,12 @@ import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.SocialRepository
 import com.example.wink.util.BaseViewModel
+import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import java.util.TimeZone
 import javax.inject.Inject
 import kotlin.String
 
@@ -23,15 +25,66 @@ class ProfileViewModel @Inject constructor(
     override val uiState: StateFlow<ProfileState>
         get() = _uiState
 
-    override fun getInitialState(): ProfileState = ProfileState()
+    override fun getInitialState(): ProfileState = ProfileState(
+        // state ban đầu
+
+    )
+
+    private var currentUserId: String? = null
 
     init{
-        userInit()
-        loadFriends()
+        observeUser()
+    }
+    // load dữ liệu ban đầu
+    private fun observeUser() {
+        viewModelScope.launch {
+            authRepository.currentUser.collectLatest { user ->
+                val current = _uiState.value
+                _uiState.value = current.copy(
+                    userEmail = user?.email ?: "Không tìm thấy Email",
+                    username = user?.username ?: user?.email?.substringBefore("@") ?: "Người dùng",
+                    rizzPoints = user?.rizzPoints ?: current.rizzPoints,
+                    dailyStreak = user?.loginStreak ?: current.dailyStreak,
+                    longestStreak = user?.longestStreak?:current.longestStreak,
+                    friends = user?.friendsList?:current.friends,
+                    avatarUrl = user?.avatarUrl?:current.avatarUrl,
+                    isLoading = false
+                )
 
+                // Load friends data when user changes
+                user?.friendsList?.let { friendIds ->
+                    if (friendIds.isNotEmpty()) {
+                        loadFriends(friendIds)
+                    }
+                }
+
+                // Load user posts
+                user?.uid?.let { userId ->
+                    if (currentUserId != userId) {
+                        currentUserId = userId
+                        loadUserPosts(userId)
+                    }
+                }
+            }
         }
-        // load dữ liệu ban đầu
+    }
 
+    private var postsJob: kotlinx.coroutines.Job? = null
+
+    private fun loadUserPosts(userId: String) {
+        // Cancel previous job to avoid multiple listeners
+        postsJob?.cancel()
+        postsJob = viewModelScope.launch {
+            try {
+                socialRepository.getUserPosts(userId).collectLatest { posts ->
+                    _uiState.value = _uiState.value.copy(posts = posts)
+                    Log.d("ProfileViewModel", "Loaded ${posts.size} posts")
+                }
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error loading posts", e)
+            }
+        }
+    }
 
     override fun onEvent(event: ProfileEvent) {
         when (event) {
@@ -83,37 +136,36 @@ class ProfileViewModel @Inject constructor(
     private fun openChat (friendId: String) {
 
     }
-    private fun userInit () {
+
+    private fun loadFriends(friendIds: List<String>) {
         viewModelScope.launch {
-            authRepository.currentUser.collectLatest { user ->
+            try {
+                // Get user data for all friend IDs
+                val users = authRepository.getUsersByIds(friendIds)
+
+                // Convert to FriendUi
+                val loadedFriends = users.map { user ->
+                    FriendUi(
+                        id = user.uid,
+                        name = user.username,
+                        avatarUrl = user.avatarUrl,
+                        rizzPoints = user.rizzPoints,
+                        isFriend = true
+                    )
+                }
+
                 _uiState.value = _uiState.value.copy(
-                    username = user?.username ?: "Chưa đăng nhập",
-                    avatarUrl = user?.avatarUrl,
-                    rizzPoint = user?.rizzPoints ?: 0,
-                    // Reset nếu logout
-                    friends = if (user == null) emptyList() else _uiState.value.friends
+                    loadedFriends = loadedFriends,
+                    friendCount = loadedFriends.size
                 )
 
-                // SAU KHI CÓ USER -> LẤY BÀI VIẾT
-                if (user != null) {
-                    loadUserPosts(user.uid)
-                }
+                Log.d("ProfileViewModel", "Loaded ${loadedFriends.size} friends")
+            } catch (e: Exception) {
+                Log.e("ProfileViewModel", "Error loading friends", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Không thể tải danh sách bạn bè"
+                )
             }
-        }
-
-        Log.i("user info", "user info: ${uiState.value}")
-    }
-    private fun loadUserPosts(userId: String) {
-        viewModelScope.launch {
-            socialRepository.getUserPosts(userId).collectLatest { posts ->
-                _uiState.value = _uiState.value.copy(posts = posts)
-            }
-        }
-    }
-    private fun loadFriends()  {
-        viewModelScope.launch {
-            val lstFriends = null
-//            _uiState.value = _uiState.value.copy(friends = lstFriends, friendCount = lstFriends.size)
         }
     }
 }

@@ -190,4 +190,105 @@ class SocialViewModel @Inject constructor(
             state.copy(selectedImageUris = state.selectedImageUris - uri)
         }
     }
+
+    // 4. LIKE / UNLIKE COMMENT
+    fun onCommentLikeClick(commentId: String) {
+        val postId = _uiState.value.activePostId ?: return
+        val user = currentUser ?: return
+        val comment = _uiState.value.commentsForActivePost.find { it.id == commentId } ?: return
+
+        // Optimistic update
+        _uiState.update { state ->
+            val updatedComments = state.commentsForActivePost.map {
+                if (it.id == commentId) {
+                    val newIsLiked = !it.isLikedByMe
+                    val newCount = if (newIsLiked) it.likeCount + 1 else it.likeCount - 1
+                    it.copy(isLikedByMe = newIsLiked, likeCount = newCount)
+                } else {
+                    it
+                }
+            }
+            state.copy(commentsForActivePost = updatedComments)
+        }
+
+        viewModelScope.launch {
+            socialRepository.toggleCommentLike(postId, commentId, user.uid, if (comment.isLikedByMe) listOf(user.uid) else emptyList())
+        }
+    }
+
+    // 5. DELETE POST
+    fun onDeletePost(postId: String) {
+        val user = currentUser ?: return
+
+        viewModelScope.launch {
+            val result = socialRepository.deletePost(postId, user.uid)
+            if (result.isSuccess) {
+                // Tự động update feed (vì đang listen realtime từ repo)
+            }
+        }
+    }
+
+    // 6. EDIT POST
+    fun onEditPost(postId: String, newContent: String, newImageUrls: List<String>) {
+        val user = currentUser ?: return
+
+        viewModelScope.launch {
+            val result = socialRepository.editPost(postId, user.uid, newContent, newImageUrls)
+            if (result.isSuccess) {
+                // Tự động update feed (vì đang listen realtime từ repo)
+            }
+        }
+    }
+
+    // 6.5. EDIT COMMENT
+    fun onEditComment(commentId: String, newContent: String) {
+        val postId = _uiState.value.activePostId ?: return
+        val user = currentUser ?: return
+
+        // Optimistic update
+        _uiState.update { state ->
+            val updatedComments = state.commentsForActivePost.map {
+                if (it.id == commentId) {
+                    it.copy(content = newContent, isEdited = true)
+                } else {
+                    it
+                }
+            }
+            state.copy(commentsForActivePost = updatedComments)
+        }
+
+        viewModelScope.launch {
+            socialRepository.editComment(postId, commentId, user.uid, newContent)
+        }
+    }
+
+    // 7. RETWEET / UNTWEET
+    fun onRetweetClick(postId: String) {
+        val user = currentUser ?: return
+        val post = _uiState.value.feedList.find { it.id == postId } ?: return
+
+        // Optimistic update
+        _uiState.update { state ->
+            val updatedList = state.feedList.map {
+                if (it.id == postId) {
+                    val newIsRetweeted = !it.isRetweetedByMe
+                    val newCount = if (newIsRetweeted) it.retweetCount + 1 else it.retweetCount - 1
+                    it.copy(isRetweetedByMe = newIsRetweeted, retweetCount = newCount)
+                } else {
+                    it
+                }
+            }
+            state.copy(feedList = updatedList)
+        }
+
+        viewModelScope.launch {
+            socialRepository.toggleRetweet(
+                postId,
+                user.uid,
+                user.username,
+                user.avatarUrl,
+                if (post.isRetweetedByMe) listOf(user.uid) else emptyList()
+            )
+        }
+    }
 }
