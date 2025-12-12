@@ -30,7 +30,16 @@ interface AuthRepository {
     ): AuthResult
     suspend fun getUserById(userId: String): User?
     suspend fun getUsersByIds(userIds: List<String>): List<User>
+<<<<<<< HEAD
     
     // Lắng nghe lời mời kết bạn real-time từ Firestore
     fun getFriendRequestsStream(): Flow<List<FriendRequest>>
+=======
+    suspend fun completeQuizAndAwardPoints(
+        quizId: String,
+        firstTimeAward: Int = 50,
+        isPerfectScore: Boolean
+    ): Int
+    suspend fun unlockQuiz(quizId: String, cost: Int): Boolean
+>>>>>>> main
 }

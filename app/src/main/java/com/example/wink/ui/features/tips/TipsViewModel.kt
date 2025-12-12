@@ -3,101 +3,98 @@ package com.example.wink.ui.features.tips
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Tip
+import com.example.wink.data.model.User
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.TipsRepository // Import mới
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.collectLatest
-import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class TipsViewModel @Inject constructor(
-    private val authRepository: AuthRepository // 2. Inject AuthRepository
+    private val authRepository: AuthRepository,
+    private val tipsRepository: TipsRepository // Inject thêm
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TipsState())
     val uiState = _uiState.asStateFlow()
 
-    private val _navigationEvent = MutableSharedFlow<String>() // String là tipId
+    private val _navigationEvent = MutableSharedFlow<String>()
     val navigationEvent = _navigationEvent.asSharedFlow()
 
+    // Lưu trữ danh sách gốc tải từ Server
+    private var rawTips: List<Tip> = emptyList()
+    private var currentUser: User? = null
+
     init {
-        loadRealUserData() // 3. Gọi hàm lấy dữ liệu thật
-        loadMockTips()
+        loadData()
     }
 
-    private fun loadRealUserData() {
+    private fun loadData() {
         viewModelScope.launch {
-            // Lắng nghe realtime thay đổi của User từ Repository
+            _uiState.update { it.copy(isLoading = true) }
+
+            // 1. Tải danh sách Tips từ Firestore
+            val tipsResult = tipsRepository.getTips()
+            if (tipsResult.isSuccess) {
+                rawTips = tipsResult.getOrDefault(emptyList())
+            }
+
+            // 2. Lắng nghe User để cập nhật trạng thái Lock/Unlock realtime
             authRepository.currentUser.collectLatest { user ->
+                currentUser = user
+
+                // Logic tính toán trạng thái khóa
+                val updatedTips = rawTips.map { tip ->
+                    // Mở khóa nếu: Giá = 0 HOẶC User đã mua
+                    val isUnlocked = tip.price == 0 || (user?.unlockedTips?.contains(tip.id) == true)
+                    tip.copy(isLocked = !isUnlocked)
+                }
+
                 _uiState.update {
-                    it.copy(userRizzPoints = user?.rizzPoints ?: 0)
+                    it.copy(
+                        isLoading = false,
+                        tips = updatedTips,
+                        userRizzPoints = user?.rizzPoints ?: 0
+                    )
                 }
             }
         }
     }
-    private fun loadMockTips() {
-        viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            delay(500)
 
-            val mockTips = listOf(
-                Tip("1", "Eye Contact cơ bản", "Cách giao tiếp bằng mắt", "Nội dung...", 0, false),
-                Tip("2", "Quy tắc 3 ngày", "Có nên nhắn tin ngay?", "Nội dung...", 0, false),
-                Tip("3", "Đọc vị ngôn ngữ cơ thể", "Biết nàng thích bạn", "Nội dung...", 50, true),
-                Tip("4", "Cách bắt chuyện", "Không bao giờ bị 'Seen'", "Nội dung...", 100, true),
-                Tip("5", "Nghệ thuật khen ngợi", "Khen sao cho tinh tế", "Nội dung...", 150, true)
-            )
-
-            _uiState.update {
-                it.copy(
-                    isLoading = false,
-                    tips = mockTips,
-                )
-            }
-        }
-    }
-
-    // Xử lý khi bấm vào Card
-    fun onTipClick(tip: Tip) {
-        if (tip.isLocked) {
-            // Nếu khóa -> Mở dialog xác nhận
-            _uiState.update { it.copy(selectedTipToUnlock = tip, unlockError = null) }
-        } else {
-            // Nếu mở -> Điều hướng sang màn chi tiết
-            viewModelScope.launch {
-                _navigationEvent.emit(tip.id)
-            }
-        }
-    }
-
-    // Xử lý hành động Mua (Unlock)
+    // Xử lý Unlock (Mua)
     fun confirmUnlock() {
         val tip = _uiState.value.selectedTipToUnlock ?: return
-        val currentPoints = _uiState.value.userRizzPoints
+        val user = currentUser ?: return
 
-        if (currentPoints >= tip.price) {
-            // Đủ điểm -> Trừ điểm & Mở khóa
-            val updatedTips = _uiState.value.tips.map {
-                if (it.id == tip.id) it.copy(isLocked = false) else it
-            }
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
 
-            _uiState.update {
-                it.copy(
-                    tips = updatedTips,
-                    userRizzPoints = currentPoints - tip.price,
-                    selectedTipToUnlock = null // Đóng dialog
-                )
+            // Gọi Repository thực hiện giao dịch trừ tiền
+            val result = tipsRepository.unlockTip(user.uid, tip.id, tip.price)
+
+            if (result.isSuccess) {
+                // Thành công: Đóng dialog, tắt loading
+                // (UI sẽ tự update nhờ cái collectLatest ở trên lắng nghe Firestore thay đổi)
+                _uiState.update { it.copy(isLoading = false, selectedTipToUnlock = null) }
+            } else {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        unlockError = result.exceptionOrNull()?.message ?: "Lỗi giao dịch"
+                    )
+                }
             }
-            // TODO: Gọi Repository để lưu update lên Firestore
+        }
+    }
+
+    // Các hàm onTipClick, dismissDialog GIỮ NGUYÊN như cũ
+    fun onTipClick(tip: Tip) {
+        if (tip.isLocked) {
+            _uiState.update { it.copy(selectedTipToUnlock = tip, unlockError = null) }
         } else {
-            // Không đủ điểm
-            _uiState.update { it.copy(unlockError = "Bạn thiếu ${tip.price - currentPoints} điểm RIZZ!") }
+            viewModelScope.launch { _navigationEvent.emit(tip.id) }
         }
     }
 

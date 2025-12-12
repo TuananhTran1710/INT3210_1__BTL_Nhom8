@@ -143,12 +143,17 @@ fun MessageTopBar(title: String, avatarUrl: String?, onBackClick: () -> Unit) {
 }
 
 @Composable
-fun MessageContainer(messages: List<Message>, currentUserId: String, modifier: Modifier = Modifier) {
+fun MessageContainer(
+    messages: List<Message>,
+    currentUserId: String,
+    modifier: Modifier = Modifier,
+    isTyping: Boolean = false
+) {
     val listState = rememberLazyListState()
 
     // When new messages arrive, scroll to the top of the list (which is the bottom of the screen)
-    LaunchedEffect(messages) {
-        if (messages.isNotEmpty()) {
+    LaunchedEffect(messages, isTyping) {
+        if (messages.isNotEmpty() || isTyping) {
             listState.animateScrollToItem(0)
         }
     }
@@ -161,6 +166,12 @@ fun MessageContainer(messages: List<Message>, currentUserId: String, modifier: M
     ) {
         items(messages) { message ->
             MessageItem(message = message, isSentByCurrentUser = message.senderId == currentUserId)
+        }
+
+        if (isTyping) {
+            item {
+                TypingIndicator()
+            }
         }
     }
 }
@@ -183,6 +194,28 @@ fun MessageItem(message: Message, isSentByCurrentUser: Boolean) {
         ) {
             Text(
                 text = message.content,
+                modifier = Modifier.padding(12.dp)
+            )
+        }
+    }
+}
+
+@Composable
+fun TypingIndicator() {
+    val backgroundColor = MaterialTheme.colorScheme.secondaryContainer
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Surface(
+            shape = MaterialTheme.shapes.medium,
+            color = backgroundColor,
+            tonalElevation = 2.dp
+        ) {
+            Text(
+                text = "...",
                 modifier = Modifier.padding(12.dp)
             )
         }

@@ -19,12 +19,105 @@ import com.example.wink.ui.features.social.SocialViewModel
 import com.example.wink.ui.navigation.Screen
 
 
+<<<<<<< HEAD
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     navController: NavController,
     viewModel: DashboardViewModel = hiltViewModel(),
     socialViewModel: SocialViewModel = hiltViewModel()
+=======
+
+data class DailyTask(
+    val id: Int,
+    val title: String,
+    val reward: Int,
+    val isCompleted: Boolean = false
+)
+
+@Composable
+fun DashboardScreen(
+    navController: NavController,
+    viewModel: DashboardViewModel = hiltViewModel()
+) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            DashboardTopBar()
+        }
+    ) { paddingValues ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = paddingValues.calculateTopPadding())
+                .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // RIZZ Points Card
+            item {
+                AnimatedDashboardItem(delay = 0) {
+                    RizzPointsCard(
+                        points = uiState.rizzPoints,
+                        streakDays = uiState.dailyStreak,
+                        attended = uiState.hasDailyCheckIn,
+                        onStreakClick = {
+                            viewModel.onEvent(DashboardEvent.OnDailyCheckIn)
+                        }
+                    )
+                }
+            }
+
+            // AI Chat Feature
+            item {
+                AnimatedDashboardItem(delay = 100) {
+                    AIFeatureCard(
+                        onClick = {
+
+                            viewModel.onEvent(DashboardEvent.OnStartAIChat) }
+                    )
+                }
+            }
+
+            // Daily Tasks Section
+            item {
+                AnimatedDashboardItem(delay = 200) {
+                    DailyTasksSection(
+                        onTaskClick = { viewModel.onEvent(DashboardEvent.OnCompleteTask) }
+                    )
+                }
+            }
+
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DashboardTopBar() {
+    TopAppBar(
+        title = {
+            Text(
+                text = "TRANG CHỦ",
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.background,
+            titleContentColor = MaterialTheme.colorScheme.onSurface
+        ),
+        windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp)
+    )
+}
+
+@Composable
+private fun AnimatedDashboardItem(
+    delay: Int,
+    content: @Composable () -> Unit
+>>>>>>> main
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val friendRequests by socialViewModel.friendRequests.collectAsState()

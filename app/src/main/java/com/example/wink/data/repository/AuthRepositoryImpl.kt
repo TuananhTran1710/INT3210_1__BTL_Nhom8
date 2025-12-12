@@ -45,7 +45,7 @@ class AuthRepositoryImpl @Inject constructor(
                                 username = firebaseUser.displayName ?: "No Name",
                                 gender = "",
                                 preference = "",
-                                avatarUrl = firebaseUser.photoUrl?.toString() ?: ""
+                                avatarUrl = firebaseUser.photoUrl?.toString() ?: "",
                             )
                             trySend(basicUser)
                             return@addSnapshotListener
@@ -65,7 +65,9 @@ class AuthRepositoryImpl @Inject constructor(
                                     avatarUrl = data["avatarUrl"] as? String ?: "",
                                     lastCheckInDate = data["lastCheckInDate"] as? Timestamp,
                                     friendsList = data["friendsList"] as? List<String> ?: emptyList(),
-                                    quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList()
+                                    unlockedTips = data["unlockedTips"] as? List<String> ?: emptyList(),
+                                    quizzesFinished = data["quizzesFinished"] as? List<String> ?: emptyList(),
+                                    quizzesUnlocked = data["quizzesUnlocked"] as? List<String> ?: listOf("rizz_001", "rizz_002", "rizz_003", "rizz_004")
                                 )
                                 trySend(user)
                                 Log.d("AuthRepository", "Emitted User from Firestore: ${user.username}")
@@ -148,6 +150,7 @@ class AuthRepositoryImpl @Inject constructor(
                     "rizzPoints" to 0L,
                     "friendsList" to emptyList<String>(),
                     "quizzesFinished" to emptyList<String>(),
+                    "quizzesUnlocked" to listOf("rizz_001", "rizz_002", "rizz_003", "rizz_004"),
                     "gender" to "",
                     "preference" to "",
                     "avatarUrl" to (fbUser.photoUrl?.toString() ?: ""),
@@ -257,70 +260,177 @@ class AuthRepositoryImpl @Inject constructor(
 //        }
 //    }
 //
-override suspend fun performDailyCheckIn(): AuthResult {
-    return try {
-        val currentUser = firebaseAuth.currentUser
-            ?: return Result.failure(Exception("User not authenticated"))
+    override suspend fun performDailyCheckIn(): AuthResult {
+        return try {
+            val currentUser = firebaseAuth.currentUser
+                ?: return Result.failure(Exception("User not authenticated"))
 
-        val userDoc = firestore.collection("users").document(currentUser.uid)
+            val userDoc = firestore.collection("users").document(currentUser.uid)
 
-        firestore.runTransaction { tx ->
-            val snap = tx.get(userDoc)
+            firestore.runTransaction { tx ->
+                val snap = tx.get(userDoc)
 
-            val now = com.google.firebase.Timestamp.now()
+                val now = com.google.firebase.Timestamp.now()
 
-            val offsetSeconds = TimeZone.getDefault().rawOffset.toLong() / 1000L
+                val offsetSeconds = TimeZone.getDefault().rawOffset.toLong() / 1000L
 
-            fun dayNumber(ts: com.google.firebase.Timestamp?): Long? {
-                return ts?.seconds?.let { (it + offsetSeconds) / 86400L }
-            }
+                fun dayNumber(ts: com.google.firebase.Timestamp?): Long? {
+                    return ts?.seconds?.let { (it + offsetSeconds) / 86400L }
+                }
 
-            val todayDay = (now.seconds + offsetSeconds) / 86400L
+                val todayDay = (now.seconds + offsetSeconds) / 86400L
 
-            val lastAny = snap.get("lastCheckInDate")
-            val lastTs = lastAny as? com.google.firebase.Timestamp
-            val lastDay = dayNumber(lastTs)
+                val lastAny = snap.get("lastCheckInDate")
+                val lastTs = lastAny as? com.google.firebase.Timestamp
+                val lastDay = dayNumber(lastTs)
 
-            val oldStreak = (snap.getLong("loginStreak") ?: 0L).toInt()
-            val oldLongest = (snap.getLong("longestStreak") ?: 0L).toInt()
-            val oldRizz = (snap.getLong("rizzPoints") ?: 0L).toInt()
+                val oldStreak = (snap.getLong("loginStreak") ?: 0L).toInt()
+                val oldLongest = (snap.getLong("longestStreak") ?: 0L).toInt()
+                val oldRizz = (snap.getLong("rizzPoints") ?: 0L).toInt()
 
-            // Debug nếu cần
-            Log.d("AuthRepository", "todayDay=$todayDay lastDay=$lastDay now=$now lastTs=$lastTs")
+                // Debug nếu cần
+                Log.d("AuthRepository", "todayDay=$todayDay lastDay=$lastDay now=$now lastTs=$lastTs")
 
-            // 🔹 Nếu cùng "ngày local" -> coi như đã check-in hôm nay
-            if (lastDay == todayDay) {
-                return@runTransaction null
-            }
+                // 🔹 Nếu cùng "ngày local" -> coi như đã check-in hôm nay
+                if (lastDay == todayDay) {
+                    return@runTransaction null
+                }
 
-            val newStreak = when (lastDay) {
-                todayDay - 1 -> oldStreak + 1   // check-in liên tiếp
-                else -> 1                       // bị đứt quãng -> reset
-            }
+                val newStreak = when (lastDay) {
+                    todayDay - 1 -> oldStreak + 1   // check-in liên tiếp
+                    else -> 1                       // bị đứt quãng -> reset
+                }
 
-            val newLongest = kotlin.math.max(newStreak, oldLongest)
-            val newRizz = oldRizz + 10
+                val newLongest = kotlin.math.max(newStreak, oldLongest)
+                val newRizz = oldRizz + 10
 
-            tx.set(
-                userDoc,
-                mapOf(
+                tx.set(
+                   userDoc,
+                   mapOf(
                     "loginStreak" to newStreak.toLong(),
                     "longestStreak" to newLongest.toLong(),
                     "lastCheckInDate" to now,
                     "rizzPoints" to newRizz.toLong()
                 ),
                 com.google.firebase.firestore.SetOptions.merge()
-            )
+                )
 
-            null
-        }.await()
+                null
+            }.await()
 
-        Result.success(Unit)
-    } catch (e: Exception) {
-        Log.e("AuthRepository", "Daily check-in error", e)
-        Result.failure(e)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Daily check-in error", e)
+            Result.failure(e)
+        }
     }
-}
+
+    override suspend fun completeQuizAndAwardPoints(
+        quizId: String,
+        firstTimeAward: Int,
+        isPerfectScore: Boolean
+    ): Int {
+
+        val currentUser = firebaseAuth.currentUser
+            ?: run {
+                Log.e("AuthRepository", "User not authenticated")
+                return 0
+            }
+
+        val userDocRef = firestore.collection("users").document(currentUser.uid)
+
+        try {
+            val awarded = firestore.runTransaction { transaction ->
+
+                val snapshot = transaction.get(userDocRef)
+                val user = snapshot.toObject(User::class.java)
+                    ?: throw Exception("User data not found in Firestore for UID: ${currentUser.uid}")
+
+                if (!user.quizzesFinished.contains(quizId)) {
+
+                    if (isPerfectScore) {
+                        val awardedPoints = firstTimeAward // = 50
+
+                        val newRizzPoints = user.rizzPoints + awardedPoints
+                        val newQuizzesFinished = user.quizzesFinished + quizId
+
+                        transaction.update(
+                            userDocRef,
+                            mapOf(
+                                "rizzPoints" to newRizzPoints,
+                                "quizzesFinished" to newQuizzesFinished
+                            )
+                        )
+
+                        return@runTransaction awardedPoints
+                    } else {
+                        return@runTransaction 0
+                    }
+                } else {
+                    return@runTransaction 0
+                }
+            }.await() as Int
+
+            Log.d("AuthRepository", "Quiz completion processed for $quizId. Awarded: $awarded Rizz Points.")
+            return awarded
+
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Failed to complete quiz and award points for $quizId", e)
+            return 0
+        }
+    }
+
+    override suspend fun unlockQuiz(quizId: String, cost: Int): Boolean {
+        val currentUser = firebaseAuth.currentUser
+            ?: run {
+                Log.e("AuthRepository", "User not authenticated")
+                return false
+            }
+
+        val userDocRef = firestore.collection("users").document(currentUser.uid)
+
+        return try {
+            val success = firestore.runTransaction { transaction ->
+                val snapshot = transaction.get(userDocRef)
+
+                val user = snapshot.toObject(User::class.java)
+                    ?: throw Exception("User data not found for UID: ${currentUser.uid}")
+
+                if (user.quizzesUnlocked.contains(quizId)) {
+                    // Đã mở khóa rồi
+                    return@runTransaction true
+                }
+
+                if (user.rizzPoints < cost) {
+                    Log.d("AuthRepository", "Failed to unlock $quizId: Not enough Rizz Points (${user.rizzPoints} < $cost)")
+                    return@runTransaction false
+                }
+
+                val newRizzPoints = user.rizzPoints - cost
+                val newUnlocked = user.quizzesUnlocked + quizId
+
+                transaction.update(
+                    userDocRef,
+                    mapOf(
+                        "rizzPoints" to newRizzPoints,
+                        "quizzesUnlocked" to newUnlocked.toList()
+                    )
+                )
+
+                return@runTransaction true
+
+            }.await() as? Boolean ?: false
+
+            if (success) {
+                Log.d("AuthRepository", "Quiz $quizId unlocked successfully. Cost: $cost Rizz.")
+            }
+            success
+
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error during unlockQuiz for $quizId", e)
+            false
+        }
+    }
 
     override suspend fun uploadAvatar(uri: Uri): Result<String> {
         return try {

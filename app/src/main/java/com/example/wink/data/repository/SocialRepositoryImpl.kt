@@ -1,14 +1,17 @@
 package com.example.wink.data.repository
 
+import android.content.Context
 import android.net.Uri
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.util.ImageUtils
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
@@ -19,7 +22,8 @@ import javax.inject.Inject
 class SocialRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val auth: FirebaseAuth,
-    private val storage: FirebaseStorage
+    private val storage: FirebaseStorage,
+    @ApplicationContext private val context: Context
 ) : SocialRepository {
 
     private val currentUserId get() = auth.currentUser?.uid ?: ""
@@ -426,10 +430,24 @@ class SocialRepositoryImpl @Inject constructor(
     // 12. UPLOAD ẢNH
     override suspend fun uploadImage(uri: Uri): Result<String> {
         return try {
+<<<<<<< HEAD
             val filename = UUID.randomUUID().toString()
             val ref = storage.reference.child("images/$filename.jpg")
 
             ref.putFile(uri).await()
+=======
+            // --- BƯỚC NÉN ẢNH Ở ĐÂY ---
+            // Biến uri gốc (nặng) thành uri đã nén (nhẹ)
+            val compressedUri = ImageUtils.compressImage(context, uri)
+            // ---------------------------
+
+            val filename = UUID.randomUUID().toString()
+            val ref = storage.reference.child("images/$filename.jpg")
+
+            // Upload ảnh nén thay vì ảnh gốc
+            ref.putFile(compressedUri).await() // Dùng compressedUri
+
+>>>>>>> main
             val downloadUrl = ref.downloadUrl.await()
             Result.success(downloadUrl.toString())
         } catch (e: Exception) {

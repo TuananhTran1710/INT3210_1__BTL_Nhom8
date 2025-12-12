@@ -10,6 +10,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Message
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ fun ChatListScreen(
     viewModel: ChatListViewModel = hiltViewModel()
 ) {
     val chats by viewModel.chats.collectAsState()
+    val isLoading by viewModel.isLoading.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
 
@@ -74,17 +76,18 @@ fun ChatListScreen(
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
             ) { }
 
-            if (filteredChats.isEmpty()) {
+            if (isLoading) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No chats found")
+                    CircularProgressIndicator()
                 }
             } else {
                 ChatContainer(
                     chats = filteredChats,
-                    navController = navController
+                    navController = navController,
+                    modifier = Modifier.fillMaxSize()
                 )
             }
         }
@@ -94,8 +97,26 @@ fun ChatListScreen(
 @Composable
 fun ChatContainer(chats: List<UiChat>, navController: NavController, modifier: Modifier = Modifier) {
     LazyColumn(modifier = modifier) {
-        items(chats) { uiChat ->
-            ChatItem(chat = uiChat.chat, lastMessage = uiChat.lastMessage, navController = navController)
+        item {
+            ChatAIItem(navController = navController)
+        }
+        if (chats.isEmpty()) {
+            item {
+                Box(
+                    modifier = Modifier.fillParentMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("No chats found")
+                }
+            }
+        } else {
+            items(chats) { uiChat ->
+                ChatItem(
+                    chat = uiChat.chat,
+                    lastMessage = uiChat.lastMessage,
+                    navController = navController
+                )
+            }
         }
     }
 }
