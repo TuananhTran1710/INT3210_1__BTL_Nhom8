@@ -9,17 +9,6 @@ import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
 import androidx.navigation.NavType
-<<<<<<< HEAD
-import androidx.navigation.compose.composable
-import androidx.navigation.navArgument
-import com.example.wink.ui.features.dashboard.DashboardScreen
-import com.example.wink.ui.features.explore.ExploreScreen
-import com.example.wink.ui.features.friend_requests.FriendRequestScreen
-import com.example.wink.ui.features.friends.FriendsScreen
-import com.example.wink.ui.features.chat.ChatListScreen
-import com.example.wink.ui.features.chat.MessageScreen
-import com.example.wink.ui.features.profile.ProfileScreen
-=======
 import androidx.navigation.navArgument
 import com.example.wink.data.model.Tip
 import com.example.wink.ui.features.chat.ChatListScreen
@@ -31,12 +20,8 @@ import com.example.wink.ui.features.friends.FriendsScreen
 import com.example.wink.ui.features.iconshop.IconShopScreen
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.profile.SettingsScreen
->>>>>>> main
 import com.example.wink.ui.features.profile.UserDetailScreen
-//import com.example.wink.ui.features.quiz.QuizFeatureNavHost
 import com.example.wink.ui.features.social.SocialScreen
-<<<<<<< HEAD
-=======
 import com.example.wink.ui.features.tarot.TarotHubScreen
 import com.example.wink.ui.features.tarot.card.TarotCardScreen
 import com.example.wink.ui.features.tarot.name.TarotNameScreen
@@ -44,16 +29,17 @@ import com.example.wink.ui.features.tarot.name.results.TarotNameResultScreen
 import com.example.wink.ui.features.tarot.zodiac.TarotZodiacScreen
 import com.example.wink.ui.features.tarot.zodiac.results.TarotZodiacResultScreen
 import com.example.wink.ui.features.tips.TipDetailScreen
->>>>>>> main
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
 import com.google.accompanist.navigation.animation.AnimatedNavHost
 import com.google.accompanist.navigation.animation.composable
 
+
 @OptIn(ExperimentalAnimationApi::class)
 @Composable
 fun MainNavHost(
-    navController: NavHostController
+    navController: NavHostController, // For bottom navigation
+    mainNavController: NavHostController // For main app navigation (logout)
 ) {
     AnimatedNavHost(
         navController = navController,
@@ -63,72 +49,84 @@ fun MainNavHost(
         popEnterTransition = { slideInHorizontally(initialOffsetX = { -1000 }, animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)) },
         popExitTransition = { slideOutHorizontally(targetOffsetX = { 1000 }, animationSpec = tween(300)) + fadeOut(animationSpec = tween(300)) }
     ) {
-        // Bottom Navigation Screens
         composable(BottomNavItem.Dashboard.route) {
-            DashboardScreen(navController = navController)
+            DashboardScreen(navController = navController) // Use main nav controller for navigation
         }
-        
         composable(BottomNavItem.Message.route) {
             ChatListScreen(navController = navController)
         }
-        
         composable(
             route = "message/{chatId}",
             arguments = listOf(navArgument("chatId") { type = NavType.StringType })
         ) { backStackEntry ->
-<<<<<<< HEAD
-            MessageScreen(navController = navController)
-=======
             val chatId = backStackEntry.arguments?.getString("chatId")
             if (chatId == "ai_chat") {
                 MessageScreenForAI(navController = navController)
             } else {
                 MessageScreen(navController = navController)
             }
->>>>>>> main
         }
-        
         composable(BottomNavItem.Profile.route) {
-            ProfileScreen(navController = navController)
+            ProfileScreen(navController = navController) // Use main nav controller for logout
         }
-        
-        // Friend Requests Screen
-        composable(route = "friend_requests") {
-            FriendRequestScreen(navController = navController)
-        }
-        
-        // User Detail Screen
         composable(
             route = Screen.UserDetail.route,
-            arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            // Không cần arguments = listOf(...) vì NavHost tự parse {userId}
         ) { backStackEntry ->
-            val userId = backStackEntry.arguments?.getString("userId") ?: ""
+            // Hilt sẽ tự inject ViewModel và lấy userId từ SavedStateHandle
             UserDetailScreen(navController = navController)
         }
-        
         composable(BottomNavItem.Social.route) {
             SocialScreen(navController = navController)
         }
-        
         composable(BottomNavItem.Explore.route) {
             ExploreScreen(navController = navController)
         }
-        
         composable(Screen.Tips.route) {
             TipsScreen(navController = navController)
         }
 
+        // 🔮 Tarot hub + 3 màn con
+        composable(Screen.TarotHub.route) {
+            TarotHubScreen(navController = navController)
+        }
+        composable(Screen.TarotName.route) {
+            TarotNameScreen(navController = navController)
+        }
+        composable(Screen.TarotZodiac.route) {
+            TarotZodiacScreen(navController = navController)
+        }
+        composable(Screen.TarotCard.route) {
+            TarotCardScreen(navController = navController)
+        }
+
+        // ⭐️ MÀN KẾT QUẢ BÓI THEO TÊN
+        composable(
+            route = Screen.TarotNameResult.route,
+            arguments = listOf(
+                navArgument("yourName") { type = NavType.StringType },
+                navArgument("crushName") { type = NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val yourName = backStackEntry.arguments?.getString("yourName") ?: ""
+            val crushName = backStackEntry.arguments?.getString("crushName") ?: ""
+            TarotNameResultScreen(
+                navController = navController,
+                yourName = yourName,
+                crushName = crushName
+            )
+        }
+        composable(Screen.TarotZodiacResult.route) {
+            TarotZodiacResultScreen(navController = navController)
+        }
         composable(Screen.Quiz.route) {
             QuizFeatureNavHost(onBack = {
                 navController.popBackStack()
             })
         }
-        
         composable(Screen.Friends.route) {
             FriendsScreen(navController = navController)
         }
-<<<<<<< HEAD
-=======
         composable(Screen.Settings.route) {
             SettingsScreen(navController = navController,
                 onLogout = {
@@ -153,6 +151,5 @@ fun MainNavHost(
         composable(Screen.ChangeIcon.route) {
             IconShopScreen(navController = navController)
         }
->>>>>>> main
     }
 }

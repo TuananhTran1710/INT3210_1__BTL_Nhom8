@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
@@ -145,14 +146,11 @@ fun SocialScreen(
                         onLikeClick = { postId -> viewModel.onLikeClick(postId) },
                         onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) },
                         onImageClick = { url -> viewingImageUrl = url },
-<<<<<<< HEAD
                         onRetweetClick = { postId -> viewModel.onRetweetClick(postId) },
                         onDeletePost = { postId -> viewModel.onDeletePost(postId) },
-                        onEditPost = { postId, content, imageUrls -> 
+                        onEditPost = { postId, content, imageUrls ->
                             viewModel.onEditPost(postId, content, imageUrls)
                         }
-=======
->>>>>>> main
                     )
                 } else {
                     LeaderboardList(users = state.leaderboardList, onUserClick = { userId ->
@@ -252,26 +250,17 @@ fun FeedList(
         }
 
         // Các bài post bên dưới
-<<<<<<< HEAD
         items(posts) { post ->
             FeedItem(
-                post, 
-                onUserClick, 
-                onLikeClick, 
-                onCommentClick, 
+                post,
+                onUserClick,
+                onLikeClick,
+                onCommentClick,
                 onImageClick = onImageClick,
                 onRetweetClick = onRetweetClick,
                 onDeletePost = onDeletePost,
                 onEditPost = onEditPost
             )
-=======
-        items(
-            items = posts,
-            key = { post -> post.id },
-            contentType = { "post_item" }
-        ) { post ->
-            FeedItem(post, onUserClick, onLikeClick, onCommentClick, onImageClick = onImageClick)
->>>>>>> main
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
                 thickness = 0.5.dp,
@@ -294,7 +283,7 @@ fun FeedItem(
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var editContent by remember { mutableStateOf(post.content) }
-    
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -310,7 +299,7 @@ fun FeedItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = Icons.Default.Repeat,
                     contentDescription = "Retweet",
                     modifier = Modifier.size(14.dp),
                     tint = MaterialTheme.colorScheme.outline
@@ -375,7 +364,7 @@ fun FeedItem(
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            
+
             // More Menu (Edit/Delete)
             if (post.canDelete || post.canEdit) {
                 var showMenu by remember { mutableStateOf(false) }
@@ -387,7 +376,7 @@ fun FeedItem(
                         if (post.canEdit) {
                             DropdownMenuItem(
                                 text = { Text("Chỉnh sửa") },
-                                onClick = { 
+                                onClick = {
                                     editContent = post.content
                                     showEditDialog = true
                                     showMenu = false
@@ -397,7 +386,7 @@ fun FeedItem(
                         if (post.canDelete) {
                             DropdownMenuItem(
                                 text = { Text("Xóa") },
-                                onClick = { 
+                                onClick = {
                                     onDeletePost(post.id)
                                     showMenu = false
                                 }
@@ -407,7 +396,7 @@ fun FeedItem(
                 }
             }
         }
-        
+
         // Edit Post Dialog
         if (showEditDialog) {
             AlertDialog(
@@ -536,7 +525,7 @@ fun FeedItem(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
-                    imageVector = Icons.Default.Share,
+                    imageVector = Icons.Default.Repeat,
                     contentDescription = null,
                     tint = if(post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(20.dp)
@@ -670,7 +659,7 @@ fun CommentItem(
                 }
             }
             Text(comment.content, style = MaterialTheme.typography.bodyMedium)
-            
+
             // Like button + Edit button for comment
             Row(
                 modifier = Modifier.padding(top = 4.dp),
@@ -693,7 +682,7 @@ fun CommentItem(
                         color = Color.Gray
                     )
                 }
-                
+
                 // Nút chỉnh sửa (chỉ hiện nếu user là chủ comment)
                 if (comment.canEdit) {
                     Spacer(modifier = Modifier.width(16.dp))
@@ -727,7 +716,7 @@ fun CommentItem(
             }
         }
     }
-    
+
     // Dialog chỉnh sửa comment
     if (showEditDialog) {
         AlertDialog(
