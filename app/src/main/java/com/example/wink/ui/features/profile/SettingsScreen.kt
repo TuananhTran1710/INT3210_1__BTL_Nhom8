@@ -30,7 +30,6 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import coil.request.ImageRequest
-import com.example.wink.ui.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -55,11 +54,8 @@ fun SettingsScreen(
         if (uri != null) viewModel.onAvatarSelected(uri)
     }
 
-    // Xử lý thông báo (Toast) và Logout
-    LaunchedEffect(state.isLoggedOut, state.successMessage, state.errorMessage) {
-        if (state.isLoggedOut) {
-            navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
-        }
+    // Xử lý thông báo (Toast)
+    LaunchedEffect(state.successMessage, state.errorMessage) {
         state.successMessage?.let {
             Toast.makeText(context, it, Toast.LENGTH_SHORT).show()
             viewModel.clearMessage()
