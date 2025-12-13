@@ -41,9 +41,16 @@ class ChatViewModel @Inject constructor(
         if (chatId.isNotBlank()) {
             listenMessages()
             loadChatInfo() // Tách logic load info ra hàm riêng
+            markAsRead() // Gọi hàm đánh dấu đã đọc
         }
     }
-
+    private fun markAsRead() {
+        if (chatId.isBlank()) return
+        viewModelScope.launch {
+            // Gọi Repository để update DB
+            chatRepository.markMessagesAsRead(chatId, currentUserId)
+        }
+    }
     private fun loadChatInfo() {
         viewModelScope.launch {
             val chat = chatRepository.getChat(chatId)

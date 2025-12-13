@@ -29,7 +29,8 @@ data class UiChat(
     val displayName: String,
     val displayAvatarUrl: String?,
     val isPinned: Boolean, // MỚI
-    val isAiChat: Boolean = false // MỚI: để phân biệt Wink AI
+    val isAiChat: Boolean = false, // MỚI: để phân biệt Wink AI
+    val isUnread: Boolean = false // MỚI: Trạng thái chưa đọc
 )
 // Sự kiện điều hướng (Side Effect)
 sealed class ChatListEffect {
@@ -116,15 +117,26 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
 
-            // Lắng nghe thay đổi từ danh sách chat
+            // Lắng nghe thay đổi từ danh sách chat (Realtime)
             chatRepository.listenChats(myId).collect { rawChats ->
-                // Xử lý song song từng đoạn chat để lấy thông tin người dùng
+
+                // Xử lý song song từng đoạn chat để lấy thông tin người dùng và tin nhắn cuối
                 val processedChats = rawChats.map { chat ->
                     async {
-                        // 1. Lấy Last Message
-                        val lastMessage = chatRepository.getLastMessage(chat.chatId)?.content ?: ""
+                        // 1. Lấy Last Message Object (để check cả nội dung và trạng thái đã đọc)
+                        val lastMsgObj = chatRepository.getLastMessage(chat.chatId)
+                        val lastMessageContent = lastMsgObj?.content ?: ""
 
-                        // 2. Xử lý Tên và Avatar
+                        // 2. Logic Check Unread (Chưa đọc)
+                        // Tin nhắn tồn tại VÀ danh sách người đã đọc chưa chứa ID của mình
+                        val isUnread = if (lastMsgObj != null) {
+                            val readBy = lastMsgObj.readBy ?: emptyList()
+                            !readBy.contains(myId)
+                        } else {
+                            false
+                        }
+
+                        // 3. Xử lý Tên và Avatar hiển thị
                         var displayName = chat.name
                         var displayAvatar = chat.avatarUrl
 
@@ -147,27 +159,32 @@ class ChatListViewModel @Inject constructor(
                                 displayName = "Chat riêng"
                             }
                         }
-                        // Kiểm tra xem user hiện tại có pin chat này không
+
+                        // 4. Kiểm tra xem user hiện tại có pin chat này không
                         val isPinned = chat.pinnedBy.containsKey(myId)
-                        val pinnedAt = chat.pinnedBy[myId] ?: 0L
+
                         // Trả về object UiChat hoàn chỉnh
                         UiChat(
                             chat = chat,
-                            lastMessage = lastMessage,
+                            lastMessage = lastMessageContent,
                             displayName = displayName,
                             displayAvatarUrl = displayAvatar,
                             isPinned = isPinned,
-                            isAiChat = false // Chat thường
+                            isAiChat = false, // Chat thường
+                            isUnread = isUnread // Truyền trạng thái chưa đọc vào UI
                         )
                     }
                 }.awaitAll() // Chờ tất cả các coroutine con chạy xong
-                // LOGIC SẮP XẾP QUAN TRỌNG
+
+                // 5. LOGIC SẮP XẾP QUAN TRỌNG
                 val sortedChats = processedChats.sortedWith(
-                    compareBy<UiChat> { !it.isPinned } // 1. Pinned lên đầu (false < true nên dùng ! để đảo ngược)
-                        .thenBy { it.chat.pinnedBy[myId] } // 2. Nếu cùng Pinned -> Pin trước nằm trên (Ascending)
-                        .thenByDescending { it.chat.updatedAt } // 3. Nếu không Pinned -> Mới nhất nằm trên
+                    compareBy<UiChat> { !it.isPinned } // Ưu tiên Pinned lên đầu (false < true)
+                        .thenBy { it.chat.pinnedBy[myId] } // Nếu cùng Pinned -> Ai pin trước nằm trên (Tăng dần theo timestamp)
+                        .thenByDescending { it.chat.updatedAt } // Nếu không Pinned (hoặc cùng trạng thái) -> Tin mới nhất nằm trên
                 )
-                _chats.value = processedChats
+
+                // 6. Cập nhật vào StateFlow (LƯU Ý: Phải gán sortedChats)
+                _chats.value = sortedChats
                 _isLoading.value = false
             }
         }

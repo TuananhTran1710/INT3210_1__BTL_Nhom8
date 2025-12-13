@@ -274,13 +274,20 @@ fun ChatItem(
     onDeleteClick: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) } // State cho menu 3 chấm
+    val fontWeight = if (uiChat.isUnread && !uiChat.isAiChat) FontWeight.Bold else FontWeight.Normal
 
+    // Màu chữ: Chưa đọc thì đen đậm/sáng, Đã đọc thì xám nhạt hơn
+    val messageColor = if (uiChat.isUnread && !uiChat.isAiChat)
+        MaterialTheme.colorScheme.onSurface
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
     ListItem(
         headlineContent = {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = uiChat.displayName,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = fontWeight, // Áp dụng font weight
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false) // Để text co giãn
@@ -295,13 +302,24 @@ fun ChatItem(
                         tint = MaterialTheme.colorScheme.primary
                     )
                 }
+                // (Optional) Thêm chấm xanh báo chưa đọc cho rõ hơn
+                if (uiChat.isUnread && !uiChat.isAiChat) {
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
             }
         },
         supportingContent = {
             Text(
                 text = uiChat.lastMessage,
                 style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = messageColor, // Áp dụng màu
+                fontWeight = fontWeight,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )

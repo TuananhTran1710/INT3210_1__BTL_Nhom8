@@ -201,7 +201,54 @@ class ChatRepository @Inject constructor(
     } catch (e: Exception) {
         Result.failure(e)
     }
+    // com/example/wink/data/repository/ChatRepository.kt
 
+    /**
+     * Đánh dấu tin nhắn là đã đọc và BÁO cho ChatList cập nhật
+     */
+    suspend fun markMessagesAsRead(chatId: String, userId: String) {
+        try {
+            // 1. Lấy các tin nhắn chưa đọc
+            val messagesRef = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .whereArrayContains("readBy", userId) // Tìm tin đã đọc để loại trừ (Check ngược lại ở code dưới dễ hơn)
+            // Firestore không hỗ trợ filter "không chứa", nên ta lấy tin mới nhất rồi lọc thủ công
+
+            // Cách đơn giản và hiệu quả nhất: Lấy tin nhắn cuối cùng (Last Message)
+            // Vì hiển thị ngoài List chỉ quan tâm tin cuối cùng
+            val lastMsgQuery = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(5) // Check 5 tin gần nhất
+                .get()
+                .await()
+
+            val batch = firestore.batch()
+            var hasUpdates = false
+
+            for (doc in lastMsgQuery.documents) {
+                val readBy = doc.get("readBy") as? List<String> ?: emptyList()
+                if (!readBy.contains(userId)) {
+                    // Update trong sub-collection messages
+                    batch.update(doc.reference, "readBy", com.google.firebase.firestore.FieldValue.arrayUnion(userId))
+                    hasUpdates = true
+                }
+            }
+
+            if (hasUpdates) {
+                // QUAN TRỌNG: Update một trường trong document cha (chats) để trigger listener bên ngoài
+                // Ta có thể update field 'lastActivity' hoặc một map 'lastRead'
+                val chatRef = firestore.collection("chats").document(chatId)
+                batch.update(chatRef, "lastReadTimestamp", System.currentTimeMillis())
+
+                batch.commit().await()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 
     /**
      * Tìm đoạn chat 1-1 giữa currentUser và targetUserId.
