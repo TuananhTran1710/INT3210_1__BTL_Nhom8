@@ -27,6 +27,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.wink.data.model.Message
 import com.example.wink.ui.features.chat.MessageContainer
+import com.example.wink.ui.features.chat.MessageItem
 import com.example.wink.ui.features.chat.MessageTopBar
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
@@ -263,9 +264,9 @@ fun GameMessageList(
                 SystemMessageItem(content = message.content)
             } else {
                 // Hiển thị tin nhắn chat bình thường
-                com.example.wink.ui.features.chat.MessageItem(
+                MessageItem(
                     message = message,
-                    isSentByCurrentUser = message.senderId == "me"
+                    isMyMessage = message.senderId == "me"
                 )
             }
         }

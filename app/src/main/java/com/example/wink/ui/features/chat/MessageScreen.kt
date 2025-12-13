@@ -1,7 +1,6 @@
 package com.example.wink.ui.features.chat
 
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -27,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -40,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -112,33 +113,59 @@ fun MessageScreen(
     }
 }
 
+// --- PHẦN QUAN TRỌNG CẦN SỬA ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessageTopBar(title: String, avatarUrl: String?, onBackClick: () -> Unit) {
+fun MessageTopBar(
+    title: String,
+    avatarUrl: String?,
+    onBackClick: () -> Unit
+) {
     TopAppBar(
+        // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+        },
+        // 2. Avatar và Tên nằm ở title (ngay sau nút Back)
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Avatar
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(avatarUrl)
                         .crossfade(true)
                         .build(),
-                    placeholder = painterResource(R.drawable.ic_launcher_background), // Replace with your default avatar
+                    placeholder = painterResource(R.drawable.ic_launcher_background), // Ảnh mặc định khi đang load
+                    error = painterResource(R.drawable.ic_launcher_background),       // Ảnh mặc định khi lỗi/null
                     contentDescription = "User Avatar",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
+                        .size(40.dp)          // Kích thước chuẩn avatar topbar
+                        .clip(CircleShape)    // Bo tròn
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = title)
+
+                Spacer(modifier = Modifier.width(12.dp)) // Khoảng cách giữa ảnh và tên
+
+                // Tên người dùng
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis // Nếu tên dài quá sẽ hiện dấu ...
+                )
             }
         },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-        }
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
     )
 }
 
@@ -151,7 +178,6 @@ fun MessageContainer(
 ) {
     val listState = rememberLazyListState()
 
-    // When new messages arrive, scroll to the top of the list (which is the bottom of the screen)
     LaunchedEffect(messages, isTyping) {
         if (messages.isNotEmpty() || isTyping) {
             listState.animateScrollToItem(0)
@@ -161,11 +187,15 @@ fun MessageContainer(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(8.dp),
-        reverseLayout = true // This is the key!
+        contentPadding = PaddingValues(bottom = 16.dp), // Thêm chút padding dưới cùng
+        reverseLayout = true
     ) {
+        // --- SỬ DỤNG MESSAGE ITEM MỚI TẠI ĐÂY ---
         items(messages) { message ->
-            MessageItem(message = message, isSentByCurrentUser = message.senderId == currentUserId)
+            MessageItem(
+                message = message,
+                isMyMessage = message.senderId == currentUserId // Đổi tên tham số cho khớp
+            )
         }
 
         if (isTyping) {
@@ -176,37 +206,14 @@ fun MessageContainer(
     }
 }
 
-@Composable
-fun MessageItem(message: Message, isSentByCurrentUser: Boolean) {
-    val alignment = if (isSentByCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
-    val backgroundColor = if (isSentByCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        contentAlignment = alignment
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = backgroundColor,
-            tonalElevation = 2.dp
-        ) {
-            Text(
-                text = message.content,
-                modifier = Modifier.padding(12.dp)
-            )
-        }
-    }
-}
-
+// Giữ lại TypingIndicator vì MessageItem.kt không có cái này
 @Composable
 fun TypingIndicator() {
     val backgroundColor = MaterialTheme.colorScheme.secondaryContainer
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(vertical = 4.dp, horizontal = 8.dp),
         contentAlignment = Alignment.CenterStart
     ) {
         Surface(

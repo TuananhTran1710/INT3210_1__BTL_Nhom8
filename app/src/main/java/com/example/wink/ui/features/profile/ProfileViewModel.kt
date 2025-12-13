@@ -3,27 +3,40 @@ package com.example.wink.ui.features.profile
 import android.util.Log
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.ChatRepository
 import com.example.wink.data.repository.SocialRepository
 import com.example.wink.util.BaseViewModel
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import java.util.TimeZone
 import javax.inject.Inject
 import kotlin.String
 
 
+// Định nghĩa Sealed Class cho các sự kiện điều hướng (Side Effects)
+sealed class ProfileEffect {
+    data class NavigateToChat(val chatId: String) : ProfileEffect()
+    data class ShowError(val message: String) : ProfileEffect()
 
+}
 @HiltViewModel
 class ProfileViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val socialRepository: SocialRepository
+    private val socialRepository: SocialRepository,
+    private val chatRepository: ChatRepository // Inject thêm ChatRepository
 ) : BaseViewModel<ProfileState, ProfileEvent>() {
 
     override val uiState: StateFlow<ProfileState>
         get() = _uiState
+
+    // Channel để bắn sự kiện ra UI (chỉ nhận 1 lần)
+    private val _effect = Channel<ProfileEffect>()
+    val effect = _effect.receiveAsFlow()
 
     override fun getInitialState(): ProfileState = ProfileState(
         // state ban đầu
@@ -98,6 +111,7 @@ class ProfileViewModel @Inject constructor(
                 addFriend(event.friendId)
             }
             is ProfileEvent.MessageClick -> {
+                // Xử lý khi ấn nút nhắn tin
                 openChat(event.friendId)
             }
         }
@@ -133,8 +147,28 @@ class ProfileViewModel @Inject constructor(
 
     }
 
-    private fun openChat (friendId: String) {
+    private fun openChat(targetUserId: String) {
+        val myId = currentUserId
+        if (myId == null) {
+            viewModelScope.launch { _effect.send(ProfileEffect.ShowError("Vui lòng đăng nhập lại")) }
+            return
+        }
 
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isLoading = true)
+
+            // Gọi Repo tìm hoặc tạo chat
+            val result = chatRepository.findOrCreatePrivateChat(myId, targetUserId)
+
+            _uiState.value = _uiState.value.copy(isLoading = false)
+
+            result.onSuccess { chatId ->
+                // Bắn sự kiện điều hướng kèm chatId
+                _effect.send(ProfileEffect.NavigateToChat(chatId))
+            }.onFailure { e ->
+                _effect.send(ProfileEffect.ShowError("Không thể tạo cuộc trò chuyện: ${e.message}"))
+            }
+        }
     }
 
     private fun loadFriends(friendIds: List<String>) {

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import com.google.firebase.firestore.Filter // Import thêm Filter nếu cần
 
 class ChatRepository @Inject constructor(
     private val firestore: FirebaseFirestore
@@ -172,5 +173,55 @@ class ChatRepository @Inject constructor(
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+
+    /**
+     * Tìm đoạn chat 1-1 giữa currentUser và targetUserId.
+     * Nếu chưa có -> Tạo mới.
+     * Trả về chatId.
+     */
+    suspend fun findOrCreatePrivateChat(currentUserId: String, targetUserId: String): Result<String> {
+        return try {
+            // 1. Tìm xem đã có chat nào chứa cả 2 người chưa
+            // Lưu ý: Firestore array-contains chỉ query được 1 giá trị.
+            // Ta query các chat có currentUserId, sau đó lọc client-side để tìm targetUserId.
+            val snapshot = firestore.collection("chats")
+                .whereArrayContains("participants", currentUserId)
+                .get()
+                .await()
+
+            val existingChat = snapshot.documents.find { doc ->
+                val participants = doc.get("participants") as? List<*>
+                // Chat hợp lệ là chat có đúng 2 người và chứa targetUserId
+                participants != null && participants.size == 2 && participants.contains(targetUserId)
+            }
+
+            if (existingChat != null) {
+                // Đã tồn tại -> Trả về ID
+                Result.success(existingChat.id)
+            } else {
+                // 2. Chưa tồn tại -> Tạo mới
+                // Lấy thông tin sơ bộ của targetUser để set tên chat mặc định (hoặc để rỗng xử lý sau)
+                val targetUserDoc = firestore.collection("users").document(targetUserId).get().await()
+                val targetUserName = targetUserDoc.getString("username") ?: "Chat"
+
+                // Lấy thông tin currentUser
+                val currentUserDoc = firestore.collection("users").document(currentUserId).get().await()
+                val currentUserName = currentUserDoc.getString("username") ?: "User"
+
+                // Tạo chat mới. Lưu ý: Với chat 1-1, tên chat thường không quan trọng vì hiển thị sẽ theo tên người đối diện
+                // Nhưng ta cứ lưu tạm.
+                val newChat = Chat(
+                    participants = listOf(currentUserId, targetUserId),
+                    updatedAt = System.currentTimeMillis(),
+                    name = "", // Để rỗng để logic hiển thị tự xử lý
+                    avatarUrl = null
+                )
+                createChat(newChat)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }
