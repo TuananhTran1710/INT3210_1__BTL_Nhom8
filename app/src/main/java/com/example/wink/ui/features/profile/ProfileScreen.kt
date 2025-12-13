@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.profile
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -66,16 +67,24 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
+    val context = LocalContext.current
     // Tab & Pager State
     val tabs = listOf("Bài viết", "Bạn bè")
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Handle Logout
-    LaunchedEffect(uiState.isLoggedOut) {
-        if (uiState.isLoggedOut) {
-            navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+    // --- LẮNG NGHE SỰ KIỆN ĐIỀU HƯỚNG (SIDE EFFECT) ---
+    LaunchedEffect(key1 = true) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is ProfileEffect.NavigateToChat -> {
+                    // Điều hướng sang màn hình MessageScreen với chatId cụ thể
+                    navController.navigate("message/${effect.chatId}")
+                }
+                is ProfileEffect.ShowError -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+            }
         }
     }
 
@@ -220,12 +229,18 @@ fun ProfileScreen(
             } else if (selectedTabIndex == 1) {
                 // --- TAB BẠN BÈ ---
                 if (uiState.loadedFriends.isEmpty()) {
-                    Log.d("ProfileScreen", "No friends loaded")
                     item { EmptyStateView("Chưa có bạn bè") }
                 } else {
-                    Log.d("ProfileScreen", "Friends loaded: ${uiState.loadedFriends.size}")
                     items(uiState.loadedFriends) { friend ->
-                        FriendListItem(friend)
+                        FriendListItem(
+                            friend = friend,
+                            // Xử lý click vào item bạn bè (có thể mở UserDetail nếu muốn)
+                            onClick = { /* navigate to friend profile if needed */ },
+                            // QUAN TRỌNG: Gắn sự kiện click nút Nhắn tin
+                            onMessageClick = {
+                                viewModel.onEvent(ProfileEvent.MessageClick(friend.id))
+                            }
+                        )
                     }
                 }
             }
@@ -386,34 +401,43 @@ fun ProfilePostItem(post: SocialPost) {
     HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainerLow)
 }
 
+// Cập nhật FriendListItem để nút bấm hoạt động chính xác
 @Composable
 fun FriendListItem(friend: FriendUi,
                    onClick: () -> Unit = {},
-                   onMessageClick: () -> Unit = {}) {
+                   onMessageClick: () -> Unit = {}) { // Tham số callback
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable {onClick() }
+            .clickable { onClick() } // Click vào cả dòng
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // ... (Code hiển thị Avatar, Name giữ nguyên) ...
         Surface(shape = CircleShape, modifier = Modifier.size(50.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(friend.name?:"", style = MaterialTheme.typography.titleMedium)
+            if (friend.avatarUrl != null) {
+                AsyncImage(model = friend.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(friend.name?.take(1)?:"", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(friend.name?:"", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text(friend.name ?: "", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
             Text("${friend.rizzPoints} RIZZ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
-        FilledTonalButton(onClick = { onMessageClick }) {
+
+        // NÚT NHẮN TIN
+        FilledTonalButton(
+            onClick = { onMessageClick() } // Gọi callback khi click
+        ) {
             Text("Nhắn tin")
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(start = 82.dp))
 }
-
 @Composable
 fun EmptyStateView(message: String) {
     Column(
