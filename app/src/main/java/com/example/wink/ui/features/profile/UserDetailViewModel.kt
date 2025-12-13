@@ -27,7 +27,8 @@ data class UserDetailState(
     val friendRequestStatus: FriendRequestStatus = FriendRequestStatus.NOT_SENT,
     val isSendingRequest: Boolean = false,
     val errorMessage: String? = null,
-    val successMessage: String? = null
+    val successMessage: String? = null,
+    val isOwnProfile: Boolean = false
 )
 
 @HiltViewModel
@@ -57,6 +58,9 @@ class UserDetailViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->
                 currentUser = user
+                // Check if viewing own profile
+                val isOwn = user?.uid == userId
+                _uiState.update { it.copy(isOwnProfile = isOwn) }
             }
         }
     }

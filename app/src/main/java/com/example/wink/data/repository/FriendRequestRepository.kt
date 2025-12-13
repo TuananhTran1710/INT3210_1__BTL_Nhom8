@@ -36,6 +36,11 @@ class FriendRequestRepository @Inject constructor(
     ): Result<Unit> {
         val fromUserId = currentUserId ?: return Result.failure(Exception("User not authenticated"))
         
+        // Prevent sending friend request to yourself
+        if (fromUserId == toUserId) {
+            return Result.failure(Exception("Không thể kết bạn với chính mình"))
+        }
+        
         return try {
             // Check if request already exists
             val existingRequest = friendRequestsCollection

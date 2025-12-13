@@ -157,10 +157,10 @@ fun UserDetailScreen(
                             }
                         }
 
-                        // Action Buttons
+                        // Action Buttons - Ẩn nút kết bạn nếu xem profile của chính mình
                         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                            // Nút Kết Bạn - hiển thị dựa trên FriendRequestStatus
-                            when (state.friendRequestStatus) {
+                            // Nút Kết Bạn - chỉ hiển thị khi không phải profile của chính mình
+                            if (!state.isOwnProfile) when (state.friendRequestStatus) {
                                 FriendRequestStatus.NOT_SENT -> {
                                     Button(
                                         onClick = { viewModel.sendFriendRequest() },
