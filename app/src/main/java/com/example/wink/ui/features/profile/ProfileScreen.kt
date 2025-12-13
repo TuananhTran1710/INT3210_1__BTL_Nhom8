@@ -273,29 +273,31 @@ fun ProfilePostItem(post: SocialPost, uid:String) {
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (!post.originalUsername.isNullOrBlank()) 
-                        "@${uid} đã đăng lại"
-                    else "Đã đăng lại",
+                    text = "@${post.username} đã đăng lại",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
         }
 
+        // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
+        val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
+        val displayUsername = if (post.isRepost) post.originalUsername ?: post.username else post.username
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                 // Load Avatar thật
-                if (post.avatarUrl != null) {
-                    AsyncImage(model = post.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
+                if (displayAvatarUrl != null) {
+                    AsyncImage(model = displayAvatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(post.username.take(1), fontWeight = FontWeight.Bold)
+                        Text(displayUsername.take(1), fontWeight = FontWeight.Bold)
                     }
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(post.username, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                Text(displayUsername, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
                 // Dùng TimeUtils
                 Text(TimeUtils.getRelativeTime(post.timestamp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
