@@ -2,6 +2,9 @@ package com.example.wink.di
 
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.AuthRepositoryImpl
+import com.example.wink.data.repository.FakeQuizRepositoryImpl
+import com.example.wink.data.repository.GameRepository
+import com.example.wink.data.repository.GameRepositoryImpl
 import com.example.wink.data.repository.QuizRepository
 import com.example.wink.data.repository.QuizRepositoryImpl
 import com.example.wink.data.repository.UserRepository
@@ -50,4 +53,10 @@ abstract class RepositoryModule {
     abstract fun bindTipsRepository(
         impl: com.example.wink.data.repository.TipsRepositoryImpl
     ): TipsRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindGameRepository(
+        impl: GameRepositoryImpl
+    ): GameRepository
 }

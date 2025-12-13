@@ -21,5 +21,8 @@ data class HumanAiGameState(
     val isOpponentActuallyAi: Boolean = false, // True = AI, False = Human
     val didWin: Boolean = false,
     val earnedRizz: Int = 0,
-    val isMyTurn: Boolean = false
+    val isMyTurn: Boolean = false,
+
+    val gameId: String? = null, // ID trận đấu nếu là người thật
+    val opponentId: String? = null // ID đối thủ
 )

@@ -1,24 +1,37 @@
 package com.example.wink.ui.features.games.humanai
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.*
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.Send
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TileMode
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -26,13 +39,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.wink.data.model.Message
-import com.example.wink.ui.features.chat.MessageContainer
-import com.example.wink.ui.features.chat.MessageItem
-import com.example.wink.ui.features.chat.MessageTopBar
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
 import nl.dionsegijn.konfetti.core.emitter.Emitter
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 @Composable
@@ -41,254 +52,458 @@ fun HumanAiGameScreen(
     viewModel: HumanAiGameViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val myUserId = remember { viewModel.getMyUserId() }
 
+    // Sử dụng AnimatedContent để chuyển đổi giữa các màn hình mượt mà hơn
+    AnimatedContent(
+        targetState = state.stage,
+        transitionSpec = {
+            fadeIn(animationSpec = tween(300)) togetherWith fadeOut(animationSpec = tween(300))
+        },
+        label = "GameStageTransition"
+    ) { targetStage ->
+        when (targetStage) {
+            GameStage.LOBBY -> LobbyView(
+                rizz = state.currentRizz,
+                online = state.onlineUsers,
+                onStart = viewModel::onStartMatchmaking,
+                onBack = { navController.popBackStack() }
+            )
+            GameStage.SEARCHING -> SearchingView(
+                time = state.searchTimeSeconds,
+                onCancel = viewModel::onCancelMatchmaking
+            )
+            GameStage.CHATTING -> ChattingScreenLayout( // Layout riêng cho Chat để xử lý bàn phím chuẩn
+                state = state,
+                currentUserId = myUserId,
+                onSend = viewModel::sendMessage
+            )
+            GameStage.GUESSING -> GuessingView(
+                onGuess = viewModel::onGuess
+            )
+            GameStage.RESULT -> ResultView(
+                state = state,
+                onPlayAgain = viewModel::onPlayAgain,
+                onExit = { navController.popBackStack() }
+            )
+        }
+    }
+}
+
+// ==========================================
+// 1. LOBBY VIEW
+// ==========================================
+@Composable
+fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(bottom = padding.calculateBottomPadding())
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            when (state.stage) {
-                GameStage.LOBBY -> LobbyView(
-                    rizz = state.currentRizz,
-                    online = state.onlineUsers,
-                    onStart = viewModel::onStartMatchmaking,
-                    onBack = { navController.popBackStack() }
-                )
-                GameStage.SEARCHING -> SearchingView(
-                    time = state.searchTimeSeconds
-                )
-                GameStage.CHATTING -> ChattingView(
-                    state = state,
-                    onSend = viewModel::sendMessage
-                )
-                GameStage.GUESSING -> GuessingView(
-                    onGuess = viewModel::onGuess
-                )
-                GameStage.RESULT -> ResultView(
-                    state = state,
-                    onPlayAgain = viewModel::onPlayAgain,
-                    onExit = { navController.popBackStack() }
+            // Top Bar thủ công
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                FilledTonalIconButton(onClick = onBack) {
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
+                }
+                Spacer(Modifier.weight(1f))
+                AssistChip(
+                    onClick = {},
+                    label = { Text("$rizz RIZZ", fontWeight = FontWeight.Bold) },
+                    leadingIcon = { Icon(Icons.Rounded.Bolt, null, tint = Color(0xFFFFD700)) },
+                    colors = AssistChipDefaults.assistChipColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        labelColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    border = null
                 )
             }
-        }
-    }
-}
 
-// --- 1. LOBBY VIEW ---
-@Composable
-fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(16.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.SpaceBetween
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.Start) {
-            IconButton(onClick = onBack) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+            Spacer(Modifier.weight(1f))
+
+            // Hero Image / Icon
+            Box(contentAlignment = Alignment.Center) {
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .background(
+                            Brush.radialGradient(
+                                listOf(MaterialTheme.colorScheme.primary.copy(alpha = 0.3f), Color.Transparent)
+                            )
+                        )
+                )
+                Icon(
+                    imageVector = Icons.Rounded.Psychology,
+                    contentDescription = null,
+                    modifier = Modifier.size(100.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
             }
-        }
-
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Human or AI?",
-                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black),
-                color = MaterialTheme.colorScheme.primary
-            )
-            Text("Thử tài phán đoán của bạn", style = MaterialTheme.typography.titleMedium)
 
             Spacer(Modifier.height(32.dp))
 
-            // Card Rizz
+            Text(
+                text = "Human or AI?",
+                style = MaterialTheme.typography.displayMedium,
+                fontWeight = FontWeight.Black,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Spacer(Modifier.height(16.dp))
+
+            // Nội dung hướng dẫn
             Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
                 shape = RoundedCornerShape(16.dp)
             ) {
-                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Default.Star, null, tint = Color(0xFFFFD700))
+                Text(
+                    text = "Trò chuyện với ai đó trong 60 giây.\nHãy thử đoán xem bạn vừa nhắn với một người thật hay một AI.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.padding(16.dp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Spacer(Modifier.height(24.dp))
+
+            // Online count pill
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(8.dp).background(Color.Green, CircleShape))
                     Spacer(Modifier.width(8.dp))
-                    Text("$rizz RIZZ hiện có", fontWeight = FontWeight.Bold)
+                    Text(
+                        "$online đang tìm trận",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium
+                    )
                 }
             }
 
-            Spacer(Modifier.height(16.dp))
-            Text("🟢 $online người đang online", color = Color.Green, style = MaterialTheme.typography.bodyMedium)
-        }
+            Spacer(Modifier.weight(1f))
 
-        Button(
-            onClick = onStart,
-            modifier = Modifier.fillMaxWidth().height(56.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-        ) {
-            Text("Bắt đầu chơi", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            // Start Button
+            Button(
+                onClick = onStart,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(70.dp),
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
+            ) {
+                Text("BẮT ĐẦU CHƠI", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.width(8.dp))
+                Icon(Icons.Rounded.PlayArrow, null)
+            }
         }
     }
 }
 
-// --- 2. SEARCHING VIEW ---
+// ==========================================
+// 2. SEARCHING VIEW
+// ==========================================
 @Composable
-fun SearchingView(time: Int) {
+fun SearchingView(time: Int, onCancel: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
-        initialValue = 0.8f, targetValue = 1.2f,
+        initialValue = 1f, targetValue = 1.2f,
         animationSpec = infiniteRepeatable(tween(1000), RepeatMode.Reverse), label = "scale"
     )
 
-    Column(
-        modifier = Modifier.fillMaxSize(),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(contentAlignment = Alignment.Center) {
-            Box(
-                modifier = Modifier
-                    .size(150.dp)
-                    .scale(scale)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f))
-            )
-            Icon(
-                Icons.Default.Search, null,
-                modifier = Modifier.size(60.dp),
-                tint = MaterialTheme.colorScheme.primary
-            )
+    val formattedTime = remember(time) {
+        String.format(Locale.getDefault(), "%02d:%02d", time / 60, time % 60)
+    }
+
+    Scaffold { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                // Pulse Circles
+                Box(
+                    modifier = Modifier
+                        .size(200.dp)
+                        .scale(scale)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f), CircleShape)
+                )
+                Box(
+                    modifier = Modifier
+                        .size(140.dp)
+                        .scale(scale * 0.9f)
+                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.2f), CircleShape)
+                )
+                // Center Icon
+                Surface(
+                    modifier = Modifier.size(80.dp),
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 4.dp
+                ) {
+                    Box(contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.fillMaxSize(),
+                            color = MaterialTheme.colorScheme.primary,
+                            strokeWidth = 3.dp
+                        )
+                        Icon(Icons.Rounded.Search, null, tint = MaterialTheme.colorScheme.primary)
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(48.dp))
+
+            Text("Đang tìm đối thủ...", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(formattedTime, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+
+            Spacer(Modifier.height(48.dp))
+
+            TextButton(onClick = onCancel, colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)) {
+                Text("Hủy tìm kiếm")
+            }
         }
-        Spacer(Modifier.height(32.dp))
-        Text("Đang tìm đối thủ...", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-        Text("Thời gian: ${time}s", style = MaterialTheme.typography.bodyLarge)
-        Spacer(Modifier.height(8.dp))
-        Text("Đang kết nối với người lạ...", color = Color.Gray)
     }
 }
 
-// --- 3. CHATTING VIEW ---
+// ==========================================
+// 3. CHATTING SCREEN (FIXED KEYBOARD LAYOUT)
+// ==========================================
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
+fun ChattingScreenLayout(state: HumanAiGameState, currentUserId: String, onSend: (String) -> Unit) {
+    // Scaffold tự động xử lý system bars và bàn phím (nếu config đúng trong theme/manifest)
+    // Nhưng để chắc chắn, ta dùng BottomBar cho Input Field
+
+    val focusManager = LocalFocusManager.current
     var text by remember { mutableStateOf("") }
 
-    val progress = state.timeLeft / 60f
-    val progressColor = if (state.timeLeft < 10) Color.Red else MaterialTheme.colorScheme.primary
+    val formattedTimer = remember(state.timeLeft) {
+        String.format(Locale.getDefault(), "%02d:%02d", state.timeLeft / 60, state.timeLeft % 60)
+    }
 
-    Column(Modifier.fillMaxSize()) {
-        LinearProgressIndicator(
-            progress = { progress },
-            modifier = Modifier.fillMaxWidth().height(8.dp),
-            color = progressColor,
-            trackColor = MaterialTheme.colorScheme.surfaceVariant
-        )
-        Box(
-            Modifier.fillMaxWidth().padding(8.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                "Còn lại: ${state.timeLeft}s",
-                fontWeight = FontWeight.Bold,
-                color = if (state.timeLeft < 10) Color.Red else MaterialTheme.colorScheme.onSurface
+    val timerColor = if (state.timeLeft < 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primaryContainer
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = timerColor,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+                    ) {
+                        Text(
+                            text = formattedTimer,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp),
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                        )
+                    }
+                },
+                windowInsets = WindowInsets(top = 0.dp, bottom = 0.dp),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = MaterialTheme.colorScheme.background)
+            )
+        },
+        bottomBar = {
+            // INPUT AREA: Đặt ở bottomBar để Scaffold xử lý vị trí khi bàn phím hiện
+            ChatInputBar(
+                text = text,
+                onTextChange = { text = it },
+                onSend = {
+                    onSend(text)
+                    text = ""
+                    focusManager.clearFocus() // Ẩn phím sau khi gửi (tùy chọn)
+                },
+                isEnabled = state.isMyTurn
             )
         }
+    ) { padding ->
+        // CHAT CONTENT
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding) // Padding này bao gồm cả topBar và bottomBar (Input)
+        ) {
+            // Thanh Progress mảnh
+            LinearProgressIndicator(
+                progress = { state.timeLeft / 60f },
+                modifier = Modifier.fillMaxWidth().height(2.dp),
+                color = if (state.timeLeft < 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                trackColor = Color.Transparent
+            )
 
-        // SỬA: Dùng GameMessageList thay vì MessageContainer mặc định
-        GameMessageList(
-            messages = state.messages,
-            modifier = Modifier.weight(1f),
-            isTyping = state.isOpponentTyping
-        )
+            GameMessageList(
+                messages = state.messages,
+                currentUserId = currentUserId,
+                modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
+            )
+        }
+    }
+}
 
-        // Input Area
+@Composable
+fun ChatInputBar(
+    text: String,
+    onTextChange: (String) -> Unit,
+    onSend: () -> Unit,
+    isEnabled: Boolean
+) {
+    Surface(
+        tonalElevation = 2.dp,
+        // Dùng windowInsets để tự động cộng padding của navigation bar và bàn phím
+        // Đây là "bí thuật" để fix lỗi khoảng trống
+        modifier = Modifier.fillMaxWidth()
+    ) {
         Row(
-            modifier = Modifier.padding(16.dp),
+            modifier = Modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                // Quan trọng: Chỉ thêm padding cho navigation bars (thanh gạch ngang dưới đáy),
+                // còn bàn phím (ime) thì Scaffold đã lo rồi.
+                .navigationBarsPadding(),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
                 value = text,
-                onValueChange = { text = it },
+                onValueChange = onTextChange,
                 modifier = Modifier.weight(1f),
-                // Hiển thị placeholder tùy theo lượt
                 placeholder = {
-                    Text(if (state.isMyTurn) "Đến lượt bạn..." else "Đợi đối phương...")
+                    Text(
+                        if (isEnabled) "Nhập tin nhắn..." else "Đợi đối phương...",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 },
                 shape = RoundedCornerShape(24.dp),
-                // KHÓA NHẬP LIỆU NẾU KHÔNG PHẢI LƯỢT
-                enabled = state.isMyTurn
+                enabled = isEnabled,
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.3f),
+                    disabledContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                    focusedContainerColor = MaterialTheme.colorScheme.surface,
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                ),
+                maxLines = 4,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                keyboardActions = KeyboardActions(onSend = { if (text.isNotBlank() && isEnabled) onSend() })
             )
+
+            Spacer(Modifier.width(12.dp))
+
+            val canSend = text.isNotBlank() && isEnabled
             IconButton(
-                onClick = {
-                    if (text.isNotBlank()) {
-                        onSend(text)
-                        text = ""
-                    }
-                },
-                // Chỉ cho bấm nút gửi khi có text VÀ đúng lượt
-                enabled = text.isNotBlank() && state.isMyTurn
+                onClick = onSend,
+                modifier = Modifier
+                    .size(48.dp)
+                    .background(
+                        if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                        CircleShape
+                    ),
+                enabled = canSend
             ) {
                 Icon(
-                    Icons.Default.Send,
+                    Icons.AutoMirrored.Rounded.Send,
                     null,
-                    tint = if (state.isMyTurn) MaterialTheme.colorScheme.primary else Color.Gray
+                    tint = if (canSend) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
     }
 }
 
+// ... (GameMessageList, GameChatBubble, SystemMessageItem - GIỮ NGUYÊN hoặc copy từ code cũ) ...
 @Composable
 fun GameMessageList(
     messages: List<Message>,
-    modifier: Modifier = Modifier,
-    isTyping: Boolean = false
+    currentUserId: String,
+    modifier: Modifier = Modifier
 ) {
-    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val listState = rememberLazyListState()
 
-    // Auto scroll
-    LaunchedEffect(messages.size, isTyping) {
+    LaunchedEffect(messages.size) {
         listState.animateScrollToItem(0)
     }
 
-    androidx.compose.foundation.lazy.LazyColumn(
+    LazyColumn(
         state = listState,
-        modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(8.dp),
-        reverseLayout = true
+        modifier = modifier,
+        contentPadding = PaddingValues(vertical = 16.dp),
+        reverseLayout = true,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        if (isTyping) {
-            item {
-                com.example.wink.ui.features.chat.TypingIndicator()
-            }
-        }
-
         items(messages) { message ->
-            if (message.senderId == "system") {
-                // Hiển thị tin nhắn hệ thống
+            if (message.senderId == "system" || message.senderId == "sys_init" || message.senderId == "sys_ai") {
                 SystemMessageItem(content = message.content)
             } else {
-                // Hiển thị tin nhắn chat bình thường
-                MessageItem(
+                GameChatBubble(
                     message = message,
-                    isMyMessage = message.senderId == "me"
+                    isMe = message.senderId == currentUserId
                 )
             }
         }
     }
 }
 
-// UI cho tin nhắn hệ thống (Căn giữa, chữ nhỏ, màu xám)
+@Composable
+fun GameChatBubble(message: Message, isMe: Boolean) {
+    val bubbleColor = if (isMe) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceContainerHighest
+    val textColor = if (isMe) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+    // Bo góc kiểu bong bóng chat
+    val shape = if (isMe)
+        RoundedCornerShape(20.dp, 20.dp, 4.dp, 20.dp)
+    else
+        RoundedCornerShape(20.dp, 20.dp, 20.dp, 4.dp)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isMe) Alignment.End else Alignment.Start
+    ) {
+        Surface(
+            color = bubbleColor,
+            shape = shape,
+        ) {
+            Text(
+                text = message.content,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
+                color = textColor,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
 @Composable
 fun SystemMessageItem(content: String) {
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 8.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
         contentAlignment = Alignment.Center
     ) {
         Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+            shape = RoundedCornerShape(50),
+            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         ) {
             Text(
                 text = content,
-                style = MaterialTheme.typography.labelMedium,
+                style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
             )
@@ -296,53 +511,80 @@ fun SystemMessageItem(content: String) {
     }
 }
 
-// --- 4. GUESSING VIEW ---
+// ==========================================
+// 4. GUESSING VIEW
+// ==========================================
 @Composable
 fun GuessingView(onGuess: (Boolean) -> Unit) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
-    ) {
-        Text("Hết giờ!", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Bold)
-        Spacer(Modifier.height(16.dp))
-        Text(
-            "Bạn vừa trò chuyện với ai?",
-            style = MaterialTheme.typography.headlineSmall,
-            textAlign = TextAlign.Center
-        )
+    Scaffold { padding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text("HẾT GIỜ!", style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.error)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                "Theo trực giác của bạn,\nbạn vừa trò chuyện với ai?",
+                style = MaterialTheme.typography.headlineSmall,
+                textAlign = TextAlign.Center,
+                color = MaterialTheme.colorScheme.onSurface
+            )
 
-        Spacer(Modifier.height(48.dp))
+            Spacer(Modifier.height(48.dp))
 
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            Button(
-                onClick = { onGuess(true) }, // True = AI
-                modifier = Modifier.weight(1f).height(120.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🤖", fontSize = 40.sp)
-                    Text("AI (Bot)", color = MaterialTheme.colorScheme.onSecondaryContainer)
-                }
-            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+                GuessCard(
+                    icon = "🤖",
+                    label = "AI (Bot)",
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    onClick = { onGuess(true) },
+                    modifier = Modifier.weight(1f)
+                )
 
-            Button(
-                onClick = { onGuess(false) }, // False = Human
-                modifier = Modifier.weight(1f).height(120.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("🧑", fontSize = 40.sp)
-                    Text("Người thật", color = MaterialTheme.colorScheme.onPrimaryContainer)
-                }
+                GuessCard(
+                    icon = "🧑",
+                    label = "Người thật",
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    onClick = { onGuess(false) },
+                    modifier = Modifier.weight(1f)
+                )
             }
         }
     }
 }
 
-// --- 5. RESULT VIEW ---
+@Composable
+fun GuessCard(icon: String, label: String, color: Color, onClick: () -> Unit, modifier: Modifier) {
+    Card(
+        onClick = onClick,
+        modifier = modifier.height(180.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = color),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Shadow thấp
+    ) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(icon, fontSize = 64.sp)
+            Spacer(Modifier.height(16.dp))
+            Text(
+                label,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+// ==========================================
+// 5. RESULT VIEW
+// ==========================================
 @Composable
 fun ResultView(state: HumanAiGameState, onPlayAgain: () -> Unit, onExit: () -> Unit) {
     val party = remember {
@@ -357,70 +599,101 @@ fun ResultView(state: HumanAiGameState, onPlayAgain: () -> Unit, onExit: () -> U
         )
     }
 
-    Box(Modifier.fillMaxSize()) {
-        Column(
-            modifier = Modifier.fillMaxSize().padding(24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            val title = if (state.didWin) "CHÍNH XÁC!" else "SAI RỒI!"
-            val color = if (state.didWin) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
-            val opponentName = if (state.isOpponentActuallyAi) "AI (Bot) 🤖" else "Người thật 🧑"
-
-            Text(
-                text = title,
-                style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black),
-                color = color
-            )
-
-            Spacer(Modifier.height(16.dp))
-
-            Text("Đối thủ của bạn là:", style = MaterialTheme.typography.bodyLarge)
-            Text(opponentName, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-
-            Spacer(Modifier.height(24.dp))
-
-            // Score Card
-            Card(
-                colors = CardDefaults.cardColors(
-                    containerColor = if (state.didWin) Color(0xFFE8F5E9) else Color(0xFFFFEBEE)
-                )
+    Scaffold { padding ->
+        Box(Modifier.fillMaxSize().padding(padding)) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
             ) {
-                Row(Modifier.padding(horizontal = 24.dp, vertical = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (state.didWin) "+" else "",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = color
-                    )
-                    Text(
-                        text = "${state.earnedRizz} RIZZ",
-                        style = MaterialTheme.typography.headlineMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = color
-                    )
+                val title = if (state.didWin) "CHÍNH XÁC!" else "SAI RỒI!"
+                val color = if (state.didWin) Color(0xFF4CAF50) else MaterialTheme.colorScheme.error
+                val opponentIcon = if (state.isOpponentActuallyAi) "🤖" else "🧑"
+                val opponentLabel = if (state.isOpponentActuallyAi) "AI (Bot)" else "Người thật"
+
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.displayMedium.copy(fontWeight = FontWeight.Black),
+                    color = color,
+                    textAlign = TextAlign.Center
+                )
+
+                Spacer(Modifier.height(32.dp))
+
+                // Reveal Card
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+                    shape = RoundedCornerShape(24.dp),
+                    elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.padding(32.dp).fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text("Đối thủ của bạn là", style = MaterialTheme.typography.bodyLarge)
+                        Spacer(Modifier.height(16.dp))
+                        Text(opponentIcon, fontSize = 64.sp)
+                        Text(
+                            opponentLabel,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(24.dp))
+
+                // Points Badge
+                Surface(
+                    color = if (state.didWin) Color(0xFFE8F5E9) else Color(0xFFFFEBEE),
+                    shape = RoundedCornerShape(50),
+                    border = BorderStroke(1.dp, color.copy(alpha = 0.5f))
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (state.didWin) "+" else "",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                        Text(
+                            text = "${state.earnedRizz} RIZZ",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = color
+                        )
+                    }
+                }
+
+                Spacer(Modifier.height(48.dp))
+
+                Button(
+                    onClick = onPlayAgain,
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                ) {
+                    Text("Chơi lại", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+                }
+                Spacer(Modifier.height(16.dp))
+                TextButton(onClick = onExit) {
+                    Text("Thoát ra", fontSize = 16.sp)
                 }
             }
 
-            Spacer(Modifier.height(48.dp))
-
-            Button(
-                onClick = onPlayAgain,
-                modifier = Modifier.fillMaxWidth().height(50.dp)
-            ) {
-                Text("Chơi lại")
+            if (state.didWin) {
+                KonfettiView(
+                    modifier = Modifier.fillMaxSize(),
+                    parties = listOf(party),
+                )
             }
-            Spacer(Modifier.height(16.dp))
-            TextButton(onClick = onExit) {
-                Text("Thoát ra")
-            }
-        }
-
-        if (state.didWin) {
-            KonfettiView(
-                modifier = Modifier.fillMaxSize(),
-                parties = listOf(party),
-            )
         }
     }
 }
