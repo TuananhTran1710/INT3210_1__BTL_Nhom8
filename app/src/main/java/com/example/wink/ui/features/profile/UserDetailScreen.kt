@@ -14,6 +14,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.People
 import androidx.compose.material.icons.filled.PersonAdd
+import androidx.compose.material.icons.filled.PersonRemove
 import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Warning
@@ -208,16 +209,38 @@ fun UserDetailScreen(
                                     }
                                 }
                                 FriendRequestStatus.ALREADY_FRIENDS -> {
-                                    FilledTonalButton(
-                                        onClick = { },
-                                        modifier = Modifier.weight(1f),
-                                        colors = ButtonDefaults.filledTonalButtonColors(
-                                            containerColor = MaterialTheme.colorScheme.primaryContainer
-                                        )
-                                    ) {
-                                        Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.primary)
-                                        Spacer(Modifier.width(8.dp))
-                                        Text("Bạn bè", color = MaterialTheme.colorScheme.primary)
+                                    var showUnfriendMenu by remember { mutableStateOf(false) }
+                                    Box(modifier = Modifier.weight(1f)) {
+                                        FilledTonalButton(
+                                            onClick = { showUnfriendMenu = true },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            colors = ButtonDefaults.filledTonalButtonColors(
+                                                containerColor = MaterialTheme.colorScheme.primaryContainer
+                                            )
+                                        ) {
+                                            Icon(Icons.Default.People, null, tint = MaterialTheme.colorScheme.primary)
+                                            Spacer(Modifier.width(8.dp))
+                                            Text("Bạn bè", color = MaterialTheme.colorScheme.primary)
+                                        }
+                                        DropdownMenu(
+                                            expanded = showUnfriendMenu,
+                                            onDismissRequest = { showUnfriendMenu = false }
+                                        ) {
+                                            DropdownMenuItem(
+                                                text = { Text("Hủy kết bạn", color = MaterialTheme.colorScheme.error) },
+                                                onClick = {
+                                                    showUnfriendMenu = false
+                                                    viewModel.unfriend()
+                                                },
+                                                leadingIcon = {
+                                                    Icon(
+                                                        Icons.Default.PersonRemove,
+                                                        contentDescription = null,
+                                                        tint = MaterialTheme.colorScheme.error
+                                                    )
+                                                }
+                                            )
+                                        }
                                     }
                                 }
                             }
