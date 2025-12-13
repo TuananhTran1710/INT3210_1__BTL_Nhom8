@@ -175,6 +175,33 @@ class ChatRepository @Inject constructor(
         Result.failure(e)
     }
 
+    // Xóa chat (Xóa document)
+    suspend fun deleteChat(chatId: String): Result<Unit> = try {
+        firestore.collection("chats").document(chatId).delete().await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // Pin chat: Thêm ID và timestamp vào map pinnedBy
+    suspend fun pinChat(chatId: String, userId: String): Result<Unit> = try {
+        val update = mapOf("pinnedBy.$userId" to System.currentTimeMillis())
+        firestore.collection("chats").document(chatId).update(update).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // Unpin chat: Xóa ID khỏi map pinnedBy
+    suspend fun unpinChat(chatId: String, userId: String): Result<Unit> = try {
+        // Dùng FieldValue.delete() để xóa key khỏi map
+        val update = mapOf("pinnedBy.$userId" to com.google.firebase.firestore.FieldValue.delete())
+        firestore.collection("chats").document(chatId).update(update).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
 
     /**
      * Tìm đoạn chat 1-1 giữa currentUser và targetUserId.
