@@ -51,11 +51,27 @@ class HumanAiGameViewModel @Inject constructor(
 
     init {
         loadLobbyData()
+        startCountingQueue()
         viewModelScope.launch {
             myUserId = userRepository.getCurrentUid() ?: UUID.randomUUID().toString()
         }
     }
+    private fun startCountingQueue() {
+        viewModelScope.launch {
+            while (true) { // Vòng lặp vô tận (sẽ dừng khi ViewModel bị hủy)
+                // Chỉ đếm khi đang ở Lobby hoặc Searching để tiết kiệm
+                if (_uiState.value.stage == GameStage.LOBBY || _uiState.value.stage == GameStage.SEARCHING) {
+                    val count = gameRepository.getQueueCount()
 
+                    // Cập nhật UI
+                    _uiState.update {
+                        it.copy(onlineUsers = count.toInt())
+                    }
+                }
+                delay(5000) // Đợi 5 giây rồi đếm lại (Polling)
+            }
+        }
+    }
     private fun loadLobbyData() {
         viewModelScope.launch {
             val rizz = userRepository.loadRizzPoints()

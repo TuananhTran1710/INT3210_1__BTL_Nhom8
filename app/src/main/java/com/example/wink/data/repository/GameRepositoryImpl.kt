@@ -2,6 +2,7 @@ package com.example.wink.data.repository
 
 import android.util.Log
 import com.example.wink.data.model.Message
+import com.google.firebase.firestore.AggregateSource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
@@ -168,6 +169,15 @@ class GameRepositoryImpl @Inject constructor(
         batch.update(gameRef, "currentTurn", nextTurnUserId)
 
         batch.commit().await()
+    }
+
+    override suspend fun getQueueCount(): Long {
+        return try {
+            val snapshot = queueRef.count().get(AggregateSource.SERVER).await()
+            snapshot.count
+        } catch (e: Exception) {
+            0
+        }
     }
 
     override suspend fun finishGame(gameId: String) {

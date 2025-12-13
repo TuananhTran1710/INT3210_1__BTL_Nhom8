@@ -23,4 +23,5 @@ interface GameRepository {
     // Kết thúc game (dọn dẹp)
     suspend fun finishGame(gameId: String)
     suspend fun getGameDetails(gameId: String): Map<String, Any>?
+    suspend fun getQueueCount(): Long
 }
