@@ -197,7 +197,7 @@ fun ProfileScreen(
                     item { EmptyStateView("Chưa có bài viết nào") }
                 } else {
                     items(posts) { post ->
-                        ProfilePostItem(post) // Truyền SocialPost vào
+                        ProfilePostItem(post, uiState.username) // Truyền SocialPost vào
                     }
                 }
             } else if (selectedTabIndex == 1) {
@@ -249,7 +249,7 @@ fun ProfileVerticalDivider() {
 }
 
 @Composable
-fun ProfilePostItem(post: SocialPost) {
+fun ProfilePostItem(post: SocialPost, uid:String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -274,7 +274,7 @@ fun ProfilePostItem(post: SocialPost) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (!post.originalUsername.isNullOrBlank()) 
-                        "Đã đăng lại từ @${post.originalUsername}" 
+                        "@${uid} đã đăng lại"
                     else "Đã đăng lại",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary

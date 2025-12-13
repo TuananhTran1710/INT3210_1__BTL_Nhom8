@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.profile
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -258,11 +259,12 @@ fun UserDetailScreen(
                     }
                     items(state.userPosts.size) { index ->
                         val post = state.userPosts[index]
-                        PostCard(post = post)
+                        PostCard(post = post, uid=user.username)
                         HorizontalDivider(
                             thickness = 0.5.dp,
                             color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                         )
+                        Log.d("UserDetailScreen", "uid = ${user.username}")
                     }
                 } else {
                     item {
@@ -279,7 +281,7 @@ fun UserDetailScreen(
 }
 
 @Composable
-fun PostCard(post: SocialPost) {
+fun PostCard(post: SocialPost, uid: String = "") {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -302,8 +304,8 @@ fun PostCard(post: SocialPost) {
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (!post.originalUsername.isNullOrBlank()) 
-                        "Đã đăng lại từ @${post.originalUsername}" 
+                    text = if (!uid.isNullOrBlank())
+                        "@${uid}đã đăng lại"
                     else "Đã đăng lại",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
