@@ -58,10 +58,24 @@ fun DashboardScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-
+    // Hiển thị dialog lời mời kết bạn
+    if (uiState.showFriendRequestsDialog) {
+        FriendRequestsDialog(
+            requests = uiState.pendingFriendRequests,
+            onAccept = { requestId -> viewModel.onEvent(DashboardEvent.OnAcceptFriendRequest(requestId)) },
+            onReject = { requestId -> viewModel.onEvent(DashboardEvent.OnRejectFriendRequest(requestId)) },
+            onDismiss = { viewModel.onEvent(DashboardEvent.OnCloseFriendRequests) }
+        )
+    }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            DashboardTopBar(
+                pendingRequestsCount = uiState.pendingFriendRequests.size,
+                onNotificationClick = { viewModel.onEvent(DashboardEvent.OnOpenFriendRequests) }
+            )
+        }
     ) { paddingValues ->
         LazyColumn(
             modifier = Modifier
@@ -660,5 +674,218 @@ private fun AIFeatureCardPreview() {
 private fun DailyTasksSectionPreview() {
     DailyTasksSection(
         onTaskClick = { }
+    )
+}
+/**
+ * Dialog hiển thị danh sách lời mời kết bạn
+ */
+@Composable
+fun FriendRequestsDialog(
+    requests: List<FriendRequest>,
+    onAccept: (String) -> Unit,
+    onReject: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PersonAdd,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = "Lời mời kết bạn",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        },
+        text = {
+            if (requests.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Group,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Chưa có lời mời kết bạn nào",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 400.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(requests) { request ->
+                        FriendRequestItem(
+                            request = request,
+                            onAccept = { onAccept(request.id) },
+                            onReject = { onReject(request.id) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+/**
+ * Item hiển thị một lời mời kết bạn
+ */
+@Composable
+private fun FriendRequestItem(
+    request: FriendRequest,
+    onAccept: () -> Unit,
+    onReject: () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Avatar
+                Box(
+                    modifier = Modifier
+                        .size(48.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.primaryContainer),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Person,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(24.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // User info
+                Column(
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text(
+                        text = request.fromUsername.ifBlank { "Người dùng" },
+                        style = MaterialTheme.typography.bodyLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = "Muốn kết bạn với bạn",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // Action buttons - Accept & Decline
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // Decline button
+                OutlinedButton(
+                    onClick = onReject,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Từ chối")
+                }
+
+                // Accept button
+                Button(
+                    onClick = onAccept,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    )
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Check,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text("Chấp nhận")
+                }
+            }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun FriendRequestsDialogPreview() {
+    val mockRequests = listOf(
+        FriendRequest(
+            id = "1",
+            fromUserId = "user1",
+            toUserId = "currentUser",
+            fromUsername = "Nguyễn Văn A",
+            fromAvatarUrl = ""
+        ),
+        FriendRequest(
+            id = "2",
+            fromUserId = "user2",
+            toUserId = "currentUser",
+            fromUsername = "Trần Thị B",
+            fromAvatarUrl = ""
+        )
+    )
+    FriendRequestsDialog(
+        requests = mockRequests,
+        onAccept = {},
+        onReject = {},
+        onDismiss = {}
     )
 }
