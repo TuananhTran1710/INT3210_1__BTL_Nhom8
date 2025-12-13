@@ -38,7 +38,7 @@ sealed class Screen(val route: String) {
     object UserDetail : Screen("user_detail/{userId}") {
         fun createRoute(userId: String) = "user_detail/$userId"
     }
-
+    object NewChat : Screen("new_chat") // Thêm dòng này
     object ChangeIcon : Screen("change_icon")
     object SecretBook : Screen("secret_book")
     object Tarot : Screen("tarot")

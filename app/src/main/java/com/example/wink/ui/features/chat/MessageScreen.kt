@@ -26,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -39,6 +40,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -111,33 +113,59 @@ fun MessageScreen(
     }
 }
 
+// --- PHẦN QUAN TRỌNG CẦN SỬA ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MessageTopBar(title: String, avatarUrl: String?, onBackClick: () -> Unit) {
+fun MessageTopBar(
+    title: String,
+    avatarUrl: String?,
+    onBackClick: () -> Unit
+) {
     TopAppBar(
+        // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back"
+                )
+            }
+        },
+        // 2. Avatar và Tên nằm ở title (ngay sau nút Back)
         title = {
-            Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // Avatar
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
                         .data(avatarUrl)
                         .crossfade(true)
                         .build(),
-                    placeholder = painterResource(R.drawable.ic_launcher_background),
+                    placeholder = painterResource(R.drawable.ic_launcher_background), // Ảnh mặc định khi đang load
+                    error = painterResource(R.drawable.ic_launcher_background),       // Ảnh mặc định khi lỗi/null
                     contentDescription = "User Avatar",
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
+                        .size(40.dp)          // Kích thước chuẩn avatar topbar
+                        .clip(CircleShape)    // Bo tròn
                 )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = title)
+
+                Spacer(modifier = Modifier.width(12.dp)) // Khoảng cách giữa ảnh và tên
+
+                // Tên người dùng
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis // Nếu tên dài quá sẽ hiện dấu ...
+                )
             }
         },
-        navigationIcon = {
-            IconButton(onClick = onBackClick) {
-                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-            }
-        }
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
     )
 }
 

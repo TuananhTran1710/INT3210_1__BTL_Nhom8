@@ -53,7 +53,11 @@ fun ChatListScreen(
     Scaffold(
         topBar = { TopAppBar(title = { Text("Chats") }) },
         floatingActionButton = {
-            FloatingActionButton(onClick = { navController.navigate(Screen.Friends.route) }) {
+            FloatingActionButton(onClick = {
+                // SỬA Ở ĐÂY: Navigate sang màn hình NewChat
+                navController.navigate(Screen.NewChat.route)
+            }) {
+                // Icon đổi thành dấu cộng hoặc icon tạo mới cho hợp lý (optional)
                 Icon(Icons.Default.Message, contentDescription = "New Message")
             }
         }
