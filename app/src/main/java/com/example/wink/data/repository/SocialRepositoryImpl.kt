@@ -12,9 +12,12 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
 import com.google.firebase.storage.FirebaseStorage
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import java.util.UUID
 import javax.inject.Inject
@@ -39,40 +42,68 @@ class SocialRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val posts = snapshot?.documents?.mapNotNull { doc ->
-                    val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
-                    val retweetedBy = doc.get("retweetedBy") as? List<String> ?: emptyList()
-                    val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+                // Launch coroutine để kiểm tra bài gốc
+                CoroutineScope(Dispatchers.IO).launch {
+                    // Lấy danh sách originalPostId để kiểm tra bài gốc có tồn tại không
+                    val originalPostIds = snapshot?.documents
+                        ?.filter { it.getBoolean("isRepost") == true }
+                        ?.mapNotNull { it.getString("originalPostId") }
+                        ?.distinct()
+                        ?: emptyList()
+                    
+                    // Kiểm tra các bài gốc có tồn tại không
+                    val deletedOriginalPostIds = mutableSetOf<String>()
+                    for (originalPostId in originalPostIds) {
+                        try {
+                            val originalDoc = firestore.collection("posts").document(originalPostId).get().await()
+                            if (!originalDoc.exists()) {
+                                deletedOriginalPostIds.add(originalPostId)
+                            }
+                        } catch (e: Exception) {
+                            // Nếu lỗi khi lấy bài gốc, coi như đã bị xóa
+                            deletedOriginalPostIds.add(originalPostId)
+                        }
+                    }
 
-                    val userId = doc.getString("userId") ?: ""
-                    val canDelete = userId == currentUserId
-                    val canEdit = userId == currentUserId
+                    val posts = snapshot?.documents?.mapNotNull { doc ->
+                        val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
+                        val retweetedBy = doc.get("retweetedBy") as? List<String> ?: emptyList()
+                        val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
 
-                    SocialPost(
-                        id = doc.id,
-                        userId = userId,
-                        username = doc.getString("username") ?: "Ẩn danh",
-                        avatarUrl = doc.getString("avatarUrl"),
-                        content = doc.getString("content") ?: "",
-                        timestamp = doc.getLong("timestamp") ?: 0L,
-                        likes = (doc.getLong("likesCount") ?: 0).toInt(),
-                        comments = (doc.getLong("commentsCount") ?: 0).toInt(),
-                        isLikedByMe = likedBy.contains(currentUserId),
-                        imageUrls = images,
-                        isRepost = doc.getBoolean("isRepost") ?: false,
-                        originalPostId = doc.getString("originalPostId"),
-                        originalUserId = doc.getString("originalUserId"),
-                        originalUsername = doc.getString("originalUsername"),
-                        originalAvatarUrl = doc.getString("originalAvatarUrl"),
-                        retweetedBy = retweetedBy,
-                        retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
-                        isRetweetedByMe = retweetedBy.contains(currentUserId),
-                        canDelete = canDelete,
-                        canEdit = canEdit
-                    )
-                } ?: emptyList()
+                        val userId = doc.getString("userId") ?: ""
+                        val canDelete = userId == currentUserId
+                        val canEdit = userId == currentUserId
+                        val isRepost = doc.getBoolean("isRepost") ?: false
+                        val originalPostId = doc.getString("originalPostId")
+                        val isOriginalDeleted = isRepost && originalPostId != null && deletedOriginalPostIds.contains(originalPostId)
 
-                trySend(posts)
+                        SocialPost(
+                            id = doc.id,
+                            userId = userId,
+                            username = doc.getString("username") ?: "Ẩn danh",
+                            avatarUrl = doc.getString("avatarUrl"),
+                            content = doc.getString("content") ?: "",
+                            timestamp = doc.getLong("timestamp") ?: 0L,
+                            likes = (doc.getLong("likesCount") ?: 0).toInt(),
+                            comments = (doc.getLong("commentsCount") ?: 0).toInt(),
+                            isLikedByMe = likedBy.contains(currentUserId),
+                            imageUrls = images,
+                            isRepost = isRepost,
+                            originalPostId = originalPostId,
+                            originalUserId = doc.getString("originalUserId"),
+                            originalUsername = doc.getString("originalUsername"),
+                            originalAvatarUrl = doc.getString("originalAvatarUrl"),
+                            isOriginalDeleted = isOriginalDeleted,
+                            retweetedBy = retweetedBy,
+                            retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
+                            isRetweetedByMe = retweetedBy.contains(currentUserId),
+                            canDelete = canDelete,
+                            canEdit = canEdit
+                        )
+                    } ?: emptyList()
+
+                    trySend(posts)
+                }
             }
         awaitClose { listener.remove() }
     }
@@ -332,6 +363,32 @@ class SocialRepositoryImpl @Inject constructor(
 
                 // Tạo bài retweet mới
                 val originalPostSnapshot = postRef.get().await()
+                
+                // Kiểm tra xem bài đang retweet có phải là bài repost không
+                // Nếu là repost thì lấy thông tin tác giả gốc từ originalUserId/Username/AvatarUrl
+                // Nếu không thì lấy từ userId/username/avatarUrl
+                val isRepost = originalPostSnapshot.getBoolean("isRepost") ?: false
+                val trueOriginalPostId = if (isRepost) {
+                    originalPostSnapshot.getString("originalPostId") ?: postId
+                } else {
+                    postId
+                }
+                val trueOriginalUserId = if (isRepost) {
+                    originalPostSnapshot.getString("originalUserId") ?: originalPostSnapshot.getString("userId")
+                } else {
+                    originalPostSnapshot.getString("userId")
+                }
+                val trueOriginalUsername = if (isRepost) {
+                    originalPostSnapshot.getString("originalUsername") ?: originalPostSnapshot.getString("username")
+                } else {
+                    originalPostSnapshot.getString("username")
+                }
+                val trueOriginalAvatarUrl = if (isRepost) {
+                    originalPostSnapshot.getString("originalAvatarUrl") ?: originalPostSnapshot.getString("avatarUrl")
+                } else {
+                    originalPostSnapshot.getString("avatarUrl")
+                }
+                
                 val retweetMap = hashMapOf(
                     "userId" to userId,
                     "username" to userName,
@@ -343,10 +400,10 @@ class SocialRepositoryImpl @Inject constructor(
                     "commentsCount" to 0,
                     "likedBy" to emptyList<String>(),
                     "isRepost" to true,
-                    "originalPostId" to postId,
-                    "originalUserId" to originalPostSnapshot.getString("userId"),
-                    "originalUsername" to originalPostSnapshot.getString("username"),
-                    "originalAvatarUrl" to originalPostSnapshot.getString("avatarUrl"),
+                    "originalPostId" to trueOriginalPostId,
+                    "originalUserId" to trueOriginalUserId,
+                    "originalUsername" to trueOriginalUsername,
+                    "originalAvatarUrl" to trueOriginalAvatarUrl,
                     "retweetedBy" to emptyList<String>(),
                     "retweetCount" to 0
                 )
@@ -369,36 +426,64 @@ class SocialRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val posts = snapshot?.documents?.mapNotNull { doc ->
-                    val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
-                    val retweetedBy = doc.get("retweetedBy") as? List<String> ?: emptyList()
-                    val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+                // Launch coroutine để kiểm tra bài gốc
+                CoroutineScope(Dispatchers.IO).launch {
+                    // Lấy danh sách originalPostId để kiểm tra bài gốc có tồn tại không
+                    val originalPostIds = snapshot?.documents
+                        ?.filter { it.getBoolean("isRepost") == true }
+                        ?.mapNotNull { it.getString("originalPostId") }
+                        ?.distinct()
+                        ?: emptyList()
+                    
+                    // Kiểm tra các bài gốc có tồn tại không
+                    val deletedOriginalPostIds = mutableSetOf<String>()
+                    for (originalPostId in originalPostIds) {
+                        try {
+                            val originalDoc = firestore.collection("posts").document(originalPostId).get().await()
+                            if (!originalDoc.exists()) {
+                                deletedOriginalPostIds.add(originalPostId)
+                            }
+                        } catch (e: Exception) {
+                            // Nếu lỗi khi lấy bài gốc, coi như đã bị xóa
+                            deletedOriginalPostIds.add(originalPostId)
+                        }
+                    }
 
-                    SocialPost(
-                        id = doc.id,
-                        userId = doc.getString("userId") ?: "",
-                        username = doc.getString("username") ?: "Ẩn danh",
-                        avatarUrl = doc.getString("avatarUrl"),
-                        content = doc.getString("content") ?: "",
-                        timestamp = doc.getLong("timestamp") ?: 0L,
-                        likes = (doc.getLong("likesCount") ?: 0).toInt(),
-                        comments = (doc.getLong("commentsCount") ?: 0).toInt(),
-                        isLikedByMe = likedBy.contains(currentUserId),
-                        imageUrls = images,
-                        isRepost = doc.getBoolean("isRepost") ?: false,
-                        originalPostId = doc.getString("originalPostId"),
-                        originalUserId = doc.getString("originalUserId"),
-                        originalUsername = doc.getString("originalUsername"),
-                        originalAvatarUrl = doc.getString("originalAvatarUrl"),
-                        retweetedBy = retweetedBy,
-                        retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
-                        isRetweetedByMe = retweetedBy.contains(currentUserId),
-                        canDelete = userId == currentUserId,
-                        canEdit = userId == currentUserId
-                    )
-                } ?: emptyList()
+                    val posts = snapshot?.documents?.mapNotNull { doc ->
+                        val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
+                        val retweetedBy = doc.get("retweetedBy") as? List<String> ?: emptyList()
+                        val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+                        val isRepost = doc.getBoolean("isRepost") ?: false
+                        val originalPostId = doc.getString("originalPostId")
+                        val isOriginalDeleted = isRepost && originalPostId != null && deletedOriginalPostIds.contains(originalPostId)
 
-                trySend(posts)
+                        SocialPost(
+                            id = doc.id,
+                            userId = doc.getString("userId") ?: "",
+                            username = doc.getString("username") ?: "Ẩn danh",
+                            avatarUrl = doc.getString("avatarUrl"),
+                            content = doc.getString("content") ?: "",
+                            timestamp = doc.getLong("timestamp") ?: 0L,
+                            likes = (doc.getLong("likesCount") ?: 0).toInt(),
+                            comments = (doc.getLong("commentsCount") ?: 0).toInt(),
+                            isLikedByMe = likedBy.contains(currentUserId),
+                            imageUrls = images,
+                            isRepost = isRepost,
+                            originalPostId = originalPostId,
+                            originalUserId = doc.getString("originalUserId"),
+                            originalUsername = doc.getString("originalUsername"),
+                            originalAvatarUrl = doc.getString("originalAvatarUrl"),
+                            isOriginalDeleted = isOriginalDeleted,
+                            retweetedBy = retweetedBy,
+                            retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
+                            isRetweetedByMe = retweetedBy.contains(currentUserId),
+                            canDelete = userId == currentUserId,
+                            canEdit = userId == currentUserId
+                        )
+                    } ?: emptyList()
+
+                    trySend(posts)
+                }
             }
         awaitClose { listener.remove() }
     }
