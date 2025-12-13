@@ -19,6 +19,7 @@ data class SocialPost(
     val originalPostId: String? = null,  // ID của bài viết gốc
     val originalUserId: String? = null,  // UID của người đăng bài gốc
     val originalUsername: String? = null,  // Tên người đăng bài gốc
+    val originalAvatarUrl: String? = null,  // Avatar của người đăng bài gốc
     val retweetedBy: List<String> = emptyList(),  // Danh sách UID người retweet
     val retweetCount: Int = 0,  // Số lượng retweet
     val isRetweetedByMe: Boolean = false,  // Người dùng hiện tại có retweet không

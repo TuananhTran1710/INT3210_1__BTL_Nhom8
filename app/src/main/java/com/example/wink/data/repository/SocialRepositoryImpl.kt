@@ -63,6 +63,7 @@ class SocialRepositoryImpl @Inject constructor(
                         originalPostId = doc.getString("originalPostId"),
                         originalUserId = doc.getString("originalUserId"),
                         originalUsername = doc.getString("originalUsername"),
+                        originalAvatarUrl = doc.getString("originalAvatarUrl"),
                         retweetedBy = retweetedBy,
                         retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
                         isRetweetedByMe = retweetedBy.contains(currentUserId),
@@ -345,6 +346,7 @@ class SocialRepositoryImpl @Inject constructor(
                     "originalPostId" to postId,
                     "originalUserId" to originalPostSnapshot.getString("userId"),
                     "originalUsername" to originalPostSnapshot.getString("username"),
+                    "originalAvatarUrl" to originalPostSnapshot.getString("avatarUrl"),
                     "retweetedBy" to emptyList<String>(),
                     "retweetCount" to 0
                 )
@@ -387,6 +389,7 @@ class SocialRepositoryImpl @Inject constructor(
                         originalPostId = doc.getString("originalPostId"),
                         originalUserId = doc.getString("originalUserId"),
                         originalUsername = doc.getString("originalUsername"),
+                        originalAvatarUrl = doc.getString("originalAvatarUrl"),
                         retweetedBy = retweetedBy,
                         retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
                         isRetweetedByMe = retweetedBy.contains(currentUserId),

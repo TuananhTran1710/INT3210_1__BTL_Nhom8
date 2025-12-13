@@ -313,6 +313,11 @@ fun FeedItem(
             }
         }
 
+        // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
+        val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
+        val displayUsername = if (post.isRepost) post.originalUsername ?: post.username else post.username
+        val displayUserId = if (post.isRepost) post.originalUserId ?: post.userId else post.userId
+
         // 1. Header (Avatar + Tên + More Button)
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -321,15 +326,15 @@ fun FeedItem(
                 .padding(horizontal = 16.dp)
         ) {
             Surface(
-                modifier = Modifier.size(40.dp).clickable { onUserClick(post.userId) },
+                modifier = Modifier.size(40.dp).clickable { onUserClick(displayUserId) },
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.secondaryContainer
             ) {
-                if (post.avatarUrl.isNullOrBlank()) {
+                if (displayAvatarUrl.isNullOrBlank()) {
                     // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
                     Box(contentAlignment = Alignment.Center) {
                         Text(
-                            text = post.username.take(1).uppercase(),
+                            text = displayUsername.take(1).uppercase(),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
@@ -339,7 +344,7 @@ fun FeedItem(
                     // Trường hợp 2: Có avatar -> Load ảnh từ URL
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
-                            .data(post.avatarUrl)
+                            .data(displayAvatarUrl)
                             .crossfade(true)
                             .size(Size.ORIGINAL)
                             .diskCachePolicy(CachePolicy.ENABLED)
@@ -354,7 +359,7 @@ fun FeedItem(
             Spacer(modifier = Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = post.username,
+                    text = displayUsername,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )

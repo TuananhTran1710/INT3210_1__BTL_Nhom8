@@ -33,6 +33,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.repository.FriendRequestStatus
+import com.example.wink.util.TimeUtils
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -220,14 +221,16 @@ fun UserDetailScreen(
                                 }
                             }
 
-                            // Nút Nhắn Tin
-                            FilledTonalButton(
-                                onClick = { viewModel.sendMessage() },
-                                modifier = Modifier.weight(1f)
-                            ) {
-                                Icon(Icons.AutoMirrored.Filled.Message, null)
-                                Spacer(Modifier.width(8.dp))
-                                Text("Nhắn tin")
+                            // Nút Nhắn Tin - chỉ hiển thị khi là bạn bè và không phải profile của chính mình
+                            if (!state.isOwnProfile && state.friendRequestStatus == FriendRequestStatus.ALREADY_FRIENDS) {
+                                FilledTonalButton(
+                                    onClick = { viewModel.sendMessage() },
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.AutoMirrored.Filled.Message, null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Nhắn tin")
+                                }
                             }
                         }
                     }
@@ -304,14 +307,44 @@ fun PostCard(post: SocialPost, uid: String = "") {
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = if (!uid.isNullOrBlank())
-                        "@${uid}đã đăng lại"
-                    else "Đã đăng lại",
+                    text = "@${post.username} đã đăng lại",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
                 )
             }
         }
+
+        // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
+        val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
+        val displayUsername = if (post.isRepost) post.originalUsername ?: post.username else post.username
+
+        // Header với Avatar và Username của bài gốc
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Surface(shape = CircleShape, modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+                if (!displayAvatarUrl.isNullOrBlank()) {
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(displayAvatarUrl)
+                            .crossfade(true)
+                            .build(),
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                        Text(displayUsername.take(1).uppercase(), fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.width(12.dp))
+            Column {
+                Text(displayUsername, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                Text(TimeUtils.getRelativeTime(post.timestamp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+            }
+        }
+
+        Spacer(modifier = Modifier.height(8.dp))
 
         // Content
         if (post.content.isNotBlank()) {
