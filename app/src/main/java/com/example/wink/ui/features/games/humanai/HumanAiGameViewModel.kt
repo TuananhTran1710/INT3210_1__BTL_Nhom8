@@ -8,9 +8,12 @@ import com.example.wink.data.remote.ChatGptApiService
 import com.example.wink.data.remote.ChatGptMessage
 import com.example.wink.data.remote.ChatGptRequest
 import com.example.wink.data.remote.OpenRouterApiService
+import com.example.wink.data.repository.GameRepository
+import com.example.wink.data.repository.GameRepositoryImpl
 import com.example.wink.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,7 +26,8 @@ import kotlin.random.Random
 @HiltViewModel
 class HumanAiGameViewModel @Inject constructor(
     private val userRepository: UserRepository,
-    private val openRouterApiService: OpenRouterApiService
+    private val openRouterApiService: OpenRouterApiService,
+    private val gameRepository: GameRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HumanAiGameState())
@@ -31,7 +35,7 @@ class HumanAiGameViewModel @Inject constructor(
 
     private var timerJob: Job? = null
     private var searchJob: Job? = null
-    private val currentUserId = "me" // ID giả lập cho local
+    private var myUserId: String = ""
 
     private val systemPersona = """
         Bạn là một người dùng Việt Nam trẻ tuổi (Gen Z) trên ứng dụng hẹn hò tên là Wink.
@@ -47,6 +51,9 @@ class HumanAiGameViewModel @Inject constructor(
 
     init {
         loadLobbyData()
+        viewModelScope.launch {
+            myUserId = userRepository.getCurrentUid() ?: UUID.randomUUID().toString()
+        }
     }
 
     private fun loadLobbyData() {
@@ -58,68 +65,200 @@ class HumanAiGameViewModel @Inject constructor(
         }
     }
 
-    fun onStartMatchmaking() {
-        _uiState.update { it.copy(stage = GameStage.SEARCHING, searchTimeSeconds = 0) }
+    fun onCancelMatchmaking() {
+        searchJob?.cancel() // Dừng tìm
+        timerJob?.cancel()  // Dừng đếm giờ
 
-        searchJob?.cancel()
-        searchJob = viewModelScope.launch {
-            // Fake thời gian tìm trận (từ 2 đến 5 giây)
-            val waitTime = Random.nextLong(2000, 5000)
-            val startTime = System.currentTimeMillis()
-
-            while (System.currentTimeMillis() - startTime < waitTime) {
-                delay(1000)
-                _uiState.update { it.copy(searchTimeSeconds = it.searchTimeSeconds + 1) }
+        viewModelScope.launch {
+            val uid = userRepository.getCurrentUid()
+            if (uid != null) {
+                gameRepository.cancelMatchmaking(uid)
             }
-
-            startGame()
+            // Quay về sảnh
+            _uiState.update { it.copy(stage = GameStage.LOBBY, searchTimeSeconds = 0) }
         }
     }
 
-    private fun startGame() {
-        // Random xem đối thủ là AI (70%) hay Người (30%)
-//        val isAi = Random.nextBoolean()
-        val isAi = true
+    fun onStartMatchmaking() {
+        _uiState.update { it.copy(stage = GameStage.SEARCHING, searchTimeSeconds = 0) }
+
+        // 1. Random match với AI hoặc người
+        val forceAi = Random.nextFloat() < 0.5
+
+        if (forceAi) {
+            fakeSearchingDelayThenStartAi()
+        } else {
+            startRealMatchmaking()
+        }
+    }
+
+
+    private fun fakeSearchingDelayThenStartAi() {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            // Fake thời gian chờ
+            val wait = Random.nextLong(2000, 5000)
+            val start = System.currentTimeMillis()
+            while (System.currentTimeMillis() - start < wait) {
+                delay(1000)
+                _uiState.update { it.copy(searchTimeSeconds = it.searchTimeSeconds + 1) }
+            }
+            startGameAiMode()
+        }
+    }
+
+    private fun startRealMatchmaking() {
+        searchJob?.cancel()
+        searchJob = viewModelScope.launch {
+            val currentUid = userRepository.getCurrentUid() ?: return@launch
+            myUserId = currentUid
+
+            // A. Job đếm giờ (Chạy độc lập, không bị Firestore block)
+            val timerJob = launch {
+                var timeWaited = 0
+                while (true) {
+                    delay(1000)
+                    timeWaited++
+                    _uiState.update { it.copy(searchTimeSeconds = timeWaited) }
+
+                    // Timeout 30s -> Chuyển sang AI
+                    if (timeWaited > 30) {
+                        gameRepository.cancelMatchmaking(currentUid)
+                        this@launch.cancel() // Dừng tìm kiếm
+                        startGameAiMode()    // Fallback sang AI
+                        return@launch
+                    }
+                }
+            }
+
+            // B. Job tìm trận
+            // 1. Thử tìm người đang chờ
+            val matchedGameId = (gameRepository as GameRepositoryImpl).findOpponentAndCreateGame(currentUid)
+            if (matchedGameId != null) {
+                timerJob.cancel()
+                joinRealGame(matchedGameId, currentUid)
+                return@launch
+            }
+
+            // 2. Nếu không có, vào hàng chờ lắng nghe
+            gameRepository.joinMatchmakingQueue(currentUid).collect { gameId ->
+                if (gameId != null) {
+                    timerJob.cancel()
+                    joinRealGame(gameId, currentUid)
+                    return@collect // Thoát flow
+                }
+                // Flow này chỉ emit khi có thay đổi DB, không block timer nữa
+            }
+        }
+    }
+
+    private fun joinRealGame(gameId: String, uid: String) {
+        searchJob?.cancel()
+
+        viewModelScope.launch {
+            // 1. Lấy thông tin đối thủ & lượt đi
+            val details = gameRepository.getGameDetails(gameId)
+            val p1 = details?.get("player1") as? String
+            val p2 = details?.get("player2") as? String
+            val currentTurn = details?.get("currentTurn") as? String
+
+            val opponentId = if (p1 == uid) p2 else p1
+            val isMyTurn = (currentTurn == uid)
+
+            // 2. Tạo tin nhắn hệ thống (Local)
+            // Lưu ý: Timestamp = 0 để nó luôn nằm trên cùng (hoặc dưới cùng tùy sort)
+            val systemMsg = Message(
+                messageId = "sys_init",
+                senderId = "system",
+                content = if (isMyTurn) "Bạn đi trước! Hãy bắt đầu cuộc trò chuyện." else "Đối phương đi trước.",
+                timestamp = 0L
+            )
+
+            _uiState.update {
+                it.copy(
+                    stage = GameStage.CHATTING,
+                    isOpponentActuallyAi = false,
+                    gameId = gameId,
+                    opponentId = opponentId,
+                    timeLeft = 60,
+                    isMyTurn = isMyTurn,
+                    messages = listOf(systemMsg) // Khởi tạo với tin hệ thống
+                )
+            }
+
+            startTimer()
+
+            // 3. Lắng nghe tin nhắn & MERGE
+            launch {
+                gameRepository.listenToGameMessages(gameId).collect { serverMsgs ->
+                    _uiState.update { s ->
+                        // Logic Merge: Giữ tin hệ thống + Tin server mới nhất
+                        // Server messages thường đã sort DESC (mới nhất ở đầu)
+                        // Ta muốn tin hệ thống ở cuối cùng (cũ nhất)
+                        val merged = serverMsgs + listOf(systemMsg)
+                        s.copy(messages = merged)
+                    }
+                }
+            }
+
+            // 4. Lắng nghe lượt đi
+            launch {
+                gameRepository.listenToCurrentTurn(gameId).collect { turnUserId ->
+                    val isMine = (turnUserId == uid)
+                    _uiState.update {
+                        it.copy(
+                            isMyTurn = isMine,
+                            isOpponentTyping = !isMine
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    private fun startGameAiMode() {
         val playerStarts = Random.nextBoolean()
+
+        val systemMsg = Message(
+            messageId = "sys_init",
+            senderId = "system",
+            content = if (playerStarts) "Bạn đi trước! Hãy bắt đầu cuộc trò chuyện." else "Đối phương đi trước.",
+            timestamp = 0L
+        )
 
         _uiState.update {
             it.copy(
                 stage = GameStage.CHATTING,
-                isOpponentActuallyAi = isAi,
-                timeLeft = 120,
+                isOpponentActuallyAi = true,
                 isMyTurn = playerStarts,
-                // Thêm tin nhắn hệ thống thông báo lượt
-                messages = listOf(
-                    Message(
-                        messageId = UUID.randomUUID().toString(),
-                        senderId = "system",
-                        content = if (playerStarts) "Bạn đi trước! Hãy bắt đầu cuộc trò chuyện." else "Đối phương bắt đầu trước.",
-                        timestamp = System.currentTimeMillis()
-                    )
-                )
+                messages = listOf(systemMsg)
             )
         }
 
-        // Bắt đầu đếm ngược
         startTimer()
 
-        // Đối thủ chào trước
         if (!playerStarts) {
             viewModelScope.launch {
                 _uiState.update { it.copy(isOpponentTyping = true) }
                 delay(2000)
+                val firstMsg = generateAiOpening()
 
-                val firstMsg = if (isAi) {
-                    // Nếu là AI
-                    generateAiOpening()
-                } else {
-                    // Nếu là Người
-                    listOf("hi", "chào b", "ai dợ", "hello", "nhắn j đi").random()
+                // AI nói -> Add vào list (giữ tin hệ thống)
+                val aiMsg = Message(
+                    messageId = UUID.randomUUID().toString(),
+                    senderId = "opponent",
+                    content = firstMsg,
+                    timestamp = System.currentTimeMillis()
+                )
+
+                _uiState.update { s ->
+                    // Thêm tin mới lên đầu (vì LazyColumn reverseLayout)
+                    s.copy(
+                        messages = listOf(aiMsg) + s.messages,
+                        isOpponentTyping = false,
+                        isMyTurn = true
+                    )
                 }
-
-                receiveMessage(firstMsg)
-                // Chuyển lượt về cho người chơi
-                _uiState.update { it.copy(isOpponentTyping = false, isMyTurn = true) }
             }
         }
     }
@@ -158,25 +297,32 @@ class HumanAiGameViewModel @Inject constructor(
     }
 
     fun sendMessage(content: String) {
-        // Kiểm tra lượt
         if (!_uiState.value.isMyTurn) return
 
-        val msg = Message(
-            messageId = UUID.randomUUID().toString(),
-            senderId = currentUserId,
-            content = content,
-            timestamp = System.currentTimeMillis()
-        )
-
-        // Gửi tin nhắn -> Hết lượt (isMyTurn = false)
-        _uiState.update {
-            it.copy(
-                messages = listOf(msg) + it.messages,
-                isMyTurn = false
+        viewModelScope.launch {
+            val msg = Message(
+                messageId = UUID.randomUUID().toString(),
+                senderId = myUserId, // <-- Dùng ID thật
+                content = content,
+                timestamp = System.currentTimeMillis()
             )
-        }
 
-        simulateOpponentResponse(content)
+            // Cập nhật UI ngay (Optimistic)
+            _uiState.update {
+                it.copy(
+                    messages = listOf(msg) + it.messages,
+                    isMyTurn = false
+                )
+            }
+
+            if (_uiState.value.isOpponentActuallyAi) {
+                simulateOpponentResponse(content)
+            } else {
+                val gameId = _uiState.value.gameId ?: return@launch
+                val opponentId = _uiState.value.opponentId ?: return@launch
+                gameRepository.sendGameMessage(gameId, msg, opponentId)
+            }
+        }
     }
 
     private fun simulateOpponentResponse(userContent: String) {
@@ -186,11 +332,7 @@ class HumanAiGameViewModel @Inject constructor(
             val thinkingTime = if (_uiState.value.isOpponentActuallyAi) Random.nextLong(1000, 3000) else Random.nextLong(2000, 5000)
             delay(thinkingTime)
 
-            val reply = if (_uiState.value.isOpponentActuallyAi) {
-                callAiToActLikeHuman(userContent)
-            } else {
-                getFakeHumanReply(userContent)
-            }
+            val reply = callAiToActLikeHuman(userContent)
 
             receiveMessage(reply)
 
@@ -202,12 +344,15 @@ class HumanAiGameViewModel @Inject constructor(
     private suspend fun callAiToActLikeHuman(content: String): String {
         return try {
             // Lấy 6 tin nhắn gần nhất để tiết kiệm token
-            val history = _uiState.value.messages.take(6).reversed().map {
-                ChatGptMessage(
-                    role = if (it.senderId == currentUserId) "user" else "assistant",
-                    content = it.content
-                )
-            }
+            val history = _uiState.value.messages
+                .filter { it.senderId != "system" }
+                .take(6).reversed().map {
+                    ChatGptMessage(
+                        // So sánh với ID thật
+                        role = if (it.senderId == myUserId) "user" else "assistant",
+                        content = it.content
+                    )
+                }
             val messagesToSend = mutableListOf<ChatGptMessage>()
             messagesToSend.add(ChatGptMessage("system", systemPersona))
             messagesToSend.addAll(history)
@@ -239,13 +384,6 @@ class HumanAiGameViewModel @Inject constructor(
             "Mạng lag quá :("
         }
     }
-
-    private fun getFakeHumanReply(content: String): String {
-        // List câu trả lời "người" mẫu (để demo)
-        val replies = listOf("ukm", "haha thật á", "thế cơ à", "tên gì đấy", "ở đâu dợ", "chán quá", "rep nhanh thế")
-        return replies.random()
-    }
-
     private fun receiveMessage(content: String) {
         val msg = Message(
             messageId = UUID.randomUUID().toString(),
@@ -253,7 +391,9 @@ class HumanAiGameViewModel @Inject constructor(
             content = content,
             timestamp = System.currentTimeMillis()
         )
-        _uiState.update { it.copy(messages = listOf(msg) + it.messages) }
+        _uiState.update {
+            it.copy(messages = listOf(msg) + it.messages)
+        }
     }
 
     fun onGuess(isAi: Boolean) {
@@ -280,6 +420,8 @@ class HumanAiGameViewModel @Inject constructor(
             }
         }
     }
+
+    fun getMyUserId() = myUserId
 
     fun onPlayAgain() {
         loadLobbyData()

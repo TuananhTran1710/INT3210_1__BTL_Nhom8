@@ -165,37 +165,13 @@ fun MessageContainer(
         reverseLayout = true // This is the key!
     ) {
         items(messages) { message ->
-            MessageItem(message = message, isSentByCurrentUser = message.senderId == currentUserId)
+            MessageItem(message = message, isMyMessage = message.senderId == currentUserId)
         }
 
         if (isTyping) {
             item {
                 TypingIndicator()
             }
-        }
-    }
-}
-
-@Composable
-fun MessageItem(message: Message, isSentByCurrentUser: Boolean) {
-    val alignment = if (isSentByCurrentUser) Alignment.CenterEnd else Alignment.CenterStart
-    val backgroundColor = if (isSentByCurrentUser) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.secondaryContainer
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        contentAlignment = alignment
-    ) {
-        Surface(
-            shape = MaterialTheme.shapes.medium,
-            color = backgroundColor,
-            tonalElevation = 2.dp
-        ) {
-            Text(
-                text = message.content,
-                modifier = Modifier.padding(12.dp)
-            )
         }
     }
 }

@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.games.humanai
 
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -27,6 +28,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.wink.data.model.Message
 import com.example.wink.ui.features.chat.MessageContainer
+import com.example.wink.ui.features.chat.MessageItem
 import com.example.wink.ui.features.chat.MessageTopBar
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
@@ -40,6 +42,7 @@ fun HumanAiGameScreen(
     viewModel: HumanAiGameViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val myUserId = remember { viewModel.getMyUserId() }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background
@@ -57,10 +60,12 @@ fun HumanAiGameScreen(
                     onBack = { navController.popBackStack() }
                 )
                 GameStage.SEARCHING -> SearchingView(
-                    time = state.searchTimeSeconds
+                    time = state.searchTimeSeconds,
+                    onCancel = viewModel::onCancelMatchmaking
                 )
                 GameStage.CHATTING -> ChattingView(
                     state = state,
+                    currentUserId = myUserId,
                     onSend = viewModel::sendMessage
                 )
                 GameStage.GUESSING -> GuessingView(
@@ -128,7 +133,7 @@ fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
 
 // --- 2. SEARCHING VIEW ---
 @Composable
-fun SearchingView(time: Int) {
+fun SearchingView(time: Int, onCancel: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 0.8f, targetValue = 1.2f,
@@ -155,6 +160,13 @@ fun SearchingView(time: Int) {
             )
         }
         Spacer(Modifier.height(32.dp))
+        OutlinedButton(
+            onClick = onCancel,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+        ) {
+            Text("Hủy tìm kiếm")
+        }
         Text("Đang tìm đối thủ...", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         Text("Thời gian: ${time}s", style = MaterialTheme.typography.bodyLarge)
         Spacer(Modifier.height(8.dp))
@@ -164,7 +176,11 @@ fun SearchingView(time: Int) {
 
 // --- 3. CHATTING VIEW ---
 @Composable
-fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
+fun ChattingView(
+    state: HumanAiGameState,
+    currentUserId: String,
+    onSend: (String) -> Unit
+) {
     var text by remember { mutableStateOf("") }
 
     val progress = state.timeLeft / 60f
@@ -191,6 +207,7 @@ fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
         // SỬA: Dùng GameMessageList thay vì MessageContainer mặc định
         GameMessageList(
             messages = state.messages,
+            currentUserId = currentUserId,
             modifier = Modifier.weight(1f),
             isTyping = state.isOpponentTyping
         )
@@ -235,6 +252,7 @@ fun ChattingView(state: HumanAiGameState, onSend: (String) -> Unit) {
 @Composable
 fun GameMessageList(
     messages: List<Message>,
+    currentUserId: String,
     modifier: Modifier = Modifier,
     isTyping: Boolean = false
 ) {
@@ -263,9 +281,9 @@ fun GameMessageList(
                 SystemMessageItem(content = message.content)
             } else {
                 // Hiển thị tin nhắn chat bình thường
-                com.example.wink.ui.features.chat.MessageItem(
+                MessageItem(
                     message = message,
-                    isSentByCurrentUser = message.senderId == "me"
+                    isMyMessage = message.senderId == currentUserId
                 )
             }
         }
