@@ -36,6 +36,9 @@ android {
         // Correctly define the build config field. The value must be a String literal in Java/Kotlin.
         val apiKey = localProperties.getProperty("OPENAI_API_KEY", "")
         buildConfigField("String", "OPENAI_API_KEY", "\"$apiKey\"")
+
+        val openRouterKey = localProperties.getProperty("OPENROUTER_API_KEY", "")
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openRouterKey\"")
     }
 
     buildTypes {

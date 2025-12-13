@@ -306,7 +306,7 @@ fun FeedItem(
                 )
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "Retweeted from @${post.originalUsername}",
+                    text = "@${post.username} đã đăng lại",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.outline
                 )

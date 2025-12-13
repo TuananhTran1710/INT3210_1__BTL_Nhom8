@@ -11,4 +11,7 @@ sealed interface QuizEvent {
     data class TryAgain(val quizId: String) : QuizEvent
     object BackToList : QuizEvent
     data class UnlockQuiz(val quizId: String, val cost: Int) : QuizEvent
+    data class GenerateQuiz(val topic: String) : QuizEvent
+    object DismissGenerateDialog : QuizEvent
+    object ShowGenerateDialog : QuizEvent
 }

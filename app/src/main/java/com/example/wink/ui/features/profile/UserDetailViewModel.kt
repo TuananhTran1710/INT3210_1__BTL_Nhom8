@@ -1,10 +1,14 @@
 package com.example.wink.ui.features.profile
 
+import android.util.Log
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
+import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.FriendRequestRepository
+import com.example.wink.data.repository.FriendRequestStatus
 import com.example.wink.data.repository.SocialRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -20,15 +24,20 @@ data class UserDetailState(
     val user: User? = null,
     val userPosts: List<SocialPost> = emptyList(),
     val isLoading: Boolean = true,
-    val isFriend: Boolean = false, // Giả lập trạng thái bạn bè
-    val requestSent: Boolean = false
+    val friendRequestStatus: FriendRequestStatus = FriendRequestStatus.NOT_SENT,
+    val isSendingRequest: Boolean = false,
+    val errorMessage: String? = null,
+    val successMessage: String? = null,
+    val isOwnProfile: Boolean = false
 )
 
 @HiltViewModel
 class UserDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val firestore: FirebaseFirestore,
-    private val socialRepository: SocialRepository
+    private val socialRepository: SocialRepository,
+    private val friendRequestRepository: FriendRequestRepository,
+    private val authRepository: AuthRepository
 ) : ViewModel() {
 
     private val userId: String = checkNotNull(savedStateHandle["userId"])
@@ -36,9 +45,24 @@ class UserDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(UserDetailState())
     val uiState = _uiState.asStateFlow()
 
+    private var currentUser: User? = null
+
     init {
+        loadCurrentUser()
         loadUserProfile()
         loadUserPosts()
+        checkFriendRequestStatus()
+    }
+
+    private fun loadCurrentUser() {
+        viewModelScope.launch {
+            authRepository.currentUser.collectLatest { user ->
+                currentUser = user
+                // Check if viewing own profile
+                val isOwn = user?.uid == userId
+                _uiState.update { it.copy(isOwnProfile = isOwn) }
+            }
+        }
     }
 
     private fun loadUserProfile() {
@@ -76,10 +100,63 @@ class UserDetailViewModel @Inject constructor(
         }
     }
 
+    private fun checkFriendRequestStatus() {
+        viewModelScope.launch {
+            try {
+                val status = friendRequestRepository.checkRequestStatus(userId)
+                _uiState.update { it.copy(friendRequestStatus = status) }
+                Log.d("UserDetailViewModel", "Friend request status: $status")
+            } catch (e: Exception) {
+                Log.e("UserDetailViewModel", "Error checking friend request status", e)
+            }
+        }
+    }
+
     fun sendFriendRequest() {
-        // TODO: Gọi API gửi kết bạn (UC05)
-        // Tạm thời update UI giả
-        _uiState.update { it.copy(requestSent = true) }
+        val user = currentUser ?: return
+        
+        viewModelScope.launch {
+            _uiState.update { 
+                it.copy(
+                    isSendingRequest = true,
+                    errorMessage = null
+                )
+            }
+
+            try {
+                friendRequestRepository.sendFriendRequest(
+                    toUserId = userId,
+                    fromUsername = user.username,
+                    fromAvatarUrl = user.avatarUrl
+                ).getOrThrow()
+
+                _uiState.update {
+                    it.copy(
+                        isSendingRequest = false,
+                        friendRequestStatus = FriendRequestStatus.REQUEST_SENT,
+                        successMessage = "Đã gửi lời mời kết bạn"
+                    )
+                }
+                Log.d("UserDetailViewModel", "Friend request sent successfully")
+            } catch (e: Exception) {
+                Log.e("UserDetailViewModel", "Error sending friend request", e)
+                _uiState.update {
+                    it.copy(
+                        isSendingRequest = false,
+                        errorMessage = e.message ?: "Không thể gửi lời mời kết bạn"
+                    )
+                }
+            }
+        }
+    }
+
+    fun clearMessages() {
+        _uiState.update { 
+            it.copy(
+                errorMessage = null,
+                successMessage = null
+            )
+        }
     }
 
     fun sendMessage() {

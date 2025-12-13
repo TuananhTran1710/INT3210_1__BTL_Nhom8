@@ -43,23 +43,6 @@ import com.example.wink.ui.navigation.Screen
 import com.example.wink.util.TimeUtils
 import kotlinx.coroutines.launch
 
-// --- Model Mock Data ---
-data class PostData(
-    val id: String,
-    val author: String,
-    val timeAgo: String,
-    val content: String,
-    val likes: Int,
-    val comments: Int
-)
-
-//data class FriendProfile(
-//    val id: String,
-//    val name: String,
-//    val rizz: Int,
-//    val avatar: String = ""
-//)
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
@@ -87,6 +70,14 @@ fun ProfileScreen(
             }
         }
     }
+
+    // Handle Logout
+    LaunchedEffect(uiState.isLoggedOut) {
+        if (uiState.isLoggedOut) {
+            navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
+        }
+    }
+
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -223,7 +214,7 @@ fun ProfileScreen(
                     item { EmptyStateView("Chưa có bài viết nào") }
                 } else {
                     items(posts) { post ->
-                        ProfilePostItem(post) // Truyền SocialPost vào
+                        ProfilePostItem(post, uiState.username) // Truyền SocialPost vào
                     }
                 }
             } else if (selectedTabIndex == 1) {
@@ -234,9 +225,7 @@ fun ProfileScreen(
                     items(uiState.loadedFriends) { friend ->
                         FriendListItem(
                             friend = friend,
-                            // Xử lý click vào item bạn bè (có thể mở UserDetail nếu muốn)
-                            onClick = { /* navigate to friend profile if needed */ },
-                            // QUAN TRỌNG: Gắn sự kiện click nút Nhắn tin
+                            onClick = { navController.navigate(Screen.UserDetail.createRoute(friend.id)) },
                             onMessageClick = {
                                 viewModel.onEvent(ProfileEvent.MessageClick(friend.id))
                             }
@@ -279,7 +268,7 @@ fun ProfileVerticalDivider() {
 }
 
 @Composable
-fun ProfilePostItem(post: SocialPost) {
+fun ProfilePostItem(post: SocialPost, uid:String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -304,7 +293,7 @@ fun ProfilePostItem(post: SocialPost) {
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
                     text = if (!post.originalUsername.isNullOrBlank()) 
-                        "Đã đăng lại từ @${post.originalUsername}" 
+                        "@${uid} đã đăng lại"
                     else "Đã đăng lại",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.primary
@@ -401,11 +390,10 @@ fun ProfilePostItem(post: SocialPost) {
     HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainerLow)
 }
 
-// Cập nhật FriendListItem để nút bấm hoạt động chính xác
 @Composable
 fun FriendListItem(friend: FriendUi,
                    onClick: () -> Unit = {},
-                   onMessageClick: () -> Unit = {}) { // Tham số callback
+                   onMessageClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -413,7 +401,6 @@ fun FriendListItem(friend: FriendUi,
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // ... (Code hiển thị Avatar, Name giữ nguyên) ...
         Surface(shape = CircleShape, modifier = Modifier.size(50.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
             if (friend.avatarUrl != null) {
                 AsyncImage(model = friend.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
