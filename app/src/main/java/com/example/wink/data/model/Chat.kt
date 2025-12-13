@@ -11,4 +11,6 @@ data class Chat(
     val participants: List<String> = emptyList(),
     val updatedAt : Long = 0,
     val avatarUrl: String? = null,
+    // MỚI: Map lưu thời gian pin của từng user. Key = userId, Value = timestamp
+    val pinnedBy: Map<String, Long> = emptyMap()
 )
