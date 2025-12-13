@@ -7,19 +7,26 @@ import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.ChatRepository
 import com.example.wink.data.repository.FriendRequestRepository
 import com.example.wink.data.repository.FriendRequestStatus
 import com.example.wink.data.repository.SocialRepository
 import com.google.firebase.firestore.FirebaseFirestore
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
-
+// 2. Định nghĩa sự kiện (Side Effect) để điều hướng
+sealed class UserDetailEffect {
+    data class NavigateToChat(val chatId: String) : UserDetailEffect()
+    data class ShowError(val message: String) : UserDetailEffect()
+}
 data class UserDetailState(
     val user: User? = null,
     val userPosts: List<SocialPost> = emptyList(),
@@ -29,6 +36,7 @@ data class UserDetailState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val isOwnProfile: Boolean = false
+
 )
 
 @HiltViewModel
@@ -37,14 +45,17 @@ class UserDetailViewModel @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val socialRepository: SocialRepository,
     private val friendRequestRepository: FriendRequestRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val chatRepository: ChatRepository // 3
 ) : ViewModel() {
 
     private val userId: String = checkNotNull(savedStateHandle["userId"])
 
     private val _uiState = MutableStateFlow(UserDetailState())
     val uiState = _uiState.asStateFlow()
-
+    // 4. Channel để gửi sự kiện điều hướng ra UI
+    private val _effect = Channel<UserDetailEffect>()
+    val effect = _effect.receiveAsFlow()
     private var currentUser: User? = null
 
     init {
@@ -159,7 +170,28 @@ class UserDetailViewModel @Inject constructor(
         }
     }
 
+    // 5. Cập nhật logic hàm sendMessage
     fun sendMessage() {
-        // TODO: Tạo chat room và navigate
+        val myUser = currentUser ?: return
+        val targetUserId = userId
+
+        viewModelScope.launch {
+            // Có thể hiển thị loading nếu muốn (tùy chọn)
+            // _uiState.update { it.copy(isLoading = true) }
+
+            // Gọi Repository để tìm hoặc tạo chat 1-1
+            val result = chatRepository.findOrCreatePrivateChat(myUser.uid, targetUserId)
+
+            // Tắt loading (nếu có bật)
+            // _uiState.update { it.copy(isLoading = false) }
+
+            result.onSuccess { chatId ->
+                // Thành công -> Bắn sự kiện điều hướng kèm chatId
+                _effect.send(UserDetailEffect.NavigateToChat(chatId))
+            }.onFailure { e ->
+                // Thất bại -> Báo lỗi
+                _effect.send(UserDetailEffect.ShowError("Lỗi tạo chat: ${e.message}"))
+            }
+        }
     }
 }

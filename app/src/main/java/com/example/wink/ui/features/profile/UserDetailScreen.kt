@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.profile
 
 import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -44,7 +45,20 @@ fun UserDetailScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val user = state.user
-
+    val context = LocalContext.current // Lấy context để show Toast
+    LaunchedEffect(true) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is UserDetailEffect.NavigateToChat -> {
+                    // Điều hướng sang màn hình nhắn tin với chatId lấy được
+                    navController.navigate("message/${effect.chatId}")
+                }
+                is UserDetailEffect.ShowError -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
