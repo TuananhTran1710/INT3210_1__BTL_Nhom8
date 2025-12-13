@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.compose.animation.core.snap
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.FriendRequestRepository
 import com.example.wink.util.BaseViewModel
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -15,7 +16,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val friendRequestRepository: FriendRequestRepository
 ) : BaseViewModel<DashboardState, DashboardEvent>() {
 
     // Cho UI dùng
@@ -39,6 +41,7 @@ class DashboardViewModel @Inject constructor(
     init {
         getInitialState()
         observeUser()
+        observeFriendRequests()
     }
 
     // Nhận event từ UI
@@ -64,6 +67,15 @@ class DashboardViewModel @Inject constructor(
             is DashboardEvent.OnNavigateToShop -> {
                 // Navigation
             }
+            // Friend request events
+            is DashboardEvent.OnOpenFriendRequests -> {
+                _uiState.value = _uiState.value.copy(showFriendRequestsDialog = true)
+            }
+            is DashboardEvent.OnCloseFriendRequests -> {
+                _uiState.value = _uiState.value.copy(showFriendRequestsDialog = false)
+            }
+            is DashboardEvent.OnAcceptFriendRequest -> handleAcceptFriendRequest(event.requestId)
+            is DashboardEvent.OnRejectFriendRequest -> handleRejectFriendRequest(event.requestId)
         }
     }
 
@@ -170,6 +182,48 @@ class DashboardViewModel @Inject constructor(
                 isRefreshing = false,
                 errorMessage = null
             )
+        }
+    }
+
+    /** Lắng nghe danh sách lời mời kết bạn realtime */
+    private fun observeFriendRequests() {
+        viewModelScope.launch {
+            friendRequestRepository.listenPendingRequests().collectLatest { requests ->
+                _uiState.value = _uiState.value.copy(
+                    pendingFriendRequests = requests
+                )
+                Log.d("DashboardViewModel", "Received ${requests.size} pending friend requests")
+            }
+        }
+    }
+
+    /** Chấp nhận lời mời kết bạn */
+    private fun handleAcceptFriendRequest(requestId: String) {
+        viewModelScope.launch {
+            try {
+                friendRequestRepository.acceptFriendRequest(requestId).getOrThrow()
+                Log.d("DashboardViewModel", "Accepted friend request: $requestId")
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Failed to accept friend request", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Không thể chấp nhận lời mời: ${e.message}"
+                )
+            }
+        }
+    }
+
+    /** Từ chối lời mời kết bạn */
+    private fun handleRejectFriendRequest(requestId: String) {
+        viewModelScope.launch {
+            try {
+                friendRequestRepository.rejectFriendRequest(requestId).getOrThrow()
+                Log.d("DashboardViewModel", "Rejected friend request: $requestId")
+            } catch (e: Exception) {
+                Log.e("DashboardViewModel", "Failed to reject friend request", e)
+                _uiState.value = _uiState.value.copy(
+                    errorMessage = "Không thể từ chối lời mời: ${e.message}"
+                )
+            }
         }
     }
 }

@@ -26,4 +26,10 @@ sealed class DashboardEvent {
     // UI events
     object OnRefresh : DashboardEvent()
     data class OnShowDetails(val itemId: String) : DashboardEvent()
+    
+    // Friend request events
+    object OnOpenFriendRequests : DashboardEvent()
+    object OnCloseFriendRequests : DashboardEvent()
+    data class OnAcceptFriendRequest(val requestId: String) : DashboardEvent()
+    data class OnRejectFriendRequest(val requestId: String) : DashboardEvent()
 }

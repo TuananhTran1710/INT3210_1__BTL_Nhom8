@@ -1,5 +1,7 @@
 package com.example.wink.ui.features.profile
 
+import android.util.Log
+import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -41,23 +43,6 @@ import com.example.wink.ui.navigation.Screen
 import com.example.wink.util.TimeUtils
 import kotlinx.coroutines.launch
 
-// --- Model Mock Data ---
-data class PostData(
-    val id: String,
-    val author: String,
-    val timeAgo: String,
-    val content: String,
-    val likes: Int,
-    val comments: Int
-)
-
-data class FriendProfile(
-    val id: String,
-    val name: String,
-    val rizz: Int,
-    val avatar: String = ""
-)
-
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ProfileScreen(
@@ -65,22 +50,26 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
-
+    val context = LocalContext.current
     // Tab & Pager State
     val tabs = listOf("Bài viết", "Bạn bè")
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     val coroutineScope = rememberCoroutineScope()
 
-    // Mock Data
-    val mockPosts = listOf(
-        PostData("1", uiState.username.ifBlank { "User" }, "2 giờ trước", "Hôm nay trời đẹp quá! ☀️", 120, 15),
-        PostData("2", uiState.username.ifBlank { "User" }, "1 ngày trước", "Đã đạt mốc 1000 RIZZ \uD83D\uDE0E", 342, 40)
-    )
-    val mockFriends = listOf(
-        FriendProfile("1", "Crush số 1", 150),
-        FriendProfile("2", "Best Friend", 900),
-        FriendProfile("3", "Rizz Master", 2100)
-    )
+    // --- LẮNG NGHE SỰ KIỆN ĐIỀU HƯỚNG (SIDE EFFECT) ---
+    LaunchedEffect(key1 = true) {
+        viewModel.effect.collect { effect ->
+            when (effect) {
+                is ProfileEffect.NavigateToChat -> {
+                    // Điều hướng sang màn hình MessageScreen với chatId cụ thể
+                    navController.navigate("message/${effect.chatId}")
+                }
+                is ProfileEffect.ShowError -> {
+                    Toast.makeText(context, effect.message, Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 
     // Handle Logout
     LaunchedEffect(uiState.isLoggedOut) {
@@ -88,6 +77,7 @@ fun ProfileScreen(
             navController.navigate(Screen.Login.route) { popUpTo(0) { inclusive = true } }
         }
     }
+
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
@@ -183,7 +173,7 @@ fun ProfileScreen(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceEvenly
                     ) {
-                        ProfileStatItem("${uiState.rizzPoint}", "RIZZ")
+                        ProfileStatItem("${uiState.rizzPoints}", "RIZZ")
                         ProfileVerticalDivider()
                         ProfileStatItem("12", "Streak")
                         ProfileVerticalDivider()
@@ -224,16 +214,22 @@ fun ProfileScreen(
                     item { EmptyStateView("Chưa có bài viết nào") }
                 } else {
                     items(posts) { post ->
-                        ProfilePostItem(post) // Truyền SocialPost vào
+                        ProfilePostItem(post, uiState.username) // Truyền SocialPost vào
                     }
                 }
             } else if (selectedTabIndex == 1) {
                 // --- TAB BẠN BÈ ---
-                if (mockFriends.isEmpty()) {
+                if (uiState.loadedFriends.isEmpty()) {
                     item { EmptyStateView("Chưa có bạn bè") }
                 } else {
-                    items(mockFriends) { friend ->
-                        FriendListItem(friend)
+                    items(uiState.loadedFriends) { friend ->
+                        FriendListItem(
+                            friend = friend,
+                            onClick = { navController.navigate(Screen.UserDetail.createRoute(friend.id)) },
+                            onMessageClick = {
+                                viewModel.onEvent(ProfileEvent.MessageClick(friend.id))
+                            }
+                        )
                     }
                 }
             }
@@ -272,7 +268,7 @@ fun ProfileVerticalDivider() {
 }
 
 @Composable
-fun ProfilePostItem(post: SocialPost) {
+fun ProfilePostItem(post: SocialPost, uid:String) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -280,20 +276,47 @@ fun ProfilePostItem(post: SocialPost) {
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp)
     ) {
+        // Retweet Badge - hiển thị khi đây là bài đăng lại
+        if (post.isRepost) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Repeat,
+                    contentDescription = "Retweet",
+                    modifier = Modifier.size(14.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "@${post.username} đã đăng lại",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
+
+        // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
+        val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
+        val displayUsername = if (post.isRepost) post.originalUsername ?: post.username else post.username
+
         Row(verticalAlignment = Alignment.CenterVertically) {
             Surface(shape = CircleShape, modifier = Modifier.size(40.dp), color = MaterialTheme.colorScheme.primaryContainer) {
                 // Load Avatar thật
-                if (post.avatarUrl != null) {
-                    AsyncImage(model = post.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
+                if (displayAvatarUrl != null) {
+                    AsyncImage(model = displayAvatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
                 } else {
                     Box(contentAlignment = Alignment.Center) {
-                        Text(post.username.take(1), fontWeight = FontWeight.Bold)
+                        Text(displayUsername.take(1), fontWeight = FontWeight.Bold)
                     }
                 }
             }
             Spacer(modifier = Modifier.width(12.dp))
             Column {
-                Text(post.username, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
+                Text(displayUsername, style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Bold))
                 // Dùng TimeUtils
                 Text(TimeUtils.getRelativeTime(post.timestamp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
@@ -305,22 +328,46 @@ fun ProfilePostItem(post: SocialPost) {
         // Hiển thị ảnh (nếu có)
         if (post.imageUrls.isNotEmpty()) {
             Spacer(modifier = Modifier.height(8.dp))
-            AsyncImage(
-                model = post.imageUrls.first(),
-                contentDescription = null,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(200.dp)
-                    .clip(RoundedCornerShape(8.dp)),
-                contentScale = ContentScale.Crop
-            )
+            if (post.imageUrls.size == 1) {
+                AsyncImage(
+                    model = post.imageUrls.first(),
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(200.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    post.imageUrls.take(3).forEach { imageUrl ->
+                        AsyncImage(
+                            model = imageUrl,
+                            contentDescription = null,
+                            modifier = Modifier
+                                .weight(1f)
+                                .height(120.dp)
+                                .clip(RoundedCornerShape(8.dp)),
+                            contentScale = ContentScale.Crop
+                        )
+                    }
+                }
+            }
         }
 
         Spacer(modifier = Modifier.height(12.dp))
 
         // Reaction Bar
         Row(modifier = Modifier.fillMaxWidth()) {
-            Icon(Icons.Outlined.FavoriteBorder, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
+            Icon(
+                if (post.isLikedByMe) Icons.Default.Favorite else Icons.Outlined.FavoriteBorder, 
+                null, 
+                Modifier.size(20.dp), 
+                tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
             Spacer(Modifier.width(4.dp))
             Text("${post.likes}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
 
@@ -329,37 +376,57 @@ fun ProfilePostItem(post: SocialPost) {
             Icon(Icons.Outlined.ChatBubbleOutline, null, Modifier.size(20.dp), tint = MaterialTheme.colorScheme.outline)
             Spacer(Modifier.width(4.dp))
             Text("${post.comments}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
+
+            Spacer(Modifier.width(24.dp))
+
+            Icon(
+                Icons.Default.Repeat, 
+                null, 
+                Modifier.size(20.dp), 
+                tint = if (post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
+            )
+            Spacer(Modifier.width(4.dp))
+            Text("${post.retweetCount}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.outline)
         }
     }
     HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceContainerLow)
 }
 
 @Composable
-fun FriendListItem(friend: FriendProfile) {
+fun FriendListItem(friend: FriendUi,
+                   onClick: () -> Unit = {},
+                   onMessageClick: () -> Unit = {}) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { }
+            .clickable { onClick() } // Click vào cả dòng
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Surface(shape = CircleShape, modifier = Modifier.size(50.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
-            Box(contentAlignment = Alignment.Center) {
-                Text(friend.name.take(1), style = MaterialTheme.typography.titleMedium)
+            if (friend.avatarUrl != null) {
+                AsyncImage(model = friend.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
+            } else {
+                Box(contentAlignment = Alignment.Center) {
+                    Text(friend.name?.take(1)?:"", style = MaterialTheme.typography.titleMedium)
+                }
             }
         }
         Spacer(Modifier.width(16.dp))
         Column(modifier = Modifier.weight(1f)) {
-            Text(friend.name, style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
-            Text("${friend.rizz} RIZZ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+            Text(friend.name ?: "", style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold))
+            Text("${friend.rizzPoints} RIZZ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
         }
-        FilledTonalButton(onClick = { }) {
+
+        // NÚT NHẮN TIN
+        FilledTonalButton(
+            onClick = { onMessageClick() } // Gọi callback khi click
+        ) {
             Text("Nhắn tin")
         }
     }
     HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f), modifier = Modifier.padding(start = 82.dp))
 }
-
 @Composable
 fun EmptyStateView(message: String) {
     Column(

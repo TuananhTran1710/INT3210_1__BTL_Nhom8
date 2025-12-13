@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
+import com.google.firebase.firestore.Filter // Import thêm Filter nếu cần
 
 class ChatRepository @Inject constructor(
     private val firestore: FirebaseFirestore
@@ -172,5 +173,129 @@ class ChatRepository @Inject constructor(
         Result.success(Unit)
     } catch (e: Exception) {
         Result.failure(e)
+    }
+
+    // Xóa chat (Xóa document)
+    suspend fun deleteChat(chatId: String): Result<Unit> = try {
+        firestore.collection("chats").document(chatId).delete().await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // Pin chat: Thêm ID và timestamp vào map pinnedBy
+    suspend fun pinChat(chatId: String, userId: String): Result<Unit> = try {
+        val update = mapOf("pinnedBy.$userId" to System.currentTimeMillis())
+        firestore.collection("chats").document(chatId).update(update).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+
+    // Unpin chat: Xóa ID khỏi map pinnedBy
+    suspend fun unpinChat(chatId: String, userId: String): Result<Unit> = try {
+        // Dùng FieldValue.delete() để xóa key khỏi map
+        val update = mapOf("pinnedBy.$userId" to com.google.firebase.firestore.FieldValue.delete())
+        firestore.collection("chats").document(chatId).update(update).await()
+        Result.success(Unit)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
+    // com/example/wink/data/repository/ChatRepository.kt
+
+    /**
+     * Đánh dấu tin nhắn là đã đọc và BÁO cho ChatList cập nhật
+     */
+    suspend fun markMessagesAsRead(chatId: String, userId: String) {
+        try {
+            // 1. Lấy các tin nhắn chưa đọc
+            val messagesRef = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .whereArrayContains("readBy", userId) // Tìm tin đã đọc để loại trừ (Check ngược lại ở code dưới dễ hơn)
+            // Firestore không hỗ trợ filter "không chứa", nên ta lấy tin mới nhất rồi lọc thủ công
+
+            // Cách đơn giản và hiệu quả nhất: Lấy tin nhắn cuối cùng (Last Message)
+            // Vì hiển thị ngoài List chỉ quan tâm tin cuối cùng
+            val lastMsgQuery = firestore.collection("chats")
+                .document(chatId)
+                .collection("messages")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(5) // Check 5 tin gần nhất
+                .get()
+                .await()
+
+            val batch = firestore.batch()
+            var hasUpdates = false
+
+            for (doc in lastMsgQuery.documents) {
+                val readBy = doc.get("readBy") as? List<String> ?: emptyList()
+                if (!readBy.contains(userId)) {
+                    // Update trong sub-collection messages
+                    batch.update(doc.reference, "readBy", com.google.firebase.firestore.FieldValue.arrayUnion(userId))
+                    hasUpdates = true
+                }
+            }
+
+            if (hasUpdates) {
+                // QUAN TRỌNG: Update một trường trong document cha (chats) để trigger listener bên ngoài
+                // Ta có thể update field 'lastActivity' hoặc một map 'lastRead'
+                val chatRef = firestore.collection("chats").document(chatId)
+                batch.update(chatRef, "lastReadTimestamp", System.currentTimeMillis())
+
+                batch.commit().await()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    /**
+     * Tìm đoạn chat 1-1 giữa currentUser và targetUserId.
+     * Nếu chưa có -> Tạo mới.
+     * Trả về chatId.
+     */
+    suspend fun findOrCreatePrivateChat(currentUserId: String, targetUserId: String): Result<String> {
+        return try {
+            // 1. Tìm xem đã có chat nào chứa cả 2 người chưa
+            // Lưu ý: Firestore array-contains chỉ query được 1 giá trị.
+            // Ta query các chat có currentUserId, sau đó lọc client-side để tìm targetUserId.
+            val snapshot = firestore.collection("chats")
+                .whereArrayContains("participants", currentUserId)
+                .get()
+                .await()
+
+            val existingChat = snapshot.documents.find { doc ->
+                val participants = doc.get("participants") as? List<*>
+                // Chat hợp lệ là chat có đúng 2 người và chứa targetUserId
+                participants != null && participants.size == 2 && participants.contains(targetUserId)
+            }
+
+            if (existingChat != null) {
+                // Đã tồn tại -> Trả về ID
+                Result.success(existingChat.id)
+            } else {
+                // 2. Chưa tồn tại -> Tạo mới
+                // Lấy thông tin sơ bộ của targetUser để set tên chat mặc định (hoặc để rỗng xử lý sau)
+                val targetUserDoc = firestore.collection("users").document(targetUserId).get().await()
+                val targetUserName = targetUserDoc.getString("username") ?: "Chat"
+
+                // Lấy thông tin currentUser
+                val currentUserDoc = firestore.collection("users").document(currentUserId).get().await()
+                val currentUserName = currentUserDoc.getString("username") ?: "User"
+
+                // Tạo chat mới. Lưu ý: Với chat 1-1, tên chat thường không quan trọng vì hiển thị sẽ theo tên người đối diện
+                // Nhưng ta cứ lưu tạm.
+                val newChat = Chat(
+                    participants = listOf(currentUserId, targetUserId),
+                    updatedAt = System.currentTimeMillis(),
+                    name = "", // Để rỗng để logic hiển thị tự xử lý
+                    avatarUrl = null
+                )
+                createChat(newChat)
+            }
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
     }
 }

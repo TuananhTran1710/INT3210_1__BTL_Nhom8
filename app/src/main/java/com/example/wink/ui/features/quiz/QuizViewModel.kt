@@ -37,6 +37,19 @@ class QuizViewModel @Inject constructor(
             is QuizEvent.TryAgain -> tryAgain(event.quizId)
             is QuizEvent.BackToList -> loadList()
             is QuizEvent.UnlockQuiz -> unlockQuiz(event.quizId, event.cost)
+            is QuizEvent.ShowGenerateDialog -> {
+                val current = _uiState.value
+                if (current is QuizUiState.QuizList) {
+                    _uiState.value = current.copy(showGenerateDialog = true, generateError = null)
+                }
+            }
+            is QuizEvent.DismissGenerateDialog -> {
+                val current = _uiState.value
+                if (current is QuizUiState.QuizList) {
+                    _uiState.value = current.copy(showGenerateDialog = false)
+                }
+            }
+            is QuizEvent.GenerateQuiz -> generateQuiz(event.topic)
         }
     }
 
@@ -204,6 +217,32 @@ class QuizViewModel @Inject constructor(
         if (current is QuizUiState.QuizDetail) {
             if (index in current.quiz.questions.indices) {
                 _uiState.value = current.copy(currentQuestionIndex = index)
+            }
+        }
+    }
+
+    private fun generateQuiz(topic: String) {
+        val current = _uiState.value
+        if (current !is QuizUiState.QuizList) return
+
+        viewModelScope.launch {
+            _uiState.value = current.copy(isGenerating = true, showGenerateDialog = false)
+
+            val user = authRepository.currentUser.first()
+            if (user == null) {
+                _uiState.value = current.copy(isGenerating = false, generateError = "Vui lòng đăng nhập lại.")
+                return@launch
+            }
+
+            val result = repository.generateQuizByAi(topic, user.uid, 250)
+
+            if (result.isSuccess) {
+                loadList()
+            } else {
+                _uiState.value = current.copy(
+                    isGenerating = false,
+                    generateError = result.exceptionOrNull()?.message ?: "Lỗi tạo Quiz"
+                )
             }
         }
     }

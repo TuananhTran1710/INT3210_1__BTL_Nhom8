@@ -12,7 +12,6 @@ import com.example.wink.data.repository.UserRepositoryImpl
 import com.example.wink.data.repository.SocialRepository
 import com.example.wink.data.repository.SocialRepositoryImpl
 import com.example.wink.data.repository.TipsRepository
-// import com.example.wink.data.repository.AuthRepositoryImpl // <--- Sau này dùng cái này
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn

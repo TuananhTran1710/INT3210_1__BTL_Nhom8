@@ -8,7 +8,10 @@ sealed interface QuizUiState {
         val quizzes: List<Quiz>,
         val finishedQuizIds: Set<String> = emptySet(),
         val quizzesUnlocked: Set<String>,
-        val currentRizzPoints: Int
+        val currentRizzPoints: Int,
+        val isGenerating: Boolean = false,
+        val showGenerateDialog: Boolean = false,
+        val generateError: String? = null
     ) : QuizUiState
     data class QuizDetail(
         val quiz: Quiz,

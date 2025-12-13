@@ -143,4 +143,18 @@ class FakeQuizRepositoryImpl @Inject constructor(): QuizRepository {
     )
     override suspend fun getAllQuizzes(): List<Quiz> = sampleQuizzes
     override suspend fun getQuizById(id: String): Quiz? = sampleQuizzes.firstOrNull { it.id == id }
+    override suspend fun generateQuizByAi(topic: String, userId: String, cost: Int): Result<String> {
+        val newFakeId = "rizz_011"
+        val newFakeQuiz = Quiz(
+            id = newFakeId,
+            title = "Quiz GIẢ LẬP về $topic",
+            description = "Quiz này được tạo thành công trong Fake Repository.",
+            rizzUnlockCost = cost,
+            questions = listOf(
+                Question(id = "q_fake_1", text = "Câu hỏi giả lập đầu tiên về $topic?", correctIndex = 0, answers = listOf(Answer("Đúng"), Answer("Sai"), Answer("Không biết"), Answer("Câu trả lời khác")))
+            ),
+            questionCount = 1
+        )
+        return Result.success(newFakeId)
+    }
 }

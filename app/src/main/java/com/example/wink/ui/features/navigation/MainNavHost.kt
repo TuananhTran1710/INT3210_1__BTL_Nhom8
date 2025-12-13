@@ -14,6 +14,7 @@ import com.example.wink.data.model.Tip
 import com.example.wink.ui.features.chat.ChatListScreen
 import com.example.wink.ui.features.chat.MessageScreen
 import com.example.wink.ui.features.chat.MessageScreenForAI
+import com.example.wink.ui.features.chat.NewChatScreen
 import com.example.wink.ui.features.dashboard.DashboardScreen
 import com.example.wink.ui.features.explore.ExploreScreen
 import com.example.wink.ui.features.friends.FriendsScreen
@@ -148,7 +149,9 @@ fun MainNavHost(
                 )
             }
         }
-
+        composable(Screen.NewChat.route) {
+            NewChatScreen(navController = navController)
+        }
         composable(Screen.ChangeIcon.route) {
             IconShopScreen(navController = navController)
         }
