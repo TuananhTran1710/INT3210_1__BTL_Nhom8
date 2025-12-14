@@ -26,21 +26,20 @@ data class TarotHubState(
         TarotSubFeatureUi(
             type = LoveFortuneType.BY_NAME,
             title = "Bói Theo Tên",
-            description = "Xem độ hợp nhau qua cái tên"
+            description = "Mật mã tên gọi: Liệu đôi ta có nên duyên?"
         ),
         TarotSubFeatureUi(
             type = LoveFortuneType.ZODIAC,
             title = "Cung Hoàng Đạo",
-            description = "Bạch Dương, Kim Ngưu,..."
+            description = "Hoàng Đạo se duyên: Tình ta có hợp không?"
         ),
         TarotSubFeatureUi(
             type = LoveFortuneType.TAROT_CARD,
-            title = "Bói Bài Tây",
-            description = "Thông điệp bí ẩn từ lá bài"
+            title = "Bài Tây Tiên Tri",
+            description = "Nhận thông điệp bí ẩn từ những lá bài"
         )
     ),
 
-    // Dialogs
-    val confirmingFor: LoveFortuneType? = null,         // đang hỏi: có dùng 50 Rizz không?
-    val showNotEnoughDialogFor: LoveFortuneType? = null // popup "không đủ Rizz"
+    val confirmingFor: LoveFortuneType? = null,
+    val showNotEnoughDialogFor: LoveFortuneType? = null
 )

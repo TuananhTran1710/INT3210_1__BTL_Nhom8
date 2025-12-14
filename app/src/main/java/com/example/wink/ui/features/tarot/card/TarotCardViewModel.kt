@@ -2,6 +2,7 @@ package com.example.wink.ui.features.tarot.card
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wink.R
 import com.example.wink.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -26,38 +27,43 @@ class TarotCardViewModel @Inject constructor(
     private val tarotDeck: List<TarotCardInfo> = listOf(
         TarotCardInfo(
             id = 0,
-            name = "Át Cơ – Tình Yêu Khởi Đầu",
-            shortMeaning = "Cơ hội mới trong chuyện tình cảm.",
-            detail = "Một mối quan hệ mới, một cảm xúc mới hoặc một chương tình yêu khác sắp đến. "
-                    + "Hãy mở lòng đón nhận nhưng đừng quên lắng nghe trực giác của mình."
+            name = "The Fool",
+            shortMeaning = "Khởi đầu tự do, bất ngờ.",
+            detail = "Hãy mở lòng đón nhận một cuộc phiêu lưu tình cảm không toan tính. "
+                    + "Cứ tin tưởng và tận hưởng niềm vui hiện tại thay vì lo lắng quá nhiều về tương lai.",
+            imageRes = R.drawable.___the_fool
         ),
         TarotCardInfo(
             id = 1,
-            name = "K Q Bích – Suy Nghĩ Quá Nhiều",
+            name = "9 Cơ – Suy Nghĩ Quá Nhiều",
             shortMeaning = "Lo lắng, tự suy diễn.",
             detail = "Bạn có xu hướng overthinking trong chuyện tình cảm. "
-                    + "Đừng để những nỗi sợ mơ hồ làm hỏng cảm xúc đẹp giữa hai người."
+                    + "Đừng để những nỗi sợ mơ hồ làm hỏng cảm xúc đẹp giữa hai người.",
+            imageRes = R.drawable.___the_fool
         ),
         TarotCardInfo(
-            id = 2,
-            name = "J Rô – Tín Hiệu Vũ Trụ",
-            shortMeaning = "Có người đang để ý bạn.",
-            detail = "Có một nguồn năng lượng mới đang tiến tới – có thể là một người mới hoặc "
-                    + "một sự thay đổi dễ thương trong mối quan hệ hiện tại."
+            id = 0, // The Fool thường là số 0
+            name = "The Fool",
+            shortMeaning = "Khởi đầu tự do, bất ngờ.",
+            detail = "Hãy mở lòng đón nhận một cuộc phiêu lưu tình cảm không toan tính. "
+                    + "Cứ tin tưởng và tận hưởng niềm vui hiện tại thay vì lo lắng quá nhiều về tương lai.",
+            imageRes = R.drawable.___the_fool
         ),
         TarotCardInfo(
             id = 3,
             name = "10 Chuồn – Bước Chuyển Mới",
             shortMeaning = "Chuẩn bị cho một hành trình mới.",
             detail = "Bạn và người ấy có thể sắp bước sang một giai đoạn khác: nghiêm túc hơn, "
-                    + "hoặc thay đổi cách hai bạn kết nối với nhau."
+                    + "hoặc thay đổi cách hai bạn kết nối với nhau.",
+            imageRes = R.drawable.___the_fool
         ),
         TarotCardInfo(
             id = 4,
             name = "7 Cơ – Cảm Xúc Mập Mờ",
             shortMeaning = "Đang có nhiều lựa chọn / cảm xúc lẫn lộn.",
             detail = "Có thể bạn hoặc người ấy đang bối rối, chưa thật sự rõ mình muốn gì. "
-                    + "Thẳng thắn nhưng nhẹ nhàng sẽ giúp mọi thứ rõ ràng hơn."
+                    + "Thẳng thắn nhưng nhẹ nhàng sẽ giúp mọi thứ rõ ràng hơn.",
+            imageRes = R.drawable.___the_fool
         )
     )
 

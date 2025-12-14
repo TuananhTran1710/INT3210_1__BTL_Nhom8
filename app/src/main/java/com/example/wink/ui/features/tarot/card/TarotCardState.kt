@@ -5,7 +5,8 @@ data class TarotCardInfo(
     val id: Int,
     val name: String,
     val shortMeaning: String,
-    val detail: String
+    val detail: String,
+    val imageRes: Int
 )
 
 /** UI state của màn bói bài tây */

@@ -70,7 +70,6 @@ class QuizRepositoryImpl @Inject constructor(
                     .await()
 
                 val questions = questionsSnapshot.documents.mapNotNull { qDoc ->
-                    // Cần gán ID cho Question nếu nó có trường ID
                     qDoc.toObject(Question::class.java)?.copy(id = qDoc.id)
                 }
 
@@ -87,10 +86,10 @@ class QuizRepositoryImpl @Inject constructor(
     override suspend fun generateQuizByAi(topic: String, userId: String, cost: Int): Result<String> {
         return try {
             val prompt = """
-            Create a multiple-choice quiz about "$topic" in Vietnamese.
-            Requirements:
-            - Exactly 5 questions.
-            - Each question must have exactly 4 answers.
+            Đóng vai là một người ra đề trắc nghiệm, tạo một bài kiểm tra trắc nghiệm thú vị về chủ đề "$topic" liên quan đến tình yêu, hẹn hò và tán tỉnh. Viết bằng ngôn ngữ thân mật, trẻ trung.
+            Yêu cầu:
+            - Chính xác 5 câu hỏi.
+            - Mỗi câu hỏi có 4 answers.
             - One correct answer index (0-3).
             - Output ONLY raw JSON (no markdown, no code blocks) with this specific structure:
             {
@@ -100,7 +99,7 @@ class QuizRepositoryImpl @Inject constructor(
                 {
                   "text": "Câu hỏi?",
                   "answers": ["Đáp án A", "Đáp án B", "Đáp án C", "Đáp án D"],
-                  "correctIndex": 0
+                  "correctIndex": 0 // Hoặc 1, hoặc 2, hoặc 3, (là chỉ số của đáp án đúng) (0-3)
                 }
               ]
             }

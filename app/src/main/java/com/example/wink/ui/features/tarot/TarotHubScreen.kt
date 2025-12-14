@@ -1,25 +1,48 @@
 package com.example.wink.ui.features.tarot
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
@@ -34,194 +57,272 @@ fun TarotHubScreen(
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
 
+    // --- LOGIC (Giữ nguyên) ---
     LaunchedEffect(Unit) {
         viewModel.navEvents.collectLatest { event ->
             when (event) {
                 is TarotHubNav.OpenFeature -> {
                     when (event.type) {
-                        LoveFortuneType.BY_NAME ->
-                            navController.navigate(Screen.TarotName.route)
-
-                        LoveFortuneType.ZODIAC ->
-                            navController.navigate(Screen.TarotZodiac.route)
-
-                        LoveFortuneType.TAROT_CARD ->
-                            navController.navigate(Screen.TarotCard.route)
+                        LoveFortuneType.BY_NAME -> navController.navigate(Screen.TarotName.route)
+                        LoveFortuneType.ZODIAC -> navController.navigate(Screen.TarotZodiac.route)
+                        LoveFortuneType.TAROT_CARD -> navController.navigate(Screen.TarotCard.route)
                     }
                 }
             }
         }
     }
 
-    // Dialog: không đủ điểm Rizz
     if (state.showNotEnoughDialogFor != null) {
         AlertDialog(
             onDismissRequest = { viewModel.dismissDialogs() },
             title = { Text("Không đủ Rizz") },
-            text = { Text("Bạn không đủ điểm RIZZ để dùng chức năng này.") },
-            confirmButton = {
-                TextButton(onClick = { viewModel.dismissDialogs() }) {
-                    Text("Đóng")
-                }
-            }
+            text = { Text("Bạn cần thêm điểm RIZZ để mở khóa tính năng này.") },
+            confirmButton = { TextButton(onClick = { viewModel.dismissDialogs() }) { Text("Đóng") } },
+            icon = { Icon(Icons.Default.Lock, contentDescription = null) }
         )
     }
 
-    // Dialog: xác nhận dùng Rizz
     state.confirmingFor?.let { type ->
         val feature = state.features.first { it.type == type }
         AlertDialog(
             onDismissRequest = { viewModel.dismissDialogs() },
-            title = { Text("Hết lượt miễn phí!") },
-            text = {
-                Text(
-                    "Bạn đã dùng hết lượt miễn phí hôm nay.\n" +
-                            "Dùng ${feature.price} Rizz để chơi tiếp nhé?"
-                )
-            },
-            confirmButton = {
-                Button(onClick = { viewModel.confirmSpendRizz() }) {
-                    Text("Chốt đơn")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { viewModel.dismissDialogs() }) {
-                    Text("Thôi")
-                }
-            }
+            title = { Text("Mở khóa tính năng") },
+            text = { Text("Bạn đã hết lượt miễn phí. Dùng ${feature.price} Rizz để tiếp tục nhé?") },
+            confirmButton = { Button(onClick = { viewModel.confirmSpendRizz() }) { Text("Chốt đơn") } },
+            dismissButton = { TextButton(onClick = { viewModel.dismissDialogs() }) { Text("Thôi") } },
+            icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) }
         )
     }
 
+    // --- UI ---
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Bói Tình Yêu", fontWeight = FontWeight.Bold) },
+                title = {
+                    Text(
+                        "Bói Tình Yêu",
+                        style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = { navController.popBackStack() }) {
-                        Icon(
-                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Quay lại"
-                        )
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
-                }
+                },
+                actions = {
+                    RizzChip(amount = state.rizzPoints)
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.background,
+                    scrolledContainerColor = MaterialTheme.colorScheme.background
+                )
             )
         }
     ) { padding ->
         Column(
             modifier = Modifier
-                .padding(padding)
                 .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
+                .padding(padding)
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            Column(
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                state.features.forEach { feature ->
-                    LoveFortuneItem(
-                        feature = feature,
-                        onClick = { viewModel.onFeatureClick(feature.type) }
-                    )
-                }
+            Text(
+                text = "Khám phá vận mệnh",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(bottom = 4.dp, start = 4.dp)
+            )
+
+            // Render danh sách các thẻ
+            state.features.forEach { feature ->
+                LoveFortuneItemVibrant(
+                    feature = feature,
+                    onClick = { viewModel.onFeatureClick(feature.type) }
+                )
             }
         }
     }
 }
 
 @Composable
-private fun LoveFortuneItem(
+fun RizzChip(amount: Int) {
+    Surface(
+        color = MaterialTheme.colorScheme.tertiaryContainer,
+        shape = CircleShape,
+        modifier = Modifier.padding(end = 16.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                Icons.Default.Star,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onTertiaryContainer,
+                modifier = Modifier.size(18.dp)
+            )
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "$amount",
+                style = MaterialTheme.typography.labelLarge,
+                fontWeight = FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onTertiaryContainer
+            )
+        }
+    }
+}
+
+@Composable
+private fun LoveFortuneItemVibrant(
     feature: TarotSubFeatureUi,
     onClick: () -> Unit
 ) {
-    // Gradient đổi theo theme nhưng vẫn khác nhau cho từng loại
-    val colorScheme = MaterialTheme.colorScheme
-    val gradient = when (feature.type) {
-        LoveFortuneType.BY_NAME -> Brush.horizontalGradient(
-            listOf(colorScheme.primary, colorScheme.secondary)
+    // 1. Định nghĩa màu Gradient ĐẬM và NỔI BẬT cho từng loại
+    val gradientBrush = when (feature.type) {
+        LoveFortuneType.BY_NAME -> Brush.linearGradient(
+            listOf(Color(0xFFD81B60), Color(0xFF8E24AA)) // Hồng đậm -> Tím
         )
-
-        LoveFortuneType.ZODIAC -> Brush.horizontalGradient(
-            listOf(colorScheme.tertiary, colorScheme.primaryContainer)
+        LoveFortuneType.ZODIAC -> Brush.linearGradient(
+            listOf(Color(0xFF1E88E5), Color(0xFF004D40)) // Xanh dương -> Xanh rêu đậm
         )
-
-        LoveFortuneType.TAROT_CARD -> Brush.horizontalGradient(
-            listOf(colorScheme.secondary, colorScheme.tertiaryContainer)
+        LoveFortuneType.TAROT_CARD -> Brush.linearGradient(
+            listOf(Color(0xFFFF6F00), Color(0xFFBF360C)) // Cam hổ phách -> Cam cháy
         )
     }
 
-    Card(
+    val iconVector = when (feature.type) {
+        LoveFortuneType.BY_NAME -> Icons.Filled.Person
+        LoveFortuneType.ZODIAC -> Icons.Filled.Star
+        LoveFortuneType.TAROT_CARD -> Icons.Filled.AutoAwesome
+    }
+
+    ElevatedCard(
+        onClick = onClick,
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { onClick() },
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
+            .height(130.dp),
+        shape = MaterialTheme.shapes.large, // Bo góc lớn hơn chút (Large thay vì Medium)
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp), // Tăng độ nổi
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = Color.Transparent // Để gradient hiển thị
+        )
     ) {
         Box(
             modifier = Modifier
-                .background(gradient)
-                .padding(16.dp)
+                .fillMaxSize()
+                .background(gradientBrush)
         ) {
             Row(
-                verticalAlignment = Alignment.CenterVertically
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(16.dp),
+                verticalAlignment = Alignment.Top
             ) {
-                // Icon tròn bên trái
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(
-                            MaterialTheme.colorScheme.onPrimary.copy(alpha = 0.15f)
-                        ),
-                    contentAlignment = Alignment.Center
+                // Icon Container - Nền trắng mờ để nổi trên background đậm
+                Surface(
+                    shape = CircleShape,
+                    color = Color.White.copy(alpha = 0.2f),
+                    modifier = Modifier.size(56.dp)
                 ) {
-                    Text("❤", fontSize = 24.sp)
+                    Box(contentAlignment = Alignment.Center) {
+                        Icon(
+                            imageVector = iconVector,
+                            contentDescription = null,
+                            tint = Color.White, // Icon màu trắng
+                            modifier = Modifier.size(28.dp)
+                        )
+                    }
                 }
 
                 Spacer(modifier = Modifier.width(16.dp))
 
+                // Text Content - Màu trắng để tương phản
                 Column(
-                    modifier = Modifier.weight(1f)
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(end = 4.dp)
                 ) {
                     Text(
                         text = feature.title,
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = colorScheme.onPrimary
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold, // Chữ đậm hơn
+                        color = Color.White
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = feature.description,
-                        fontSize = 13.sp,
-                        color = colorScheme.onPrimary.copy(alpha = 0.9f),
-                        maxLines = 1,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = Color.White.copy(alpha = 0.9f), // Màu trắng hơi mờ
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
+            }
 
-                Spacer(modifier = Modifier.width(8.dp))
+            // Nút trạng thái (Free/Locked) - Góc dưới phải
+            Box(
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(12.dp)
+            ) {
+                StatusBadgeVibrant(isLocked = feature.usedFreeToday, price = feature.price)
+            }
 
-                // Badge: "Miễn phí" hoặc "Rizz"
-                val badgeColor =
-                    if (feature.usedFreeToday) colorScheme.secondaryContainer
-                    else colorScheme.primaryContainer
-                val badgeTextColor =
-                    if (feature.usedFreeToday) colorScheme.onSecondaryContainer
-                    else colorScheme.onPrimaryContainer
+            // Lớp phủ khi bị khóa (Overlay tối)
+            if (feature.usedFreeToday) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f)) // Phủ tối hơn chút để rõ trạng thái khóa
+                )
+            }
+        }
+    }
+}
 
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = badgeColor
-                ) {
-                    Text(
-                        text = if (feature.usedFreeToday) "${feature.price} Rizz" else "Miễn phí",
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = badgeTextColor
-                    )
-                }
+@Composable
+fun StatusBadgeVibrant(isLocked: Boolean, price: Int) {
+    // Màu badge tương phản với nền gradient
+    val containerColor = if (isLocked)
+        Color.Black.copy(alpha = 0.6f) // Nền đen mờ cho trạng thái khóa
+    else
+        Color.White // Nền trắng cho trạng thái Free
+
+    val contentColor = if (isLocked)
+        Color(0xFFFF5252) // Chữ đỏ cam
+    else
+        Color(0xFF2E7D32) // Chữ xanh lá đậm (Hoặc dùng màu chính của app)
+
+    Surface(
+        shape = MaterialTheme.shapes.small,
+        color = containerColor,
+        shadowElevation = 2.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (isLocked) {
+                Icon(
+                    imageVector = Icons.Default.Lock,
+                    contentDescription = null,
+                    modifier = Modifier.size(14.dp),
+                    tint = contentColor
+                )
+                Spacer(modifier = Modifier.width(4.dp))
+                Text(
+                    text = "$price Rizz", // Rút gọn text
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = contentColor
+                )
+            } else {
+                Text(
+                    text = "MIỄN PHÍ", // Chữ in hoa
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = contentColor // Hoặc dùng màu Brand của bạn
+                )
             }
         }
     }

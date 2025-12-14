@@ -94,7 +94,7 @@ class TarotNameViewModel @Inject constructor(
             
             Output duy nhất JSON (không markdown):
             {
-              "score": (số nguyên 0-100),
+              "score": (số nguyên 0-99),
               "comment": (lời phán ngắn gọn khoảng 2 câu, hài hước, teencode nhẹ)
             }
         """.trimIndent()
