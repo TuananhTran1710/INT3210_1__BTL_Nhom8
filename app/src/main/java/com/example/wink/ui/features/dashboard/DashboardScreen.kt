@@ -608,7 +608,7 @@ private fun DailyTaskItem(
     Surface(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        color = MaterialTheme.colorScheme.surfaceContainer,
         border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
         Row(
@@ -637,7 +637,8 @@ private fun DailyTaskItem(
                     Icon(
                         imageVector = Icons.Default.Check,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp)
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onPrimary
                     )
                 }
             }
