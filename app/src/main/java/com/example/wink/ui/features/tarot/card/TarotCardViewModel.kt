@@ -2,6 +2,7 @@ package com.example.wink.ui.features.tarot.card
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wink.R
 import com.example.wink.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -22,42 +23,182 @@ class TarotCardViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(TarotCardState())
     val uiState: StateFlow<TarotCardState> = _uiState.asStateFlow()
 
-    // Bộ bài demo
     private val tarotDeck: List<TarotCardInfo> = listOf(
         TarotCardInfo(
             id = 0,
-            name = "Át Cơ – Tình Yêu Khởi Đầu",
-            shortMeaning = "Cơ hội mới trong chuyện tình cảm.",
-            detail = "Một mối quan hệ mới, một cảm xúc mới hoặc một chương tình yêu khác sắp đến. "
-                    + "Hãy mở lòng đón nhận nhưng đừng quên lắng nghe trực giác của mình."
+            name = "The Fool",
+            shortMeaning = "Khởi đầu tự do, bất ngờ.",
+            detail = "Hãy mở lòng đón nhận một cuộc phiêu lưu tình cảm không toan tính. "
+                    + "Cứ tin tưởng và tận hưởng niềm vui hiện tại thay vì lo lắng quá nhiều về tương lai.",
+            imageRes = R.drawable.___the_fool
         ),
         TarotCardInfo(
             id = 1,
-            name = "K Q Bích – Suy Nghĩ Quá Nhiều",
-            shortMeaning = "Lo lắng, tự suy diễn.",
-            detail = "Bạn có xu hướng overthinking trong chuyện tình cảm. "
-                    + "Đừng để những nỗi sợ mơ hồ làm hỏng cảm xúc đẹp giữa hai người."
+            name = "The Magician",
+            shortMeaning = "Bạn nắm quyền chủ động.",
+            detail = "Bạn có đủ sức hút và kỹ năng để chinh phục đối phương. Đừng chờ đợi, đây là lúc để " +
+                    "biến những mong muốn thành hiện thực bằng hành động cụ thể.",
+            imageRes = R.drawable.___the_magician
         ),
         TarotCardInfo(
             id = 2,
-            name = "J Rô – Tín Hiệu Vũ Trụ",
-            shortMeaning = "Có người đang để ý bạn.",
-            detail = "Có một nguồn năng lượng mới đang tiến tới – có thể là một người mới hoặc "
-                    + "một sự thay đổi dễ thương trong mối quan hệ hiện tại."
+            name = "The High Priestess",
+            shortMeaning = "Sự bí ẩn đầy quyến rũ.",
+            detail = "Có những cảm xúc chưa được nói ra. Hãy tin vào trực giác của bạn về người ấy. " +
+                    "Một chút bí ẩn sẽ khiến bạn trở nên khao khát hơn trong mắt đối phương.",
+            imageRes = R.drawable.___the_priestess
         ),
         TarotCardInfo(
             id = 3,
-            name = "10 Chuồn – Bước Chuyển Mới",
-            shortMeaning = "Chuẩn bị cho một hành trình mới.",
-            detail = "Bạn và người ấy có thể sắp bước sang một giai đoạn khác: nghiêm túc hơn, "
-                    + "hoặc thay đổi cách hai bạn kết nối với nhau."
+            name = "The Empress",
+            shortMeaning = "Tình yêu nồng nàn, trù phú.",
+            detail = "Một giai đoạn ngập tràn sự quan tâm, chăm sóc và lãng mạn. " +
+                    "Sức hút của bạn đến từ sự dịu dàng và vẻ đẹp tự nhiên đầy nữ tính.",
+            imageRes = R.drawable.___the_empress
         ),
         TarotCardInfo(
             id = 4,
-            name = "7 Cơ – Cảm Xúc Mập Mờ",
-            shortMeaning = "Đang có nhiều lựa chọn / cảm xúc lẫn lộn.",
-            detail = "Có thể bạn hoặc người ấy đang bối rối, chưa thật sự rõ mình muốn gì. "
-                    + "Thẳng thắn nhưng nhẹ nhàng sẽ giúp mọi thứ rõ ràng hơn."
+            name = "The Emperor",
+            shortMeaning = "Mối quan hệ nghiêm túc, ổn định.",
+            detail = "Tình yêu cần sự rõ ràng và cam kết vững chắc. Có thể đối phương là người " +
+                    "mạnh mẽ, thích che chở nhưng hơi gia trưởng hoặc khô khan.",
+            imageRes = R.drawable.___the_emperor
+        ),
+        TarotCardInfo(
+            id = 5,
+            name = "The Hierophant",
+            shortMeaning = "Cam kết lâu dài, truyền thống.",
+            detail = "Mối quan hệ hướng tới sự chấp thuận của xã hội hoặc hôn nhân. " +
+                    "Hai bạn đang tìm kiếm sự đồng điệu về tâm hồn và giá trị sống hơn là sự phá cách.",
+            imageRes = R.drawable.___the_hierophant
+        ),
+        TarotCardInfo(
+            id = 6,
+            name = "The Lovers",
+            shortMeaning = "Sự lựa chọn của trái tim.",
+            detail = "Một sự kết nối sâu sắc và mãnh liệt đang diễn ra. " +
+                    "Tuy nhiên, bạn có thể phải đứng trước một quyết định quan trọng liên quan đến tình cảm này.",
+            imageRes = R.drawable.___the_lovers
+        ),
+        TarotCardInfo(
+            id = 7,
+            name = "The Chariot",
+            shortMeaning = "Quyết tâm chinh phục.",
+            detail = "Đừng để rào cản ngăn bước bạn. Hãy kiểm soát cảm xúc và tiến tới mục tiêu. " +
+                    "Sự tự tin chính là vũ khí mạnh nhất của bạn lúc này.",
+            imageRes = R.drawable.___the_chariot
+        ),
+        TarotCardInfo(
+            id = 8,
+            name = "Justice",
+            shortMeaning = "Công bằng và rõ ràng.",
+            detail = "Bạn sẽ nhận được chính xác những gì bạn đã bỏ ra. " +
+                    "Nếu bạn chân thành, tình yêu sẽ đến. Nếu mối quan hệ mất cân bằng, đã đến lúc đàm phán lại.",
+            imageRes = R.drawable.___justice
+        ),
+        TarotCardInfo(
+            id = 9,
+            name = "The Hermit",
+            shortMeaning = "Lắng nghe tiếng nói bên trong.",
+            detail = "Tạm thời tách biệt để hiểu rõ trái tim mình muốn gì. " +
+                    "Đừng vội vàng tìm kiếm người mới khi bạn chưa thực sự hiểu bản thân.",
+            imageRes = R.drawable.___the_hermit
+        ),
+        TarotCardInfo(
+            id = 10,
+            name = "Wheel of Fortune",
+            shortMeaning = "Định mệnh sắp đặt.",
+            detail = "Một cuộc gặp gỡ tình cờ hoặc sự thay đổi bất ngờ đang đến. " +
+                    "Hãy để mọi thứ diễn ra tự nhiên, vũ trụ đang xoay chuyển tình thế cho bạn.",
+            imageRes = R.drawable.___wheel_of_fortune
+        ),
+        TarotCardInfo(
+            id = 11,
+            name = "Strength",
+            shortMeaning = "Sự kiên nhẫn dịu dàng.",
+            detail = "Không cần gồng mình, sự thấu hiểu và mềm mỏng mới là cách để " +
+                    "thu phục trái tim đối phương và vượt qua những thử thách hiện tại.",
+            imageRes = R.drawable.___strength
+        ),
+        TarotCardInfo(
+            id = 12,
+            name = "The Hanged Man",
+            shortMeaning = "Chậm lại để nhìn nhận.",
+            detail = "Mọi thứ dường như đang chững lại. Đừng cố ép buộc. " +
+                    "Hãy thay đổi góc nhìn hoặc hy sinh một chút cái tôi để hiểu đối phương hơn.",
+            imageRes = R.drawable.___the_hanged_man
+        ),
+        TarotCardInfo(
+            id = 13,
+            name = "Death",
+            shortMeaning = "Kết thúc để bắt đầu mới.",
+            detail = "Một giai đoạn hoặc một mối quan hệ cũ cần phải khép lại triệt để. " +
+                    "Sự lột xác này là cần thiết để đón nhận một tình yêu tốt đẹp hơn đang tới.",
+            imageRes = R.drawable.___death
+        ),
+        TarotCardInfo(
+            id = 14,
+            name = "Temperance",
+            shortMeaning = "Hòa hợp và cân bằng.",
+            detail = "Tình yêu cần sự kiên nhẫn và vun đắp từ từ. " +
+                    "Hai bạn đang học cách dung hòa những khác biệt để tạo nên một mối liên kết bền vững.",
+            imageRes = R.drawable.___temperance
+        ),
+        TarotCardInfo(
+            id = 15,
+            name = "The Devil",
+            shortMeaning = "Cám dỗ và đam mê.",
+            detail = "Một sức hút thể xác mãnh liệt nhưng coi chừng sự ràng buộc độc hại. " +
+                    "Đừng để sự ám ảnh hay ghen tuông kiểm soát lý trí của bạn.",
+            imageRes = R.drawable.___the_devil
+        ),
+        TarotCardInfo(
+            id = 16,
+            name = "The Star",
+            shortMeaning = "Hy vọng và chữa lành.",
+            detail = "Sau những tổn thương, trái tim bạn đang được chữa lành. " +
+                    "Hãy mở lòng ra, một tương lai tươi sáng và một người xứng đáng đang chờ bạn phía trước.",
+            imageRes = R.drawable.___the_star
+        ),
+        TarotCardInfo(
+            id = 17,
+            name = "The Tower",
+            shortMeaning = "Sự rung chuyển bất ngờ.",
+            detail = "Một sự kiện bất ngờ xảy ra làm thay đổi nền tảng mối quan hệ. " +
+                    "Dù đau đớn, nhưng sự sụp đổ này là cần thiết để loại bỏ những gì không còn chân thật.",
+            imageRes = R.drawable.___the_tower
+        ),
+        TarotCardInfo(
+            id = 18,
+            name = "The Moon",
+            shortMeaning = "Mơ hồ và bối rối.",
+            detail = "Có những điều không rõ ràng hoặc những nỗi sợ vô hình đang bao trùm. " +
+                    "Cẩn thận với sự hiểu lầm và đừng để trí tưởng tượng đi quá xa thực tế.",
+            imageRes = R.drawable.___the_moon
+        ),
+        TarotCardInfo(
+            id = 19,
+            name = "The Sun",
+            shortMeaning = "Niềm vui rạng rỡ.",
+            detail = "Hạnh phúc viên mãn và sự rõ ràng. Tình yêu của bạn đang trong giai đoạn " +
+                    "ấm áp nhất, mọi khúc mắc đều được phơi bày và giải quyết êm đẹp.",
+            imageRes = R.drawable.___the_sun
+        ),
+        TarotCardInfo(
+            id = 20,
+            name = "Judgement",
+            shortMeaning = "Thời khắc thức tỉnh.",
+            detail = "Đã đến lúc đưa ra quyết định quan trọng hoặc tha thứ cho quá khứ. " +
+                    "Sự hồi sinh trong tình cảm giúp bạn nhận ra ai mới là người thực sự quan trọng.",
+            imageRes = R.drawable.___judgement
+        ),
+        TarotCardInfo(
+            id = 21,
+            name = "The World",
+            shortMeaning = "Hạnh phúc trọn vẹn.",
+            detail = "Một cái kết có hậu hoặc một chương mới tuyệt vời. " +
+                    "Bạn cảm thấy trọn vẹn và hòa hợp hoàn hảo với người mình yêu.",
+            imageRes = R.drawable.___the_world
         )
     )
 
