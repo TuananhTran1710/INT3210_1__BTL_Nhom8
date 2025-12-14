@@ -7,5 +7,5 @@ data class IconItemUi(
     val price: Int,
     val isOwned: Boolean,
     val isSelected: Boolean,
-    val color: Color
+    val iconResId: Int // Đổi từ 'color: Color' thành 'iconResId: Int'
 )

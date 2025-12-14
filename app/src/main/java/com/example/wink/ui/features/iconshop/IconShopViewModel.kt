@@ -1,10 +1,14 @@
 package com.example.wink.ui.features.iconshop
 
+import android.content.Context
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wink.R
 import com.example.wink.data.repository.UserRepository
+import com.example.wink.util.AppIconManager
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -12,32 +16,36 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
+// Cập nhật class nội bộ này
 private data class IconMeta(
     val id: String,
     val price: Int,
-    val color: Color
+    val iconResId: Int // Đổi từ Color sang Int
 )
-
 @HiltViewModel
 class IconShopViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(IconShopState())
     val uiState: StateFlow<IconShopState> = _uiState.asStateFlow()
 
     // cấu hình bộ icon gốc
+    // CẤU HÌNH BỘ ICON MỚI TẠI ĐÂY
+    // Hãy thay R.drawable.icon_fire, v.v. bằng tên file ảnh thực tế bạn đã đặt ở Bước 1
     private val baseIcons = listOf(
-        IconMeta("icon_1", 0,   Color(0xFFFFC1CC)),  // free
-        IconMeta("icon_2", 200, Color(0xFFBCAAA4)),
-        IconMeta("icon_3", 200, Color(0xFFF8BBD0)),
-        IconMeta("icon_4", 200, Color(0xFFE1BEE7)),
-        IconMeta("icon_5", 300, Color(0xFFFFF59D)),
-        IconMeta("icon_6", 300, Color(0xFFC5E1A5)),
-        IconMeta("icon_7", 300, Color(0xFFB3E5FC)),
-        IconMeta("icon_8", 400, Color(0xFFFFCDD2)),
-        IconMeta("icon_9", 400, Color(0xFFE3F2FD)),
-        IconMeta("icon_10",500, Color(0xFFF48FB1))
+        IconMeta("default_logo", 0,   R.drawable.default_logo),   // Ví dụ: Icon mặc định (Miễn phí)
+        IconMeta("lost_streak", 200, R.drawable.lost_streak),    // Ví dụ: Icon băng
+        IconMeta("day3", 50, R.drawable.day3), // Ví dụ: Icon vũ trụ
+        IconMeta("day7", 100, R.drawable.day7),   // Ví dụ: Icon vàng
+        IconMeta("day14", 200, R.drawable.day14),   // Ví dụ: Icon vàng
+        IconMeta("day30_plus", 500, R.drawable.day30_plus),   // Ví dụ: Icon vàng
+        IconMeta("day100", 1500, R.drawable.day100),   // Ví dụ: Icon vàng
+        IconMeta("day200", 5000, R.drawable.day200),   // Ví dụ: Icon vàng
+        IconMeta("day365", 25000, R.drawable.day365),   // Ví dụ: Icon vàng
+        IconMeta("day500", 100000, R.drawable.day500),   // Ví dụ: Icon vàng
+        IconMeta("day1000", 1000000, R.drawable.day1000),   // Ví dụ: Icon vàng
     )
 
     init {
@@ -59,12 +67,13 @@ class IconShopViewModel @Inject constructor(
                     selectedId == null && meta.price == 0 && index == 0 -> true
                     else -> false
                 }
+                // Map sang UI model mới
                 IconItemUi(
                     id = meta.id,
                     price = meta.price,
                     isOwned = isOwned,
                     isSelected = isSelected,
-                    color = meta.color
+                    iconResId = meta.iconResId // Truyền ID ảnh vào đây
                 )
             }
 
@@ -86,6 +95,7 @@ class IconShopViewModel @Inject constructor(
         }
     }
 
+    // CẬP NHẬT HÀM NÀY
     fun onIconClicked(iconId: String) {
         val current = _uiState.value
         if (current.isLoading) return
@@ -93,43 +103,49 @@ class IconShopViewModel @Inject constructor(
         val clicked = current.icons.firstOrNull { it.id == iconId } ?: return
 
         viewModelScope.launch {
-            // 1. Nếu đã sở hữu -> chỉ đổi icon đang dùng, không trừ Rizz
+            // 1. Nếu đã sở hữu -> Đổi icon server VÀ Đổi icon app
             if (clicked.isOwned) {
                 val ownedIds = current.icons.filter { it.isOwned }.map { it.id }
-                updateIconStateOnServer(
-                    newRizz = current.rizzPoints,
-                    newOwnedIds = ownedIds,
-                    newSelectedId = iconId
-                )
+
+                // Gọi server
+                updateIconStateOnServer(current.rizzPoints, ownedIds, iconId)
+
+                // GỌI HÀM ĐỔI ICON APP
+                changeLauncherIcon(iconId)
+
                 return@launch
             }
 
-            // 2. Nếu chưa sở hữu -> kiểm tra đủ Rizz và mua
+            // 2. Nếu chưa sở hữu -> Mua -> Đổi icon server -> Đổi icon app
             if (current.rizzPoints < clicked.price) {
-                _uiState.update {
-                    it.copy(errorMessage = "Bạn không đủ RIZZ để mua icon này.")
-                }
+                _uiState.update { it.copy(errorMessage = "Bạn không đủ RIZZ để mua icon này.") }
                 return@launch
             }
 
-            // Trừ RIZZ trên database (transaction trong UserRepository)
             val spendOk = userRepository.spendRizz(clicked.price)
             if (!spendOk) {
-                _uiState.update {
-                    it.copy(errorMessage = "Không thể trừ RIZZ. Vui lòng thử lại.")
-                }
+                _uiState.update { it.copy(errorMessage = "Không thể trừ RIZZ. Vui lòng thử lại.") }
                 return@launch
             }
 
             val newRizz = current.rizzPoints - clicked.price
-            val newOwnedIds =
-                current.icons.filter { it.isOwned }.map { it.id } + iconId
+            val newOwnedIds = current.icons.filter { it.isOwned }.map { it.id } + iconId
 
-            updateIconStateOnServer(
-                newRizz = newRizz,
-                newOwnedIds = newOwnedIds,
-                newSelectedId = iconId
-            )
+            // Gọi server
+            updateIconStateOnServer(newRizz, newOwnedIds, iconId)
+
+            // GỌI HÀM ĐỔI ICON APP
+            changeLauncherIcon(iconId)
+        }
+    }
+
+    // Hàm phụ trợ gọi AppIconManager
+    private fun changeLauncherIcon(iconId: String) {
+        try {
+            AppIconManager.changeAppIcon(context, iconId)
+        } catch (e: Exception) {
+            e.printStackTrace()
+            // Có thể hiện thông báo lỗi nhẹ, nhưng thường ko cần thiết chặn UI
         }
     }
 

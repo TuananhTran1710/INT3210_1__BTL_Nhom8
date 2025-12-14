@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.iconshop
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material3.*
@@ -19,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -144,50 +148,56 @@ private fun IconItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                // Màu nền base lấy từ item.color, để vẫn đủ “màu mè”
-                .background(item.color)
+                // Xóa background màu cũ đi
+                // .background(item.color)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
+            // 1. HIỂN THỊ ẢNH ICON
+            Image(
+                painter = painterResource(id = item.iconResId), // Load ảnh từ ID
+                contentDescription = null,
+                contentScale = ContentScale.Crop, // Co dãn ảnh cho vừa khung
+                modifier = Modifier.matchParentSize()
+            )
+
+            // 2. LỚP PHỦ KHI ĐƯỢC CHỌN (Overlay)
             if (item.isSelected) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            colorScheme.surface.copy(alpha = 0.25f)
-                        )
+                        // Phủ một lớp màu trắng mờ hoặc đen mờ lên trên ảnh để biết đang chọn
+                        .background(Color.Black.copy(alpha = 0.3f))
+                    // Hoặc dùng viền (border) nếu bạn không muốn làm tối ảnh
+                )
+
+                // Thêm icon Check ở giữa để rõ ràng hơn (Optional)
+                Icon(
+                    imageVector = Icons.Default.Check, // Cần import Icons.Default.Check
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
+            // 3. TRẠNG THÁI KHÓA / TIM (SỞ HỮU)
+            // Phần này giữ nguyên logic cũ nhưng có thể chỉnh màu cho dễ nhìn trên nền ảnh
             if (item.isOwned) {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.surface.copy(alpha = 0.9f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                // Nếu đã sở hữu nhưng không chọn -> Không cần hiện icon tim đè lên ảnh cho rối
+                // Hoặc chỉ hiện một chấm nhỏ góc phải
             } else {
+                // Nếu chưa mua -> Hiện cái ổ khóa mờ ở giữa
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.onSurface.copy(alpha = 0.65f)),
+                        .matchParentSize()
+                        .background(Color.Black.copy(alpha = 0.5f)), // Làm tối ảnh bị khóa
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = colorScheme.surface,
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
