@@ -244,6 +244,35 @@ class FriendRequestRepository @Inject constructor(
     }
 
     /**
+     * Unfriend - Remove friend from both users' friend lists
+     */
+    suspend fun unfriend(friendUserId: String): Result<Unit> {
+        val currentUid = currentUserId ?: return Result.failure(Exception("User not authenticated"))
+        
+        return try {
+            // Use batch write for atomicity
+            firestore.runBatch { batch ->
+                // Remove from current user's friends list
+                batch.update(
+                    usersCollection.document(currentUid),
+                    "friendsList", FieldValue.arrayRemove(friendUserId)
+                )
+                // Remove from friend's friends list
+                batch.update(
+                    usersCollection.document(friendUserId),
+                    "friendsList", FieldValue.arrayRemove(currentUid)
+                )
+            }.await()
+
+            Log.d("FriendRequestRepo", "Unfriended user: $friendUserId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FriendRequestRepo", "Error unfriending user", e)
+            Result.failure(e)
+        }
+    }
+
+    /**
      * Get user info by ID
      */
     suspend fun getUserById(userId: String): User? {

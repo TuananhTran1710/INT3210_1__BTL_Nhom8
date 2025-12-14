@@ -36,7 +36,6 @@ data class UserDetailState(
     val errorMessage: String? = null,
     val successMessage: String? = null,
     val isOwnProfile: Boolean = false
-
 )
 
 @HiltViewModel
@@ -170,7 +169,33 @@ class UserDetailViewModel @Inject constructor(
         }
     }
 
-    // 5. Cập nhật logic hàm sendMessage
+    fun unfriend() {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isSendingRequest = true, errorMessage = null) }
+
+            try {
+                friendRequestRepository.unfriend(userId).getOrThrow()
+
+                _uiState.update {
+                    it.copy(
+                        isSendingRequest = false,
+                        friendRequestStatus = FriendRequestStatus.NOT_SENT,
+                        successMessage = "Đã hủy kết bạn"
+                    )
+                }
+                Log.d("UserDetailViewModel", "Unfriended successfully")
+            } catch (e: Exception) {
+                Log.e("UserDetailViewModel", "Error unfriending", e)
+                _uiState.update {
+                    it.copy(
+                        isSendingRequest = false,
+                        errorMessage = e.message ?: "Không thể hủy kết bạn"
+                    )
+                }
+            }
+        }
+    }
+
     fun sendMessage() {
         val myUser = currentUser ?: return
         val targetUserId = userId
