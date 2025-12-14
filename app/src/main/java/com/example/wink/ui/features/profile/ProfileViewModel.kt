@@ -53,23 +53,21 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->
                 val current = _uiState.value
+                val friendIds = user?.friendsList ?: emptyList()
+                
                 _uiState.value = current.copy(
                     userEmail = user?.email ?: "Không tìm thấy Email",
                     username = user?.username ?: user?.email?.substringBefore("@") ?: "Người dùng",
                     rizzPoints = user?.rizzPoints ?: current.rizzPoints,
                     dailyStreak = user?.loginStreak ?: current.dailyStreak,
                     longestStreak = user?.longestStreak?:current.longestStreak,
-                    friends = user?.friendsList?:current.friends,
+                    friends = friendIds,
                     avatarUrl = user?.avatarUrl?:current.avatarUrl,
                     isLoading = false
                 )
 
-                // Load friends data when user changes
-                user?.friendsList?.let { friendIds ->
-                    if (friendIds.isNotEmpty()) {
-                        loadFriends(friendIds)
-                    }
-                }
+                // Load friends data when user changes (always reload to reflect unfriend changes)
+                loadFriends(friendIds)
 
                 // Load user posts
                 user?.uid?.let { userId ->
@@ -174,6 +172,16 @@ class ProfileViewModel @Inject constructor(
     private fun loadFriends(friendIds: List<String>) {
         viewModelScope.launch {
             try {
+                // Handle empty friends list
+                if (friendIds.isEmpty()) {
+                    _uiState.value = _uiState.value.copy(
+                        loadedFriends = emptyList(),
+                        friendCount = 0
+                    )
+                    Log.d("ProfileViewModel", "Friends list is empty")
+                    return@launch
+                }
+
                 // Get user data for all friend IDs
                 val users = authRepository.getUsersByIds(friendIds)
 

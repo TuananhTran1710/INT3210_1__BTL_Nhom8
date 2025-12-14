@@ -36,6 +36,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import com.example.wink.R
 import com.example.wink.data.model.FriendRequest
+import com.example.wink.data.model.Notification
+import com.example.wink.data.model.NotificationType
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -47,6 +49,10 @@ import androidx.compose.foundation.border
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.res.painterResource
 import kotlinx.coroutines.delay
 
@@ -63,24 +69,46 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
 
-    // Hiển thị dialog lời mời kết bạn
-    if (uiState.showFriendRequestsDialog) {
-        FriendRequestsDialog(
-            requests = uiState.pendingFriendRequests,
-            onAccept = { requestId -> viewModel.onEvent(DashboardEvent.OnAcceptFriendRequest(requestId)) },
-            onReject = { requestId -> viewModel.onEvent(DashboardEvent.OnRejectFriendRequest(requestId)) },
-            onDismiss = { viewModel.onEvent(DashboardEvent.OnCloseFriendRequests) }
+    // Hiển thị thông báo khi có người chấp nhận lời mời kết bạn
+    LaunchedEffect(uiState.acceptedFriendNotification) {
+        uiState.acceptedFriendNotification?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.onEvent(DashboardEvent.OnClearAcceptedNotification)
+        }
+    }
+
+    // Hiển thị dialog thông báo tổng hợp
+    if (uiState.showNotificationsDialog) {
+        NotificationsDialog(
+            notifications = uiState.notifications,
+            onAcceptFriendRequest = { requestId ->
+                viewModel.onEvent(DashboardEvent.OnAcceptFriendRequest(requestId))
+            },
+            onRejectFriendRequest = { requestId ->
+                viewModel.onEvent(DashboardEvent.OnRejectFriendRequest(requestId))
+            },
+            onMarkAsRead = { notificationId ->
+                viewModel.onEvent(DashboardEvent.OnMarkNotificationRead(notificationId))
+            },
+            onClearAll = { viewModel.onEvent(DashboardEvent.OnClearAllNotifications) },
+            onDismiss = { viewModel.onEvent(DashboardEvent.OnCloseNotifications) }
         )
     }
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             DashboardTopBar(
+                notificationsCount = uiState.notifications.count { !it.isRead },
+                onNotificationClick = { viewModel.onEvent(DashboardEvent.OnOpenNotifications) },
                 username = uiState.username,
                 pendingRequestsCount = uiState.pendingFriendRequests.size,
-                onNotificationClick = { viewModel.onEvent(DashboardEvent.OnOpenFriendRequests) }
             )
         }
     ) { paddingValues ->
@@ -110,6 +138,7 @@ fun DashboardScreen(
                 AnimatedDashboardItem(delay = 100) {
                     AIFeatureCard(
                         onClick = {
+
                             viewModel.onEvent(DashboardEvent.OnStartAIChat) }
                     )
                 }
@@ -134,27 +163,26 @@ fun DashboardScreen(
 private fun DashboardTopBar(
     username: String,
     pendingRequestsCount: Int = 0,
+    notificationsCount: Int = 0,
     onNotificationClick: () -> Unit = {}
 ) {
-    // Animation cho chuông khi có request mới
-    val infiniteTransition = rememberInfiniteTransition(label = "bell_animation")
-    val bellRotation by infiniteTransition.animateFloat(
-        initialValue = -10f,
-        targetValue = 10f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(300, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+    // Chỉ tạo animation khi có notification để tránh chạy liên tục
+    val hasNotifications = notificationsCount > 0
+
+    // Animation values - chỉ animate khi có notifications
+    val bellRotation by animateFloatAsState(
+        targetValue = if (hasNotifications) 0f else 0f,
+        animationSpec = if (hasNotifications) {
+            spring(dampingRatio = 0.3f, stiffness = 300f)
+        } else {
+            snap()
+        },
         label = "bell_rotation"
     )
 
-    val bellScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+    val bellScale by animateFloatAsState(
+        targetValue = if (hasNotifications) 1.1f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
         label = "bell_scale"
     )
 
@@ -181,25 +209,21 @@ private fun DashboardTopBar(
             ) {
                 IconButton(
                     onClick = onNotificationClick,
-                    modifier = if (pendingRequestsCount > 0) {
-                        Modifier
-                            .scale(bellScale)
-                            .graphicsLayer { rotationZ = bellRotation }
-                    } else {
-                        Modifier
-                    }
+                    modifier = Modifier
+                        .scale(bellScale)
+                        .graphicsLayer { rotationZ = bellRotation }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
-                        contentDescription = "Thông báo kết bạn",
-                        tint = if (pendingRequestsCount > 0)
+                        contentDescription = "Thông báo",
+                        tint = if (hasNotifications)
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurface
                     )
                 }
-                // Badge hiển thị số lượng lời mời
-                if (pendingRequestsCount > 0) {
+                // Badge hiển thị số lượng thông báo chưa đọc
+                if (hasNotifications) {
                     Badge(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -207,7 +231,7 @@ private fun DashboardTopBar(
                         containerColor = MaterialTheme.colorScheme.error
                     ) {
                         Text(
-                            text = if (pendingRequestsCount > 99) "99+" else pendingRequestsCount.toString(),
+                            text = if (notificationsCount > 99) "99+" else notificationsCount.toString(),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onError
                         )
@@ -672,6 +696,7 @@ private fun DailyTaskItem(
     }
 }
 
+
 // Preview functions
 @Preview(showBackground = true)
 @Composable
@@ -772,6 +797,246 @@ fun FriendRequestsDialog(
             }
         }
     )
+}
+
+/**
+ * Dialog hiển thị tất cả thông báo tổng hợp
+ */
+@Composable
+fun NotificationsDialog(
+    notifications: List<Notification>,
+    onAcceptFriendRequest: (String) -> Unit,
+    onRejectFriendRequest: (String) -> Unit,
+    onMarkAsRead: (String) -> Unit,
+    onClearAll: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Thông báo",
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                if (notifications.isNotEmpty()) {
+                    TextButton(onClick = onClearAll) {
+                        Text(
+                            text = "Xóa tất cả",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.error
+                        )
+                    }
+                }
+            }
+        },
+        text = {
+            if (notifications.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NotificationsNone,
+                            contentDescription = null,
+                            modifier = Modifier.size(48.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "Chưa có thông báo nào",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 450.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(notifications, key = { it.id }) { notification ->
+                        NotificationItem(
+                            notification = notification,
+                            onAcceptFriendRequest = onAcceptFriendRequest,
+                            onRejectFriendRequest = onRejectFriendRequest,
+                            onMarkAsRead = { onMarkAsRead(notification.id) }
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Đóng")
+            }
+        }
+    )
+}
+
+/**
+ * Item hiển thị một thông báo
+ */
+@Composable
+private fun NotificationItem(
+    notification: Notification,
+    onAcceptFriendRequest: (String) -> Unit,
+    onRejectFriendRequest: (String) -> Unit,
+    onMarkAsRead: () -> Unit
+) {
+    val backgroundColor = if (notification.isRead) {
+        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+    } else {
+        MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.3f)
+    }
+
+    val icon = when (notification.type) {
+        NotificationType.FRIEND_REQUEST -> Icons.Default.PersonAdd
+        NotificationType.FRIEND_REQUEST_ACCEPTED -> Icons.Default.People
+        NotificationType.LIKE_POST -> Icons.Default.Favorite
+        NotificationType.COMMENT_POST -> Icons.Default.Comment
+        NotificationType.NEW_MESSAGE -> Icons.Default.Message
+        NotificationType.DAILY_REMINDER -> Icons.Default.Today
+        NotificationType.REWARD_EARNED -> Icons.Default.EmojiEvents
+        NotificationType.GENERAL -> Icons.Default.Notifications
+    }
+
+    val iconColor = when (notification.type) {
+        NotificationType.FRIEND_REQUEST -> MaterialTheme.colorScheme.primary
+        NotificationType.FRIEND_REQUEST_ACCEPTED -> MaterialTheme.colorScheme.tertiary
+        NotificationType.LIKE_POST -> Color(0xFFE91E63)
+        NotificationType.COMMENT_POST -> MaterialTheme.colorScheme.secondary
+        NotificationType.NEW_MESSAGE -> MaterialTheme.colorScheme.primary
+        NotificationType.DAILY_REMINDER -> MaterialTheme.colorScheme.tertiary
+        NotificationType.REWARD_EARNED -> Color(0xFFFFD700)
+        NotificationType.GENERAL -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable { onMarkAsRead() },
+        colors = CardDefaults.cardColors(containerColor = backgroundColor),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Icon theo loại thông báo
+                Box(
+                    modifier = Modifier
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .background(iconColor.copy(alpha = 0.15f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = iconColor,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                // Thông tin thông báo
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = notification.title,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = if (notification.isRead) FontWeight.Normal else FontWeight.SemiBold,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        text = notification.message,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
+
+                // Indicator chưa đọc
+                if (!notification.isRead) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(MaterialTheme.colorScheme.primary)
+                    )
+                }
+            }
+
+            // Nút hành động cho friend request
+            if (notification.type == NotificationType.FRIEND_REQUEST && !notification.isRead) {
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedButton(
+                        onClick = { onRejectFriendRequest(notification.relatedId) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Từ chối")
+                    }
+                    Button(
+                        onClick = { onAcceptFriendRequest(notification.relatedId) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.primary
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Check,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Chấp nhận")
+                    }
+                }
+            }
+        }
+    }
 }
 
 /**
@@ -969,4 +1234,44 @@ fun PreviewRizzStatsRow_Light_Attended() {
             )
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun NotificationsDialogPreview() {
+    val mockNotifications = listOf(
+        Notification(
+            id = "1",
+            type = NotificationType.FRIEND_REQUEST,
+            title = "Lời mời kết bạn",
+            message = "Nguyễn Văn A muốn kết bạn với bạn",
+            fromUsername = "Nguyễn Văn A",
+            relatedId = "request1",
+            isRead = false
+        ),
+        Notification(
+            id = "2",
+            type = NotificationType.FRIEND_REQUEST_ACCEPTED,
+            title = "Lời mời kết bạn được chấp nhận",
+            message = "Trần Thị B đã chấp nhận lời mời kết bạn của bạn!",
+            fromUsername = "Trần Thị B",
+            isRead = false
+        ),
+        Notification(
+            id = "3",
+            type = NotificationType.LIKE_POST,
+            title = "Bài viết được thích",
+            message = "Lê Văn C đã thích bài viết của bạn",
+            fromUsername = "Lê Văn C",
+            isRead = true
+        )
+    )
+    NotificationsDialog(
+        notifications = mockNotifications,
+        onAcceptFriendRequest = {},
+        onRejectFriendRequest = {},
+        onMarkAsRead = {},
+        onClearAll = {},
+        onDismiss = {}
+    )
 }
