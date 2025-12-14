@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.dashboard
 
+import android.content.res.Configuration
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
@@ -40,9 +41,14 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.animation.core.*
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.border
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
-
-
+import kotlinx.coroutines.delay
 
 data class DailyTask(
     val id: Int,
@@ -72,6 +78,7 @@ fun DashboardScreen(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             DashboardTopBar(
+                username = uiState.username,
                 pendingRequestsCount = uiState.pendingFriendRequests.size,
                 onNotificationClick = { viewModel.onEvent(DashboardEvent.OnOpenFriendRequests) }
             )
@@ -80,14 +87,14 @@ fun DashboardScreen(
         LazyColumn(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(top = paddingValues.calculateTopPadding())
+                .padding(top = paddingValues.calculateTopPadding() + 20.dp)
                 .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
+            verticalArrangement = Arrangement.spacedBy(22.dp)
         ) {
             // RIZZ Points Card
             item {
                 AnimatedDashboardItem(delay = 0) {
-                    RizzPointsCard(
+                    RizzStatsRow(
                         points = uiState.rizzPoints,
                         streakDays = uiState.dailyStreak,
                         attended = uiState.hasDailyCheckIn,
@@ -103,7 +110,6 @@ fun DashboardScreen(
                 AnimatedDashboardItem(delay = 100) {
                     AIFeatureCard(
                         onClick = {
-
                             viewModel.onEvent(DashboardEvent.OnStartAIChat) }
                     )
                 }
@@ -113,7 +119,8 @@ fun DashboardScreen(
             item {
                 AnimatedDashboardItem(delay = 200) {
                     DailyTasksSection(
-                        onTaskClick = { viewModel.onEvent(DashboardEvent.OnCompleteTask) }
+                        onTaskClick = { viewModel.onEvent(DashboardEvent.OnCompleteTask) },
+                        modifier = Modifier.padding(top = 20.dp)
                     )
                 }
             }
@@ -125,6 +132,7 @@ fun DashboardScreen(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun DashboardTopBar(
+    username: String,
     pendingRequestsCount: Int = 0,
     onNotificationClick: () -> Unit = {}
 ) {
@@ -152,12 +160,18 @@ private fun DashboardTopBar(
 
     TopAppBar(
         title = {
-            Text(
-                text = "TRANG CHỦ",
-                style = MaterialTheme.typography.headlineSmall,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
-            )
+            Column {
+                Text(
+                    text = "Xin chào,",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
+                )
+                Text(
+                    text = username.ifBlank { "Người lạ" },
+                    style = MaterialTheme.typography.headlineMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+            }
         },
         actions = {
             // Nút chuông thông báo với badge
@@ -217,7 +231,7 @@ private fun AnimatedDashboardItem(
     var isVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
-        kotlinx.coroutines.delay(delay.toLong())
+        delay(delay.toLong())
         isVisible = true
     }
 
@@ -235,156 +249,184 @@ private fun AnimatedDashboardItem(
         content()
     }
 }
-
 @Composable
-private fun RizzPointsCard(
+fun RizzStatsRow(
     points: Int,
     streakDays: Int,
     attended: Boolean,
     onStreakClick: () -> Unit
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-    val isDarkMode = isSystemInDarkTheme()
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(300),
-        label = "rizz_card_scale"
-    )
-
-    // Adaptive gradient colors for light and dark mode
-    val gradientColors = if (isDarkMode) {
-        listOf(
-            Color(0xFFB8478A),  // Darker pink for dark mode
-            Color(0xFF5A4BA3)   // Darker purple for dark mode
-        )
-    } else {
-        listOf(
-            Color(0xFFDA47B5),  // Original pink
-            Color(0xFF7B5DFF)   // Original purple
-        )
-    }
-
-    val brush = Brush.linearGradient(
-        colors = gradientColors,
-        start = Offset(0f, 0f),
-        end = Offset(Float.POSITIVE_INFINITY, Float.POSITIVE_INFINITY)
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    isPressed = true
-                    onStreakClick()
-                }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = Color.Transparent
-        ),
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 4.dp
-        )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(brush = brush)
-        ) {
-            Column(
-                modifier = Modifier.padding(24.dp)
-            ) {
-                Text(
-                    text = "Tổng điểm RIZZ",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = Color.White.copy(alpha = 0.9f),
-                    fontWeight = FontWeight.Medium
-                )
+        // --- CARD 1: ĐIỂM RIZZ ---
+        val rizzGlowColor = MaterialTheme.colorScheme.primary
 
+        StatCardItem(
+            modifier = Modifier.weight(1f),
+            title = "Điểm RIZZ",
+            glowColor = rizzGlowColor,
+            content = {
                 Text(
                     text = points.toString(),
-                    style = MaterialTheme.typography.displayMedium,
-                    color = Color.White,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(top = 4.dp, bottom = 20.dp)
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold
                 )
+            }
+        )
 
-                // Streak Section
-                Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.White.copy(alpha = 0.15f),
-                    shape = RoundedCornerShape(16.dp)
+        // --- CARD 2: ĐIỂM DANH (STREAK) ---
+        val fireGlowColor = Color(0xFFFF9800)
+
+        // Animation "thở" (Pulse) nhẹ nếu chưa điểm danh để nhắc nhở
+        val infiniteTransition = rememberInfiniteTransition(label = "pulse")
+        val pulseScale by if (!attended) {
+            infiniteTransition.animateFloat(
+                initialValue = 1f,
+                targetValue = 1.02f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(800, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "scale_pulse"
+            )
+        } else {
+            remember { mutableStateOf(1f) }
+        }
+
+        StatCardItem(
+            modifier = Modifier
+                .weight(1f)
+                .scale(pulseScale),
+            title = if (attended) "Đã điểm danh" else "Điểm danh ngay",
+            onClick = onStreakClick,
+            isClickable = true,
+            glowColor = fireGlowColor,
+            // Nếu chưa điểm danh: Thêm viền màu Primary để highlight
+            border = if (!attended) BorderStroke(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.5f)) else null,
+            content = {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Box(
-                                modifier = Modifier.size(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(
-                                        id = if (attended) R.drawable.fire1 else R.drawable.fire2
-                                    ),
-                                    contentDescription = "Streak",
-                                    tint = Color.Unspecified,
-                                    modifier = Modifier.size(40.dp)
-                                )
-                            }
+                    Icon(
+                        painter = painterResource(id = if (attended) R.drawable.fire1 else R.drawable.fire2),
+                        contentDescription = null,
+                        tint = Color.Unspecified,
+                        modifier = Modifier.size(28.dp)
+                    )
 
-                            Spacer(modifier = Modifier.width(12.dp))
+                    Spacer(modifier = Modifier.width(8.dp))
 
-                            Column {
-                                Text(
-                                    text = "$streakDays ngày",
-                                    style = MaterialTheme.typography.titleSmall,
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Text(
-                                    text = "Streak đăng nhập",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.7f)
-                                )
-                            }
-                        }
-
-                        Button(
-                            onClick = onStreakClick,
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = Color.White,
-                                contentColor = if (isDarkMode) Color(0xFF5A4BA3) else Color(0xFF7B5DFF)
-                            ),
-                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 0.dp),
-                            shape = RoundedCornerShape(8.dp),
-                            modifier = Modifier.height(34.dp)
-                        ) {
+                    Column {
+                        Text(
+                            text = "$streakDays ngày",
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        // Gợi ý hành động rõ ràng hơn
+                        if (!attended) {
                             Text(
-                                text = if (attended) "Đã điểm danh" else "Điểm danh",
+                                text = "Ấn để nhận",
                                 style = MaterialTheme.typography.labelSmall,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 11.sp
+                                color = MaterialTheme.colorScheme.primary,
+                                fontSize = 10.sp
                             )
                         }
                     }
                 }
             }
+        )
+    }
+}
+
+@Composable
+private fun StatCardItem(
+    modifier: Modifier = Modifier,
+    title: String,
+    glowColor: Color,
+    content: @Composable () -> Unit,
+    onClick: (() -> Unit)? = null,
+    isClickable: Boolean = false,
+    border: BorderStroke? = null
+) {
+    var isPressed by remember { mutableStateOf(false) }
+    val scale by animateFloatAsState(targetValue = if (isPressed) 0.95f else 1f, label = "press")
+
+    Card(
+        modifier = modifier
+            .height(110.dp)
+            .scale(scale)
+            .then(
+                if (isClickable && onClick != null) {
+                    Modifier.clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = {
+                            isPressed = true
+                            onClick()
+                        }
+                    )
+                } else Modifier
+            ),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainer
+        ),
+        border = border,
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp) // Thêm bóng nhẹ
+    ) {
+        // Reset click animation
+        LaunchedEffect(isPressed) {
+            if (isPressed) {
+                kotlinx.coroutines.delay(100)
+                isPressed = false
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                // --- KỸ THUẬT VẼ GRADIENT GÓC (SOFT SPARK) ---
+                .drawBehind {
+                    val glowRadius = size.maxDimension * 0.6f // Độ lan tỏa của ánh sáng
+                    val offset = Offset(size.width, size.height) // Vị trí: Góc phải dưới
+
+                    drawRect(
+                        brush = Brush.radialGradient(
+                            colors = listOf(
+                                glowColor.copy(alpha = 0.25f), // Màu tâm (trong suốt 15%)
+                                Color.Transparent             // Màu ngoài cùng
+                            ),
+                            center = offset,
+                            radius = glowRadius
+                        )
+                    )
+                }
+                .padding(16.dp)
+        ) {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.SpaceBetween,
+                horizontalAlignment = Alignment.Start
+            ) {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
+                    fontWeight = FontWeight.Bold
+                )
+
+                Box(modifier = Modifier.weight(1f), contentAlignment = Alignment.BottomStart) {
+                    content()
+                }
+            }
         }
     }
 }
+
 @Composable
 private fun AIFeatureCard(
     onClick: () -> Unit
@@ -399,17 +441,11 @@ private fun AIFeatureCard(
     )
 
     // Adaptive gradient colors for light and dark mode
-    val gradientColors = if (isDarkMode) {
+    val gradientColors =
         listOf(
-            Color(0xFFD88940),  // Darker orange for dark mode
-            Color(0xFF6D4BA8)   // Darker purple for dark mode
+            Color(0xFF4D25D3),  // purple
+            Color(0xFFEE822F)   // orange
         )
-    } else {
-        listOf(
-            Color(0xFFF9A546),  // Original orange
-            Color(0xFF8F5FF3)   // Original purple
-        )
-    }
 
     val brush = Brush.linearGradient(
         colors = gradientColors,
@@ -432,7 +468,7 @@ private fun AIFeatureCard(
         colors = CardDefaults.cardColors(
             containerColor = Color.Transparent
         ),
-        shape = RoundedCornerShape(24.dp),
+        shape = RoundedCornerShape(16.dp),
         elevation = CardDefaults.cardElevation(
             defaultElevation = 2.dp
         )
@@ -442,29 +478,43 @@ private fun AIFeatureCard(
                 .fillMaxWidth()
                 .background(brush = brush)
         ) {
+            Icon(
+                imageVector = Icons.Default.AutoAwesome,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.06f),
+                modifier = Modifier
+                    .size(200.dp)
+                    .align(Alignment.BottomEnd)
+                    .offset(x = (-50).dp, y = 10.dp)
+            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(20.dp),
+                    .padding(horizontal = 22.dp, vertical = 30.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 Column(
                     modifier = Modifier.weight(1f)
                 ) {
-                    Text(
-                        text = "AI Crush",
-                        style = MaterialTheme.typography.titleMedium,
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp
-                    )
+                    Surface(
+                        color = Color.White.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(8.dp)
+                    ) {
+                        Text(
+                            text = "AI CRUSH",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = "Lan Anh",
-                        style = MaterialTheme.typography.headlineSmall,
+                        style = MaterialTheme.typography.headlineLarge,
                         color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp,
+                        fontWeight = FontWeight.ExtraBold,
                         modifier = Modifier.padding(bottom = 16.dp)
                     )
 
@@ -472,43 +522,33 @@ private fun AIFeatureCard(
                         onClick = onClick,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = Color.White,
-                            contentColor = if (isDarkMode) Color(0xFFD88940) else Color(0xFFF9A546)
+                            contentColor = Color(0xFFC24706)
                         ),
-                        shape = RoundedCornerShape(8.dp),
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(40.dp),
-                        contentPadding = PaddingValues(12.dp)
+                        shape = RoundedCornerShape(12.dp),
+                        modifier = Modifier.shadow(8.dp, RoundedCornerShape(12.dp))
                     ) {
                         Text(
                             text = "Vào hâm nóng",
-                            style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                            fontSize = 14.sp
                         )
                     }
                 }
 
-                // Avatar placeholder
-                Surface(
+                Box(
                     modifier = Modifier
-                        .size(100.dp)
-                        .clip(RoundedCornerShape(16.dp)),
-                    color = Color.White.copy(alpha = 0.2f)
+                        .size(120.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(Color.White.copy(alpha = 0.2f))
+                        .border(2.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(Color.White.copy(alpha = 0.1f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Person,
-                            contentDescription = "AI Avatar",
-                            tint = Color.White,
-                            modifier = Modifier.size(50.dp)
-                        )
-                    }
+                    // Placeholder for Image
+                    Image(
+                        painter = painterResource(id = R.drawable.ai_crush),
+                        contentDescription = "AI Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
                 }
             }
         }
@@ -517,11 +557,12 @@ private fun AIFeatureCard(
 
 @Composable
 private fun DailyTasksSection(
-    onTaskClick: () -> Unit
+    onTaskClick: () -> Unit,
+    modifier: Modifier
 ) {
     val tasks = listOf(
         DailyTask(1, "Nhắn tin với AI Crush 6 lần", 150, false),
-        DailyTask(2, "Bình luận vào 3 bài viết khác nhau", 100, false),
+        DailyTask(2, "Bình luận vào 3 bài viết khác nhau", 100, true),
         DailyTask(3, "Đăng một bài viết lên Bảng tin", 67, false)
     )
 
@@ -534,14 +575,13 @@ private fun DailyTasksSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
-                imageVector = Icons.Default.CheckCircle,
+                imageVector = Icons.Default.AssignmentLate,
                 contentDescription = "Tasks",
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(24.dp)
             )
             Text(
                 text = "Nhiệm vụ hôm nay",
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )
@@ -565,100 +605,77 @@ private fun DailyTaskItem(
     task: DailyTask,
     onClick: () -> Unit
 ) {
-    var isPressed by remember { mutableStateOf(false) }
-
-    val scale by animateFloatAsState(
-        targetValue = if (isPressed) 0.98f else 1f,
-        animationSpec = tween(300),
-        label = "task_item_scale"
-    )
-
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .scale(scale)
-            .clickable(
-                interactionSource = remember { MutableInteractionSource() },
-                indication = null,
-                onClick = {
-                    isPressed = true
-                    onClick()
-                }
-            ),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh
-        ),
-        shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(
-            defaultElevation = 1.dp
-        )
+    Surface(
+        onClick = onClick,
+        shape = RoundedCornerShape(16.dp),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                .padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Surface(
+            // Custom Checkbox
+            Box(
                 modifier = Modifier
                     .size(20.dp)
-                    .clip(CircleShape),
-                color = if (task.isCompleted)
-                    MaterialTheme.colorScheme.primary
-                else
-                    MaterialTheme.colorScheme.surfaceVariant
+                    .clip(CircleShape)
+                    .background(
+                        if (task.isCompleted) MaterialTheme.colorScheme.primary
+                        else Color.White.copy(alpha = 0.1f)
+                    )
+                    .border(
+                        if (task.isCompleted) 0.dp else 2.dp,
+                        if (task.isCompleted) Color.Transparent else Color.Gray,
+                        CircleShape
+                    ),
+                contentAlignment = Alignment.Center
             ) {
                 if (task.isCompleted) {
                     Icon(
                         imageVector = Icons.Default.Check,
-                        contentDescription = "Completed",
-                        tint = MaterialTheme.colorScheme.onPrimary,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(2.dp)
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
                     )
                 }
             }
 
-            Column(
-                modifier = Modifier.weight(1f)
-            ) {
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Medium
+                    fontWeight = if (task.isCompleted) FontWeight.Normal else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
 
-            Text(
-                text = "+${task.reward} RIZZ",
-                style = MaterialTheme.typography.labelMedium,
-                color = Color(0xFFF9A546),
-                fontWeight = FontWeight.Bold
-            )
+            // Reward Badge
+            Surface(
+                color = Color(0xFFF9A546).copy(alpha = 0.15f),
+                shape = RoundedCornerShape(8.dp)
+            ) {
+                Text(
+                    text = "+${task.reward} RIZZ",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = Color(0xFFF9A546),
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }
-
 
 // Preview functions
 @Preview(showBackground = true)
 @Composable
 private fun DashboardTopBarPreview() {
-    DashboardTopBar()
-}
-
-@Preview(showBackground = true)
-@Composable
-private fun RizzPointsCardPreview() {
-    RizzPointsCard(
-        points = 1250,
-        streakDays = 2,
-        attended = false,
-        onStreakClick = { }
-    )
+    DashboardTopBar(username = "duattrandang")
 }
 
 @Preview(showBackground = true)
@@ -673,7 +690,8 @@ private fun AIFeatureCardPreview() {
 @Composable
 private fun DailyTasksSectionPreview() {
     DailyTasksSection(
-        onTaskClick = { }
+        onTaskClick = { },
+        modifier = TODO()
     )
 }
 /**
@@ -888,4 +906,66 @@ private fun FriendRequestsDialogPreview() {
         onReject = {},
         onDismiss = {}
     )
+}
+
+@Preview(
+    name = "1. Light Mode - chua diem danh",
+    group = "Rizz Card",
+    showBackground = true,
+    backgroundColor = 0xFFF5F5F5 // Giả lập màu nền màn hình sáng
+)
+@Composable
+fun PreviewRizzStatsRow_Light_NotAttended() {
+    // Thay 'MaterialTheme' bằng Theme của app bạn (ví dụ: RizzTheme) để màu chuẩn nhất
+    MaterialTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            RizzStatsRow(
+                points = 2212,
+                streakDays = 7,
+                attended = false, // Trạng thái: Chưa điểm danh (sẽ có viền + gợi ý click)
+                onStreakClick = {}
+            )
+        }
+    }
+}
+
+@Preview(
+    name = "2. Dark Mode - da diem danh",
+    group = "Rizz Card",
+    uiMode = Configuration.UI_MODE_NIGHT_YES, // Chế độ tối
+    showBackground = true,
+    backgroundColor = 0xFF000000 // Giả lập màu nền màn hình tối
+)
+@Composable
+fun PreviewRizzStatsRow_Dark_Attended() {
+    MaterialTheme(colorScheme = darkColorScheme()) { // Force dark theme
+        Box(modifier = Modifier.padding(16.dp)) {
+            RizzStatsRow(
+                points = 3500,
+                streakDays = 12,
+                attended = true, // Trạng thái: Đã điểm danh
+                onStreakClick = {}
+            )
+        }
+    }
+}
+
+@Preview(
+    name = "3. Light Mode - da diem danh",
+    group = "Rizz Card",
+    showBackground = true,
+    backgroundColor = 0xFFF5F5F5
+)
+@Composable
+fun PreviewRizzStatsRow_Light_Attended() {
+    MaterialTheme {
+        Box(modifier = Modifier.padding(16.dp)) {
+            RizzStatsRow(
+                points = 2212,
+                streakDays = 8,
+                attended = true,
+                onStreakClick = {}
+            )
+        }
+    }
 }
