@@ -296,6 +296,66 @@ class FriendRequestRepository @Inject constructor(
             null
         }
     }
+
+    /**
+     * Listen to accepted friend requests where current user is the sender (realtime)
+     * This is used to notify the user when their friend request is accepted
+     */
+    fun listenAcceptedRequests(): Flow<List<FriendRequest>> = callbackFlow {
+        val userId = currentUserId
+        if (userId == null) {
+            trySend(emptyList())
+            close()
+            return@callbackFlow
+        }
+
+        val listener = friendRequestsCollection
+            .whereEqualTo("fromUserId", userId)
+            .whereEqualTo("status", "accepted")
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    Log.e("FriendRequestRepo", "Error listening to accepted requests", error)
+                    trySend(emptyList())
+                    return@addSnapshotListener
+                }
+
+                val requests = snapshot?.documents?.mapNotNull { doc ->
+                    try {
+                        FriendRequest(
+                            id = doc.id,
+                            fromUserId = doc.getString("fromUserId") ?: "",
+                            toUserId = doc.getString("toUserId") ?: "",
+                            fromUsername = doc.getString("fromUsername") ?: "",
+                            fromAvatarUrl = doc.getString("fromAvatarUrl") ?: "",
+                            status = doc.getString("status") ?: "accepted",
+                            createdAt = doc.getTimestamp("createdAt") ?: Timestamp.now()
+                        )
+                    } catch (e: Exception) {
+                        Log.e("FriendRequestRepo", "Error parsing accepted request", e)
+                        null
+                    }
+                }?.sortedByDescending { it.createdAt } ?: emptyList()
+
+                trySend(requests)
+                Log.d("FriendRequestRepo", "Received ${requests.size} accepted requests")
+            }
+
+        awaitClose { listener.remove() }
+    }
+
+    /**
+     * Mark an accepted request as notified (delete it from the collection)
+     */
+    suspend fun markRequestAsNotified(requestId: String): Result<Unit> {
+        return try {
+            friendRequestsCollection.document(requestId).delete().await()
+            Log.d("FriendRequestRepo", "Deleted notified request: $requestId")
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Log.e("FriendRequestRepo", "Error deleting request", e)
+            Result.failure(e)
+        }
+    }
 }
 
 enum class FriendRequestStatus {

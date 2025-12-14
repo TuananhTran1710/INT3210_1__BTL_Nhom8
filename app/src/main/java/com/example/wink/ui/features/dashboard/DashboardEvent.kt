@@ -32,4 +32,5 @@ sealed class DashboardEvent {
     object OnCloseFriendRequests : DashboardEvent()
     data class OnAcceptFriendRequest(val requestId: String) : DashboardEvent()
     data class OnRejectFriendRequest(val requestId: String) : DashboardEvent()
+    object OnClearAcceptedNotification : DashboardEvent()
 }

@@ -49,5 +49,8 @@ data class DashboardState(
     
     // Friend requests
     val pendingFriendRequests: List<FriendRequest> = emptyList(),
-    val showFriendRequestsDialog: Boolean = false
+    val showFriendRequestsDialog: Boolean = false,
+    
+    // Accepted friend request notification
+    val acceptedFriendNotification: String? = null
 )

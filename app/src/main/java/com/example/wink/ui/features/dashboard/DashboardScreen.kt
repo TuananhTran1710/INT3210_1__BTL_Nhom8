@@ -57,6 +57,18 @@ fun DashboardScreen(
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val snackbarHostState = remember { SnackbarHostState() }
+
+    // Hiển thị thông báo khi có người chấp nhận lời mời kết bạn
+    LaunchedEffect(uiState.acceptedFriendNotification) {
+        uiState.acceptedFriendNotification?.let { message ->
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+            viewModel.onEvent(DashboardEvent.OnClearAcceptedNotification)
+        }
+    }
 
     // Hiển thị dialog lời mời kết bạn
     if (uiState.showFriendRequestsDialog) {
@@ -70,6 +82,7 @@ fun DashboardScreen(
 
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
+        snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
         topBar = {
             DashboardTopBar(
                 pendingRequestsCount = uiState.pendingFriendRequests.size,

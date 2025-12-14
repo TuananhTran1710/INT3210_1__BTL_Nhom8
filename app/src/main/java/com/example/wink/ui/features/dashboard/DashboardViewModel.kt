@@ -42,6 +42,7 @@ class DashboardViewModel @Inject constructor(
         getInitialState()
         observeUser()
         observeFriendRequests()
+        observeAcceptedFriendRequests()
     }
 
     // Nhận event từ UI
@@ -76,6 +77,9 @@ class DashboardViewModel @Inject constructor(
             }
             is DashboardEvent.OnAcceptFriendRequest -> handleAcceptFriendRequest(event.requestId)
             is DashboardEvent.OnRejectFriendRequest -> handleRejectFriendRequest(event.requestId)
+            is DashboardEvent.OnClearAcceptedNotification -> {
+                _uiState.value = _uiState.value.copy(acceptedFriendNotification = null)
+            }
         }
     }
 
@@ -223,6 +227,35 @@ class DashboardViewModel @Inject constructor(
                 _uiState.value = _uiState.value.copy(
                     errorMessage = "Không thể từ chối lời mời: ${e.message}"
                 )
+            }
+        }
+    }
+
+    /** Lắng nghe lời mời kết bạn đã được chấp nhận (để hiển thị thông báo) */
+    private val notifiedRequestIds = mutableSetOf<String>()
+    
+    private fun observeAcceptedFriendRequests() {
+        viewModelScope.launch {
+            friendRequestRepository.listenAcceptedRequests().collectLatest { acceptedRequests ->
+                // Chỉ hiển thị thông báo cho các request mới được accept
+                for (request in acceptedRequests) {
+                    if (!notifiedRequestIds.contains(request.id)) {
+                        notifiedRequestIds.add(request.id)
+                        
+                        // Lấy thông tin user đã accept
+                        val acceptedUser = friendRequestRepository.getUserById(request.toUserId)
+                        val userName = acceptedUser?.username ?: "Người dùng"
+                        
+                        _uiState.value = _uiState.value.copy(
+                            acceptedFriendNotification = "$userName đã chấp nhận lời mời kết bạn của bạn!"
+                        )
+                        
+                        // Xóa request sau khi đã thông báo
+                        friendRequestRepository.markRequestAsNotified(request.id)
+                        
+                        Log.d("DashboardViewModel", "Friend request accepted by: $userName")
+                    }
+                }
             }
         }
     }
