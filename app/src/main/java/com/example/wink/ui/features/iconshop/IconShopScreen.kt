@@ -130,6 +130,32 @@ fun IconShopScreen(
                 }
             }
         }
+
+        // --- THÊM PHẦN NÀY VÀO CUỐI CÙNG TRONG SCAFFOLD ---
+
+        if (state.showRestartDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelChangeIcon() },
+                title = { Text(text = "Thay đổi biểu tượng") },
+                text = {
+                    Text("Hiệu ứng sẽ chỉ áp dụng trong lần chạy sau. Bạn có muốn thoát ngay bây giờ không?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.confirmChangeIcon() }
+                    ) {
+                        Text("Đồng ý", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.cancelChangeIcon() }
+                    ) {
+                        Text("Để sau")
+                    }
+                }
+            )
+        }
     }
 }
 

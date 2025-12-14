@@ -36,7 +36,7 @@
 
         <activity-alias
             android:name=".MainActivityAliasLostStreak"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/lost_streak"
             android:label="@string/app_name"
@@ -49,7 +49,7 @@
 
         <activity-alias
             android:name=".MainActivityAliasDay3"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day3"
             android:label="@string/app_name"
@@ -62,7 +62,7 @@
 
         <activity-alias
             android:name=".MainActivityAliasDay7"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day7"
             android:label="@string/app_name"
@@ -74,7 +74,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay14"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day14"
             android:label="@string/app_name"
@@ -86,7 +86,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay30_Plus"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day30_plus"
             android:label="@string/app_name"
@@ -98,7 +98,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay100"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day100"
             android:label="@string/app_name"
@@ -110,7 +110,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay200"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day200"
             android:label="@string/app_name"
@@ -122,7 +122,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay365"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day365"
             android:label="@string/app_name"
@@ -134,7 +134,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay500"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day500"
             android:label="@string/app_name"
@@ -146,7 +146,7 @@
         </activity-alias>
         <activity-alias
             android:name=".MainActivityAliasDay1000"
-            android:enabled="true"
+            android:enabled="false"
             android:exported="true"
             android:icon="@drawable/day1000"
             android:label="@string/app_name"
