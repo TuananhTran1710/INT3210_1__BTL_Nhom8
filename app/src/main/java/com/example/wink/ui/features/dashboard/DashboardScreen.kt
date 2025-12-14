@@ -514,7 +514,7 @@ private fun AIFeatureCard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 30.dp),
+                    .padding(horizontal = 22.dp, vertical = 26.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -594,18 +594,18 @@ private fun DailyTasksSection(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 12.dp),
+                .padding(bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Icon(
                 imageVector = Icons.Default.AssignmentLate,
                 contentDescription = "Tasks",
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(20.dp)
             )
             Text(
                 text = "Nhiệm vụ hôm nay",
-                style = MaterialTheme.typography.titleLarge,
+                style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurface,
                 fontWeight = FontWeight.Bold
             )

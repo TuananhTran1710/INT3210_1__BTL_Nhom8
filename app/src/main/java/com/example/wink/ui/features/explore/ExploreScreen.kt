@@ -1,232 +1,301 @@
 package com.example.wink.ui.features.explore
 
+import android.content.res.Configuration
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
+import androidx.compose.material.icons.outlined.*
+import androidx.compose.material.icons.rounded.Psychology
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import com.example.wink.ui.navigation.Screen
 
-data class ExploreItem(
+// Data Model
+data class CategoryItem(
     val id: String,
     val title: String,
-    val description: String,
+    val subtitle: String,
     val icon: ImageVector,
-    val colorStart: Color,
-    val colorEnd: Color,
-    val isFullWidth: Boolean = false
+    val iconColor: Color // Màu chủ đạo của Icon
 )
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
     navController: NavController
 ) {
-    val exploreItems = listOf(
-        ExploreItem(
-            id = "tips",
-            title = "Bí kíp tán gái",
-            description = "Tuyệt chiêu thả thính & tâm lý",
-            icon = Icons.Default.MenuBook,
-            // Màu Hồng Đỏ Đậm -> Tím Hồng
-            colorStart = Color(0xFFEC407A),
-            colorEnd = Color(0xFFAB47BC),
-            isFullWidth = true
-        ),
-        ExploreItem(
-            id = "quiz",
-            title = "Quiz EQ",
-            description = "Đo trình độ EQ",
-            icon = Icons.Default.Psychology,
-            // Xanh Dương Đậm -> Xanh Nhạt
-            colorStart = Color(0xFF4facfe),
-            colorEnd = Color(0xFF00f2fe)
-        ),
-        ExploreItem(
-            id = "games",
-            title = "Minigames",
-            description = "AI vs Human",
-            icon = Icons.Default.SportsEsports,
-            // Cam Đậm -> Vàng Cam
-            colorStart = Color(0xFFff9966),
-            colorEnd = Color(0xFFff5e62)
-        ),
-        ExploreItem(
-            id = "tarot",
-            title = "Bói Tarot",
-            description = "Thông điệp vũ trụ",
-            icon = Icons.Default.AutoAwesome,
-            // Tím Đậm -> Xanh Tím
-            colorStart = Color(0xFF667eea),
-            colorEnd = Color(0xFF764ba2)
-        ),
-        ExploreItem(
-            id = "shop",
-            title = "Cửa hàng",
-            description = "Dùng điểm RIZZ để mua vật phẩm",
-            icon = Icons.Default.Storefront,
-            // Xanh Lá Đậm -> Xanh Ngọc
-            colorStart = Color(0xFF0ba360),
-            colorEnd = Color(0xFF3cba92)
-        )
+    // List tiện ích (Bỏ Game ra để làm Hero)
+    val categories = listOf(
+        CategoryItem("tips", "Bí kíp tán gái", "Thả thính & tâm lý", Icons.Default.MenuBook, Color(0xFFE91E63)), // Pink
+        CategoryItem("quiz", "Quiz EQ", "Đo chỉ số cảm xúc", Icons.Default.Psychology, Color(0xFF03A9F4)), // Blue
+        CategoryItem("tarot", "Bói Tarot", "Thông điệp vũ trụ", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)), // Purple
+        CategoryItem("shop", "Cửa hàng", "Đổi điểm RIZZ", Icons.Default.Storefront, Color(0xFF4CAF50))  // Green
     )
 
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(2),
-            contentPadding = PaddingValues(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-            modifier = Modifier.fillMaxSize()
-        ) {
-            item(span = { GridItemSpan(2) }) {
-                Column(modifier = Modifier.padding(bottom = 8.dp, top = 8.dp)) {
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        topBar = {
+            TopAppBar(
+                title = {
                     Text(
                         text = "Khám phá",
-                        style = MaterialTheme.typography.headlineMedium.copy(
-                            fontWeight = FontWeight.ExtraBold
-                        ),
-                        color = MaterialTheme.colorScheme.onBackground
+                        style = MaterialTheme.typography.headlineMedium.copy(fontWeight = FontWeight.Bold),
+                        modifier = Modifier.padding(start = 8.dp)
                     )
-                    Text(
-                        text = "Nâng cấp bản thân & Giải trí cùng AI",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.Transparent,
+                    scrolledContainerColor = MaterialTheme.colorScheme.surfaceContainer
+                ),
+                windowInsets = WindowInsets(0.dp)
+            )
+        }
+    ) { padding ->
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = padding.calculateTopPadding())
+                .padding(horizontal = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // --- HERO SECTION: HUMAN VS AI (Poster Game) ---
+            item {
+                HeroGameCard(
+                    onClick = { navController.navigate(Screen.HumanAiGame.route) }
+                )
             }
 
-            // --- LIST ITEMS ---
-            items(exploreItems, span = { item ->
-                GridItemSpan(if (item.isFullWidth) 2 else 1)
-            }) { item ->
-                ExploreCard(item) {
-                    when (item.id) {
-                        "tips" -> navController.navigate(Screen.Tips.route)
-                        "quiz" -> navController.navigate(Screen.Quiz.route)
-                        "tarot" -> navController.navigate(Screen.TarotHub.route)
-                        "shop"  -> navController.navigate(Screen.ChangeIcon.route)
-                        "games" -> navController.navigate(Screen.HumanAiGame.route)
+            // --- SECTION TITLE ---
+            item {
+                Text(
+                    text = "Tiện ích khác",
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+            }
+
+            // --- GRID ITEMS (Adaptive Cards) ---
+            items(categories.chunked(2)) { rowItems ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    rowItems.forEach { item ->
+                        AdaptiveCategoryCard(
+                            item = item,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                when (item.id) {
+                                    "tips" -> navController.navigate(Screen.Tips.route)
+                                    "quiz" -> navController.navigate(Screen.Quiz.route)
+                                    "tarot" -> navController.navigate(Screen.TarotHub.route)
+                                    "shop"  -> navController.navigate(Screen.ChangeIcon.route)
+                                }
+                            }
+                        )
+                    }
+                    if (rowItems.size == 1) {
+                        Spacer(modifier = Modifier.weight(1f))
                     }
                 }
             }
 
-            item(span = { GridItemSpan(2) }) {
-                Spacer(modifier = Modifier.height(80.dp))
+            item { Spacer(modifier = Modifier.height(100.dp)) }
+        }
+    }
+}
+
+// --- HERO CARD: Giữ nguyên vẻ "Gaming" (Dark Gradient) cho cả 2 chế độ ---
+// Lý do: Đây là Poster/Cover Art của game, nó cần nổi bật và ngầu.
+@Composable
+fun HeroGameCard(onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(220.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(24.dp),
+        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // Để gradient hiện ra
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            // Background Gradient (Luôn tối để chữ trắng nổi bật)
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.linearGradient(
+                            colors = listOf(Color(0xFF002A88), Color(0xFFC745A8)), // Deep Purple -> Black
+                            start = Offset(0f, 0f),
+                            end = Offset(0f, Float.POSITIVE_INFINITY)
+                        )
+                    )
+            )
+
+            // Decoration Icon
+            Icon(
+                imageVector = Icons.Default.Psychology,
+                contentDescription = null,
+                tint = Color.White.copy(alpha = 0.05f),
+                modifier = Modifier
+                    .size(180.dp)
+                    .align(Alignment.TopEnd)
+                    .offset(x = 40.dp, y = -20.dp)
+            )
+
+            // Nội dung
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(20.dp)
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primary, // Dùng màu Primary của theme
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.padding(bottom = 8.dp)
+                ) {
+                    Text(
+                        text = "HOT GAME",
+                        style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
+                        color = MaterialTheme.colorScheme.onPrimary,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    )
+                }
+
+                Text(
+                    text = "Human or AI",
+                    style = MaterialTheme.typography.headlineMedium.copy(
+                        fontWeight = FontWeight.Black
+                    ),
+                    color = Color.White
+                )
+                Text(
+                    text = "Thử thách phân biệt hành vi",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = Color.White.copy(alpha = 0.8f)
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Nút hành động
+                Button(
+                    onClick = onClick,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.White,
+                        contentColor = Color.Black
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.shadow(8.dp, RoundedCornerShape(12.dp))
+                ) {
+                    Text(
+                        text = "Quất luôn",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
             }
         }
     }
 }
 
+// --- ADAPTIVE CARD: Tự đổi màu theo Light/Dark Mode ---
 @Composable
-fun ExploreCard(
-    item: ExploreItem,
+fun AdaptiveCategoryCard(
+    item: CategoryItem,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
-    val textShadow = Shadow(
-        color = Color.Black.copy(alpha = 0.3f),
-        offset = Offset(2f, 2f),
-        blurRadius = 4f
-    )
-
     Card(
-        onClick = onClick,
-        shape = RoundedCornerShape(24.dp),
-        elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(if (item.isFullWidth) 150.dp else 170.dp)
+        modifier = modifier
+            .height(130.dp)
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(
+            // KEY CHANGE: Dùng token màu của Material Theme
+            // surfaceContainer: Màu nền chuẩn cho card trong M3 (Xám nhạt ở Light, Xám đậm ở Dark)
+            // Nếu bản compose cũ chưa có surfaceContainer, dùng surfaceVariant
+            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Flat style hiện đại
     ) {
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(
-                    brush = Brush.linearGradient(
-                        colors = listOf(item.colorStart, item.colorEnd),
-                        start = Offset(0f, 0f),
-                        end = Offset(1000f, 1000f)
-                    )
-                )
+                .padding(16.dp),
+            verticalArrangement = Arrangement.SpaceBetween,
+            horizontalAlignment = Alignment.Start
         ) {
-            Icon(
-                imageVector = item.icon,
-                contentDescription = null,
-                tint = Color.White.copy(alpha = 0.15f),
+            // Icon với nền dynamic
+            Box(
                 modifier = Modifier
-                    .size(120.dp)
-                    .align(Alignment.BottomEnd)
-                    .offset(x = 40.dp, y = 40.dp)
-            )
-
-            // Nội dung chính
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(16.dp),
-                verticalArrangement = Arrangement.SpaceBetween
+                    .size(42.dp)
+                    .clip(CircleShape)
+                    .background(item.iconColor.copy(alpha = 0.15f)), // Nền icon theo màu chủ đạo pha loãng
+                contentAlignment = Alignment.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .clip(CircleShape)
-                        .background(Color.White.copy(alpha = 0.25f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = item.icon,
-                        contentDescription = null,
-                        tint = Color.White,
-                        modifier = Modifier.size(36.dp)
-                    )
-                }
+                Icon(
+                    imageVector = item.icon,
+                    contentDescription = null,
+                    tint = item.iconColor, // Icon giữ nguyên màu brand
+                    modifier = Modifier.size(24.dp)
+                )
+            }
 
-                Column {
-                    Text(
-                        text = item.title,
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            fontSize = if (item.isFullWidth) 22.sp else 20.sp,
-                            shadow = textShadow
-                        ),
-                        color = Color.White
-                    )
-
-                    Spacer(modifier = Modifier.height(4.dp))
-
-                    Text(
-                        text = item.description,
-                        style = TextStyle(
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 13.sp,
-                            shadow = textShadow
-                        ),
-                        color = Color.White.copy(alpha = 0.95f),
-                        maxLines = 2
-                    )
-                }
+            // Text tự động đổi màu
+            Column {
+                Text(
+                    text = item.title,
+                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    color = MaterialTheme.colorScheme.onSurface, // Tự động Đen (Light) / Trắng (Dark)
+                    maxLines = 1
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+                Text(
+                    text = item.subtitle,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, // Màu phụ (Xám) tự thích ứng
+                    maxLines = 1
+                )
             }
         }
+    }
+}
+
+// --- PREVIEWS ---
+
+@Preview(name = "Light Mode", showBackground = true, backgroundColor = 0xFFFFFFFF)
+@Composable
+fun PreviewExploreLight() {
+    MaterialTheme(colorScheme = lightColorScheme()) { // Giả lập Light Theme
+        ExploreScreen(rememberNavController())
+    }
+}
+
+@Preview(name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true, backgroundColor = 0xFF000000)
+@Composable
+fun PreviewExploreDark() {
+    MaterialTheme(colorScheme = darkColorScheme()) { // Giả lập Dark Theme
+        ExploreScreen(rememberNavController())
     }
 }
