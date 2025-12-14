@@ -41,7 +41,10 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.animation.core.*
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.ui.res.painterResource
 
 
@@ -151,25 +154,23 @@ private fun DashboardTopBar(
     notificationsCount: Int = 0,
     onNotificationClick: () -> Unit = {}
 ) {
-    // Animation cho chuông khi có notification mới
-    val infiniteTransition = rememberInfiniteTransition(label = "bell_animation")
-    val bellRotation by infiniteTransition.animateFloat(
-        initialValue = -10f,
-        targetValue = 10f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(300, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+    // Chỉ tạo animation khi có notification để tránh chạy liên tục
+    val hasNotifications = notificationsCount > 0
+    
+    // Animation values - chỉ animate khi có notifications
+    val bellRotation by animateFloatAsState(
+        targetValue = if (hasNotifications) 0f else 0f,
+        animationSpec = if (hasNotifications) {
+            spring(dampingRatio = 0.3f, stiffness = 300f)
+        } else {
+            snap()
+        },
         label = "bell_rotation"
     )
-
-    val bellScale by infiniteTransition.animateFloat(
-        initialValue = 1f,
-        targetValue = 1.15f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(500, easing = FastOutSlowInEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
+    
+    val bellScale by animateFloatAsState(
+        targetValue = if (hasNotifications) 1.1f else 1f,
+        animationSpec = spring(dampingRatio = 0.5f, stiffness = 200f),
         label = "bell_scale"
     )
 
@@ -190,25 +191,21 @@ private fun DashboardTopBar(
             ) {
                 IconButton(
                     onClick = onNotificationClick,
-                    modifier = if (notificationsCount > 0) {
-                        Modifier
-                            .scale(bellScale)
-                            .graphicsLayer { rotationZ = bellRotation }
-                    } else {
-                        Modifier
-                    }
+                    modifier = Modifier
+                        .scale(bellScale)
+                        .graphicsLayer { rotationZ = bellRotation }
                 ) {
                     Icon(
                         imageVector = Icons.Default.Notifications,
                         contentDescription = "Thông báo",
-                        tint = if (notificationsCount > 0)
+                        tint = if (hasNotifications)
                             MaterialTheme.colorScheme.primary
                         else
                             MaterialTheme.colorScheme.onSurface
                     )
                 }
                 // Badge hiển thị số lượng thông báo chưa đọc
-                if (notificationsCount > 0) {
+                if (hasNotifications) {
                     Badge(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
