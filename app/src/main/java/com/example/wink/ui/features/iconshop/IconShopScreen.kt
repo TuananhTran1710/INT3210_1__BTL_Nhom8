@@ -12,8 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
-import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.rounded.Star // 1. Import icon ngôi sao
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -51,6 +51,33 @@ fun IconShopScreen(
                             contentDescription = "Quay lại"
                         )
                     }
+                },
+                // 2. Thêm phần hiển thị điểm RIZZ vào Action Bar (Giống TipsScreen)
+                actions = {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700), // Màu vàng gold
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${state.rizzPoints} RIZZ",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -63,45 +90,7 @@ fun IconShopScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-
-            // Thẻ hiển thị RIZZ
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorScheme.tertiaryContainer
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Điểm RIZZ của bạn",
-                            fontSize = 14.sp,
-                            color = colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                        )
-                        Text(
-                            text = state.rizzPoints.toString(),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onTertiaryContainer
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            // 3. Đã XÓA Card hiển thị RIZZ to ở đây
 
             // Thông báo lỗi (nếu có)
             state.errorMessage?.let { msg ->
@@ -131,8 +120,7 @@ fun IconShopScreen(
             }
         }
 
-        // --- THÊM PHẦN NÀY VÀO CUỐI CÙNG TRONG SCAFFOLD ---
-
+        // Dialog xác nhận khởi động lại
         if (state.showRestartDialog) {
             AlertDialog(
                 onDismissRequest = { viewModel.cancelChangeIcon() },
@@ -174,16 +162,14 @@ private fun IconItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                // Xóa background màu cũ đi
-                // .background(item.color)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
             // 1. HIỂN THỊ ẢNH ICON
             Image(
-                painter = painterResource(id = item.iconResId), // Load ảnh từ ID
+                painter = painterResource(id = item.iconResId),
                 contentDescription = null,
-                contentScale = ContentScale.Crop, // Co dãn ảnh cho vừa khung
+                contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize()
             )
 
@@ -192,31 +178,23 @@ private fun IconItem(
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        // Phủ một lớp màu trắng mờ hoặc đen mờ lên trên ảnh để biết đang chọn
                         .background(Color.Black.copy(alpha = 0.3f))
-                    // Hoặc dùng viền (border) nếu bạn không muốn làm tối ảnh
                 )
 
-                // Thêm icon Check ở giữa để rõ ràng hơn (Optional)
                 Icon(
-                    imageVector = Icons.Default.Check, // Cần import Icons.Default.Check
+                    imageVector = Icons.Default.Check,
                     contentDescription = null,
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // 3. TRẠNG THÁI KHÓA / TIM (SỞ HỮU)
-            // Phần này giữ nguyên logic cũ nhưng có thể chỉnh màu cho dễ nhìn trên nền ảnh
-            if (item.isOwned) {
-                // Nếu đã sở hữu nhưng không chọn -> Không cần hiện icon tim đè lên ảnh cho rối
-                // Hoặc chỉ hiện một chấm nhỏ góc phải
-            } else {
-                // Nếu chưa mua -> Hiện cái ổ khóa mờ ở giữa
+            // 3. TRẠNG THÁI KHÓA (CHƯA SỞ HỮU)
+            if (!item.isOwned) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .background(Color.Black.copy(alpha = 0.5f)), // Làm tối ảnh bị khóa
+                        .background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(

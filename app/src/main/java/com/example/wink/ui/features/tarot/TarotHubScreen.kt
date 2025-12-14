@@ -7,6 +7,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.rounded.Star // 1. Import icon Ngôi sao
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -103,6 +104,33 @@ fun TarotHubScreen(
                             contentDescription = "Quay lại"
                         )
                     }
+                },
+                // 2. THÊM PHẦN HIỂN THỊ ĐIỂM RIZZ TẠI ĐÂY
+                actions = {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700), // Màu vàng gold
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${state.rizzPoints} RIZZ", // Lấy điểm từ State
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -130,6 +158,7 @@ fun TarotHubScreen(
     }
 }
 
+// ... (Phần LoveFortuneItem giữ nguyên như cũ)
 @Composable
 private fun LoveFortuneItem(
     feature: TarotSubFeatureUi,
