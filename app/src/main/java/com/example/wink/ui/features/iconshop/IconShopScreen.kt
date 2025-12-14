@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.iconshop
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -10,8 +11,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.rounded.Star // 1. Import icon ngôi sao
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +21,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -47,6 +51,33 @@ fun IconShopScreen(
                             contentDescription = "Quay lại"
                         )
                     }
+                },
+                // 2. Thêm phần hiển thị điểm RIZZ vào Action Bar (Giống TipsScreen)
+                actions = {
+                    Surface(
+                        shape = RoundedCornerShape(50),
+                        color = MaterialTheme.colorScheme.primaryContainer,
+                        modifier = Modifier.padding(end = 16.dp)
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Star,
+                                contentDescription = null,
+                                tint = Color(0xFFFFD700), // Màu vàng gold
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "${state.rizzPoints} RIZZ",
+                                style = MaterialTheme.typography.labelLarge,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    }
                 }
             )
         }
@@ -59,45 +90,7 @@ fun IconShopScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-
-            // Thẻ hiển thị RIZZ
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(
-                    containerColor = colorScheme.tertiaryContainer
-                ),
-                shape = RoundedCornerShape(16.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column {
-                        Text(
-                            text = "Điểm RIZZ của bạn",
-                            fontSize = 14.sp,
-                            color = colorScheme.onTertiaryContainer.copy(alpha = 0.8f)
-                        )
-                        Text(
-                            text = state.rizzPoints.toString(),
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = colorScheme.onTertiaryContainer
-                        )
-                    }
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = colorScheme.onTertiaryContainer,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            // 3. Đã XÓA Card hiển thị RIZZ to ở đây
 
             // Thông báo lỗi (nếu có)
             state.errorMessage?.let { msg ->
@@ -126,6 +119,31 @@ fun IconShopScreen(
                 }
             }
         }
+
+        // Dialog xác nhận khởi động lại
+        if (state.showRestartDialog) {
+            AlertDialog(
+                onDismissRequest = { viewModel.cancelChangeIcon() },
+                title = { Text(text = "Thay đổi biểu tượng") },
+                text = {
+                    Text("Hiệu ứng sẽ chỉ áp dụng trong lần chạy sau. Bạn có muốn thoát ngay bây giờ không?")
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = { viewModel.confirmChangeIcon() }
+                    ) {
+                        Text("Đồng ý", fontWeight = FontWeight.Bold)
+                    }
+                },
+                dismissButton = {
+                    TextButton(
+                        onClick = { viewModel.cancelChangeIcon() }
+                    ) {
+                        Text("Để sau")
+                    }
+                }
+            )
+        }
     }
 }
 
@@ -144,50 +162,46 @@ private fun IconItem(
             modifier = Modifier
                 .size(56.dp)
                 .clip(RoundedCornerShape(16.dp))
-                // Màu nền base lấy từ item.color, để vẫn đủ “màu mè”
-                .background(item.color)
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
+            // 1. HIỂN THỊ ẢNH ICON
+            Image(
+                painter = painterResource(id = item.iconResId),
+                contentDescription = null,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+
+            // 2. LỚP PHỦ KHI ĐƯỢC CHỌN (Overlay)
             if (item.isSelected) {
                 Box(
                     modifier = Modifier
                         .matchParentSize()
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(
-                            colorScheme.surface.copy(alpha = 0.25f)
-                        )
+                        .background(Color.Black.copy(alpha = 0.3f))
+                )
+
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(24.dp)
                 )
             }
 
-            if (item.isOwned) {
+            // 3. TRẠNG THÁI KHÓA (CHƯA SỞ HỮU)
+            if (!item.isOwned) {
                 Box(
                     modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.surface.copy(alpha = 0.9f)),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Favorite,
-                        contentDescription = null,
-                        tint = colorScheme.primary,
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            } else {
-                Box(
-                    modifier = Modifier
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .background(colorScheme.onSurface.copy(alpha = 0.65f)),
+                        .matchParentSize()
+                        .background(Color.Black.copy(alpha = 0.5f)),
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
                         contentDescription = null,
-                        tint = colorScheme.surface,
-                        modifier = Modifier.size(18.dp)
+                        tint = Color.White,
+                        modifier = Modifier.size(20.dp)
                     )
                 }
             }
