@@ -303,7 +303,8 @@ private fun RizzPointsCard(
                     text = "Tổng điểm RIZZ",
                     style = MaterialTheme.typography.labelMedium,
                     color = Color.White.copy(alpha = 0.9f),
-                    fontWeight = FontWeight.Medium
+                    fontWeight = FontWeight.Medium,
+                    fontSize = 17.sp
                 )
 
                 Text(
@@ -357,7 +358,8 @@ private fun RizzPointsCard(
                                 Text(
                                     text = "Streak đăng nhập",
                                     style = MaterialTheme.typography.labelSmall,
-                                    color = Color.White.copy(alpha = 0.7f)
+                                    color = Color.White.copy(alpha = 0.7f),
+                                    fontSize = 12.sp
                                 )
                             }
                         }
