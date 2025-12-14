@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.dashboard
 
 import com.example.wink.data.model.FriendRequest
+import com.example.wink.data.model.Notification
 
 data class DashboardTask(
     val id: String,
@@ -50,6 +51,10 @@ data class DashboardState(
     // Friend requests
     val pendingFriendRequests: List<FriendRequest> = emptyList(),
     val showFriendRequestsDialog: Boolean = false,
+    
+    // Notifications - Tất cả thông báo tổng hợp
+    val notifications: List<Notification> = emptyList(),
+    val showNotificationsDialog: Boolean = false,
     
     // Accepted friend request notification
     val acceptedFriendNotification: String? = null
