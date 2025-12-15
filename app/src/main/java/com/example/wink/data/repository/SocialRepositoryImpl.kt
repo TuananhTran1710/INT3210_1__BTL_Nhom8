@@ -7,6 +7,8 @@ import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
 import com.example.wink.util.ImageUtils
 import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.DocumentSnapshot
+import com.google.firebase.firestore.FieldPath
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -31,79 +33,116 @@ class SocialRepositoryImpl @Inject constructor(
 
     private val currentUserId get() = auth.currentUser?.uid ?: ""
 
-    // 1. LẤY BẢNG TIN (REALTIME)
-    override fun getSocialFeed(): Flow<List<SocialPost>> = callbackFlow {
+    // 1. TẢI FEED TỐI ƯU (Batch Fetching)
+    override suspend fun getSocialFeed(): Result<List<SocialPost>> {
+        return try {
+            // A. Tải 50 bài mới nhất
+            val snapshot = firestore.collection("posts")
+                .orderBy("timestamp", Query.Direction.DESCENDING)
+                .limit(50)
+                .get()
+                .await()
+
+            // B. Lọc ra các ID bài gốc cần lấy (để xử lý Repost)
+            val originalPostIds = snapshot.documents
+                .filter { it.getBoolean("isRepost") == true }
+                .mapNotNull { it.getString("originalPostId") }
+                .distinct() // Loại bỏ trùng lặp
+
+            // C. Tải tất cả bài gốc trong 1 lần (hoặc vài lần nếu > 10 bài)
+            val originalPostsMap = mutableMapOf<String, DocumentSnapshot>()
+            if (originalPostIds.isNotEmpty()) {
+                // Firestore giới hạn 'whereIn' tối đa 10 phần tử, nên cần chia nhỏ (chunk)
+                originalPostIds.chunked(10).forEach { chunk ->
+                    val origins = firestore.collection("posts")
+                        .whereIn(FieldPath.documentId(), chunk)
+                        .get()
+                        .await()
+                    origins.documents.forEach { doc ->
+                        originalPostsMap[doc.id] = doc
+                    }
+                }
+            }
+
+            // D. Map dữ liệu (Xử lý trên Memory -> Cực nhanh)
+            val posts = snapshot.documents.mapNotNull { doc ->
+                mapDocumentToPost(doc, originalPostsMap)
+            }
+
+            Result.success(posts)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    // Hàm helper để map dữ liệu cho gọn
+    private fun mapDocumentToPost(doc: DocumentSnapshot, originalPostsMap: Map<String, DocumentSnapshot>): SocialPost? {
+        try {
+            val isRepost = doc.getBoolean("isRepost") ?: false
+            val originalPostId = doc.getString("originalPostId")
+
+            // Kiểm tra bài gốc
+            var isOriginalDeleted = false
+            var displayOriginalAvatar: String? = null
+            var displayOriginalUsername: String? = null
+
+            if (isRepost && originalPostId != null) {
+                val originalDoc = originalPostsMap[originalPostId]
+                if (originalDoc == null || !originalDoc.exists()) {
+                    isOriginalDeleted = true
+                } else {
+                    displayOriginalAvatar = originalDoc.getString("avatarUrl")
+                    displayOriginalUsername = originalDoc.getString("username")
+                }
+            }
+
+            val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
+            val retweetedBy = doc.get("retweetedBy") as? List<String> ?: emptyList()
+            val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
+            val userId = doc.getString("userId") ?: ""
+
+            return SocialPost(
+                id = doc.id,
+                userId = userId,
+                username = doc.getString("username") ?: "Ẩn danh",
+                avatarUrl = doc.getString("avatarUrl"),
+                content = doc.getString("content") ?: "",
+                timestamp = doc.getLong("timestamp") ?: 0L,
+                likes = (doc.getLong("likesCount") ?: 0).toInt(),
+                comments = (doc.getLong("commentsCount") ?: 0).toInt(),
+                isLikedByMe = likedBy.contains(currentUserId),
+                imageUrls = images,
+                isRepost = isRepost,
+                originalPostId = originalPostId,
+                // Ưu tiên lấy info mới nhất từ bài gốc, nếu không thì lấy từ bài repost lưu tạm
+                originalUsername = displayOriginalUsername ?: doc.getString("originalUsername"),
+                originalAvatarUrl = displayOriginalAvatar ?: doc.getString("originalAvatarUrl"),
+                isOriginalDeleted = isOriginalDeleted,
+                retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
+                isRetweetedByMe = retweetedBy.contains(currentUserId),
+                canDelete = userId == currentUserId,
+                canEdit = userId == currentUserId
+            )
+        } catch (e: Exception) {
+            return null
+        }
+    }
+
+    // 2. LẮNG NGHE BÀI MỚI (Siêu nhẹ)
+    override fun listenForNewPosts(latestTimestamp: Long): Flow<Boolean> = callbackFlow {
+        // Chỉ lắng nghe xem có bài nào mới hơn timestamp hiện tại không
+        // Limit 1 để tiết kiệm băng thông tối đa
         val listener = firestore.collection("posts")
-            .orderBy("timestamp", Query.Direction.DESCENDING) // Sắp xếp mới nhất
-            .limit(50) // Lấy 50 bài gần nhất
-            .addSnapshotListener { snapshot, error ->
-                if (error != null) {
-                    close(error) // Đóng flow nếu lỗi
+            .whereGreaterThan("timestamp", latestTimestamp)
+            .limit(1)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    close(e)
                     return@addSnapshotListener
                 }
-
-                // Launch coroutine để kiểm tra bài gốc
-                CoroutineScope(Dispatchers.IO).launch {
-                    // Lấy danh sách originalPostId để kiểm tra bài gốc có tồn tại không
-                    val originalPostIds = snapshot?.documents
-                        ?.filter { it.getBoolean("isRepost") == true }
-                        ?.mapNotNull { it.getString("originalPostId") }
-                        ?.distinct()
-                        ?: emptyList()
-                    
-                    // Kiểm tra các bài gốc có tồn tại không
-                    val deletedOriginalPostIds = mutableSetOf<String>()
-                    for (originalPostId in originalPostIds) {
-                        try {
-                            val originalDoc = firestore.collection("posts").document(originalPostId).get().await()
-                            if (!originalDoc.exists()) {
-                                deletedOriginalPostIds.add(originalPostId)
-                            }
-                        } catch (e: Exception) {
-                            // Nếu lỗi khi lấy bài gốc, coi như đã bị xóa
-                            deletedOriginalPostIds.add(originalPostId)
-                        }
-                    }
-
-                    val posts = snapshot?.documents?.mapNotNull { doc ->
-                        val likedBy = doc.get("likedBy") as? List<String> ?: emptyList()
-                        val retweetedBy = doc.get("retweetedBy") as? List<String> ?: emptyList()
-                        val images = (doc.get("imageUrls") as? List<*>)?.map { it.toString() } ?: emptyList()
-
-                        val userId = doc.getString("userId") ?: ""
-                        val canDelete = userId == currentUserId
-                        val canEdit = userId == currentUserId
-                        val isRepost = doc.getBoolean("isRepost") ?: false
-                        val originalPostId = doc.getString("originalPostId")
-                        val isOriginalDeleted = isRepost && originalPostId != null && deletedOriginalPostIds.contains(originalPostId)
-
-                        SocialPost(
-                            id = doc.id,
-                            userId = userId,
-                            username = doc.getString("username") ?: "Ẩn danh",
-                            avatarUrl = doc.getString("avatarUrl"),
-                            content = doc.getString("content") ?: "",
-                            timestamp = doc.getLong("timestamp") ?: 0L,
-                            likes = (doc.getLong("likesCount") ?: 0).toInt(),
-                            comments = (doc.getLong("commentsCount") ?: 0).toInt(),
-                            isLikedByMe = likedBy.contains(currentUserId),
-                            imageUrls = images,
-                            isRepost = isRepost,
-                            originalPostId = originalPostId,
-                            originalUserId = doc.getString("originalUserId"),
-                            originalUsername = doc.getString("originalUsername"),
-                            originalAvatarUrl = doc.getString("originalAvatarUrl"),
-                            isOriginalDeleted = isOriginalDeleted,
-                            retweetedBy = retweetedBy,
-                            retweetCount = (doc.getLong("retweetCount") ?: 0).toInt(),
-                            isRetweetedByMe = retweetedBy.contains(currentUserId),
-                            canDelete = canDelete,
-                            canEdit = canEdit
-                        )
-                    } ?: emptyList()
-
-                    trySend(posts)
-                }
+                // Nếu không rỗng -> Có bài mới
+                val hasNew = snapshot != null && !snapshot.isEmpty
+                trySend(hasNew)
             }
         awaitClose { listener.remove() }
     }

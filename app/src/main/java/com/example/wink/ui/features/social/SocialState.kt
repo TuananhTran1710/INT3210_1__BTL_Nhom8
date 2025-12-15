@@ -9,6 +9,7 @@ data class SocialState(
     val feedList: List<SocialPost> = emptyList(),
     val leaderboardList: List<User> = emptyList(),
     val isLoading: Boolean = false,
+    val isRefreshing: Boolean = false,
     val selectedTab: Int = 0,
 
     val isCreatingPost: Boolean = false,
@@ -18,7 +19,7 @@ data class SocialState(
     val newCommentContent: String = "",
     val selectedImageUris: List<Uri> = emptyList(),
 
-    // --- THÊM MỚI ---
     val isPosting: Boolean = false,       // Trạng thái đang đăng bài (để hiện loading)
-    val currentUserAvatarUrl: String = ""
+    val currentUserAvatarUrl: String = "",
+    val hasNewPosts: Boolean = false
 )

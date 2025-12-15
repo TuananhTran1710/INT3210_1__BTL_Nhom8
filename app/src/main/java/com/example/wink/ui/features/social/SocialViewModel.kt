@@ -11,6 +11,7 @@ import com.example.wink.data.repository.GameRepository
 import com.example.wink.data.repository.SocialRepository
 import com.example.wink.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -31,10 +32,11 @@ class SocialViewModel @Inject constructor(
     val uiState = _uiState.asStateFlow()
 
     private var currentUser: User? = null
+    private var latestPostTimestamp: Long = 0L
 
     init {
         getCurrentUserInfo()
-        loadFeed()
+        loadFeed(isRefresh = false)
         loadLeaderboard()
     }
 
@@ -49,16 +51,57 @@ class SocialViewModel @Inject constructor(
         }
     }
 
-    private fun loadFeed() {
+    // Hàm load feed chính
+    fun loadFeed(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
-            // Lắng nghe Realtime Feed
-            socialRepository.getSocialFeed().collectLatest { posts ->
+            if (isRefresh) {
+                _uiState.update { it.copy(isRefreshing = true) }
+            } else {
+                _uiState.update { it.copy(isLoading = true) }
+            }
+
+            val result = socialRepository.getSocialFeed()
+
+            result.onSuccess { posts ->
+                // Cập nhật timestamp của bài mới nhất để lắng nghe
+                val firstPostTime = posts.maxOfOrNull { it.timestamp } ?: System.currentTimeMillis()
+
+                // Nếu refresh thì cập nhật timestamp mới, nếu không thì giữ nguyên (để tránh miss tin)
+                latestPostTimestamp = firstPostTime
+
+                // Bắt đầu lắng nghe tin mới từ mốc này
+                startListeningForNewPosts()
+
                 _uiState.update {
-                    it.copy(feedList = posts, isLoading = false)
+                    it.copy(
+                        feedList = posts,
+                        isLoading = false,
+                        isRefreshing = false,
+                        hasNewPosts = false // Reset nút báo bài mới
+                    )
+                }
+            }.onFailure {
+                _uiState.update { it.copy(isLoading = false, isRefreshing = false) }
+            }
+        }
+    }
+
+    private var newPostsJob: Job? = null
+
+    private fun startListeningForNewPosts() {
+        newPostsJob?.cancel()
+        newPostsJob = viewModelScope.launch {
+            socialRepository.listenForNewPosts(latestPostTimestamp).collectLatest { hasNew ->
+                if (hasNew) {
+                    _uiState.update { it.copy(hasNewPosts = true) }
                 }
             }
         }
+    }
+
+    // Khi người dùng ấn nút "Bài viết mới"
+    fun onRefreshFeed() {
+        loadFeed(isRefresh = true)
     }
 
     private fun loadLeaderboard() {

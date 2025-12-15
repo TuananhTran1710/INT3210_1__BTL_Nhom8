@@ -8,7 +8,8 @@ import kotlinx.coroutines.flow.Flow
 
 interface SocialRepository {
     // Lấy luồng bài viết (Realtime)
-    fun getSocialFeed(): Flow<List<SocialPost>>
+    suspend fun getSocialFeed(): Result<List<SocialPost>>
+    fun listenForNewPosts(latestTimestamp: Long): Flow<Boolean>
 
     // Đăng bài mới
     suspend fun createPost(content: String, imageUrls: List<String>, user: User): Result<Unit>
