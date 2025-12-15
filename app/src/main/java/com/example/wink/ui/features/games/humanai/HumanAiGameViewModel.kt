@@ -10,6 +10,7 @@ import com.example.wink.data.remote.ChatGptRequest
 import com.example.wink.data.remote.OpenRouterApiService
 import com.example.wink.data.repository.GameRepository
 import com.example.wink.data.repository.GameRepositoryImpl
+import com.example.wink.data.repository.TaskRepository
 import com.example.wink.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
@@ -27,7 +28,8 @@ import kotlin.random.Random
 class HumanAiGameViewModel @Inject constructor(
     private val userRepository: UserRepository,
     private val openRouterApiService: OpenRouterApiService,
-    private val gameRepository: GameRepository
+    private val gameRepository: GameRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HumanAiGameState())
@@ -434,6 +436,7 @@ class HumanAiGameViewModel @Inject constructor(
                     currentRizz = newTotal
                 )
             }
+            taskRepository.updateTaskProgress("PLAY_GAME")
         }
     }
 

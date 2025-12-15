@@ -7,7 +7,9 @@ import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.GameRepository
 import com.example.wink.data.repository.SocialRepository
+import com.example.wink.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -21,7 +23,8 @@ import javax.inject.Inject
 @HiltViewModel
 class SocialViewModel @Inject constructor(
     private val socialRepository: SocialRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SocialState())
@@ -115,6 +118,9 @@ class SocialViewModel @Inject constructor(
                     selectedImageUris = emptyList()
                 )
             }
+
+            // 5 cap nhat nhiem vu
+            taskRepository.updateTaskProgress("POST_FEED")
         }
     }
 
@@ -142,6 +148,7 @@ class SocialViewModel @Inject constructor(
             // Ở đây ta truyền rỗng tạm, nhưng đúng ra nên truyền list like cũ
             // Để đơn giản, repository sẽ tự xử lý logic arrayUnion/arrayRemove
             socialRepository.toggleLike(postId, user.uid, if(post.isLikedByMe) listOf(user.uid) else emptyList())
+            taskRepository.updateTaskProgress("LIKE_POST")
         }
     }
 
@@ -176,6 +183,7 @@ class SocialViewModel @Inject constructor(
 
         viewModelScope.launch {
             socialRepository.sendComment(postId, content, user)
+            taskRepository.updateTaskProgress("COMMENT_POST")
             _uiState.update { it.copy(newCommentContent = "") }
         }
     }

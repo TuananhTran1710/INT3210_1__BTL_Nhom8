@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.dashboard
 
 import android.content.res.Configuration
+import android.widget.Toast
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.alpha
@@ -53,23 +54,37 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.snap
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import com.example.wink.data.model.DailyTask
 import kotlinx.coroutines.delay
 
-data class DailyTask(
-    val id: Int,
-    val title: String,
-    val reward: Int,
-    val isCompleted: Boolean = false
-)
-
+private val DarkBg = Color(0xFF0F0C29)
+private val CardBg = Color(0xFF24243E).copy(alpha = 0.7f)
+private val NeonPurple = Color(0xFFB06AB3)
+private val NeonBlue = Color(0xFF4568DC)
+private val Gold = Color(0xFFFFD700)
 @Composable
 fun DashboardScreen(
     navController: NavController,
     viewModel: DashboardViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
     val snackbarHostState = remember { SnackbarHostState() }
+
+    LaunchedEffect(uiState.completedTaskNotification) {
+        uiState.completedTaskNotification?.let { message ->
+            // Cách 1: Hiện Toast (Chắc chắn thấy)
+            Toast.makeText(context, message, Toast.LENGTH_LONG).show()
+
+            // Reset trạng thái sau khi hiện
+            viewModel.onEvent(DashboardEvent.OnClearTaskNotification)
+        }
+    }
 
     // Hiển thị thông báo khi có người chấp nhận lời mời kết bạn
     LaunchedEffect(uiState.acceptedFriendNotification) {
@@ -148,8 +163,8 @@ fun DashboardScreen(
             item {
                 AnimatedDashboardItem(delay = 200) {
                     DailyTasksSection(
-                        onTaskClick = { viewModel.onEvent(DashboardEvent.OnCompleteTask) },
-                        modifier = Modifier.padding(top = 20.dp)
+                        tasks = uiState.dailyTasks,
+                        modifier = Modifier.padding(top = 10.dp)
                     )
                 }
             }
@@ -505,16 +520,16 @@ private fun AIFeatureCard(
             Icon(
                 imageVector = Icons.Default.AutoAwesome,
                 contentDescription = null,
-                tint = Color.White.copy(alpha = 0.06f),
+                tint = Color.White.copy(alpha = 0.08f),
                 modifier = Modifier
-                    .size(200.dp)
+                    .size(100.dp)
                     .align(Alignment.BottomEnd)
-                    .offset(x = (-50).dp, y = 10.dp)
+                    .offset(x = (-100).dp, y = 10.dp)
             )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 26.dp),
+                    .padding(horizontal = 22.dp, vertical = 22.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
@@ -581,44 +596,42 @@ private fun AIFeatureCard(
 
 @Composable
 private fun DailyTasksSection(
-    onTaskClick: () -> Unit,
-    modifier: Modifier
+    tasks: List<DailyTask>,
+    modifier: Modifier = Modifier
 ) {
-    val tasks = listOf(
-        DailyTask(1, "Nhắn tin với AI Crush 6 lần", 150, false),
-        DailyTask(2, "Bình luận vào 3 bài viết khác nhau", 100, true),
-        DailyTask(3, "Đăng một bài viết lên Bảng tin", 67, false)
-    )
-
-    Column {
+    Column(modifier = modifier) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 14.dp),
+            modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Icon(
-                imageVector = Icons.Default.AssignmentLate,
-                contentDescription = "Tasks",
-                modifier = Modifier.size(20.dp)
-            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.AssignmentLate,
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
+                Text(
+                    text = "Nhiệm vụ hôm nay",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+
+            // Text tổng quan (VD: 1/3)
+            val completedCount = tasks.count { it.isCompleted }
             Text(
-                text = "Nhiệm vụ hôm nay",
-                style = MaterialTheme.typography.titleMedium,
-                color = MaterialTheme.colorScheme.onSurface,
-                fontWeight = FontWeight.Bold
+                text = "$completedCount/${tasks.size} Hoàn thành",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary
             )
         }
 
-        Column(
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             tasks.forEach { task ->
-                DailyTaskItem(
-                    task = task,
-                    onClick = onTaskClick
-                )
+                DailyTaskItem(task)
             }
         }
     }
@@ -627,75 +640,93 @@ private fun DailyTasksSection(
 @Composable
 private fun DailyTaskItem(
     task: DailyTask,
-    onClick: () -> Unit
 ) {
+    val alpha = if (task.isCompleted) 0.6f else 1f
+
+    // Tính tiến độ %
+    val progress = if (task.target > 0) task.currentProgress.toFloat() / task.target else 0f
+
+    // Animation
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(1000)
+    )
+
     Surface(
-        onClick = onClick,
+        // Bỏ clickable để tránh user bấm nhầm tưởng hoàn thành
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surfaceContainer,
-        border = BorderStroke(1.dp, Color.White.copy(alpha = 0.05f))
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+        modifier = Modifier.fillMaxWidth().alpha(alpha)
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(12.dp),
+            modifier = Modifier.padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Custom Checkbox
-            Box(
-                modifier = Modifier
-                    .size(20.dp)
-                    .clip(CircleShape)
-                    .background(
-                        if (task.isCompleted) MaterialTheme.colorScheme.primary
-                        else Color.White.copy(alpha = 0.1f)
-                    )
-                    .border(
-                        if (task.isCompleted) 0.dp else 2.dp,
-                        if (task.isCompleted) Color.Transparent else Color.Gray,
-                        CircleShape
-                    ),
-                contentAlignment = Alignment.Center
-            ) {
+            // --- VÒNG TRÒN TIẾN ĐỘ ---
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.size(30.dp)) {
                 if (task.isCompleted) {
                     Icon(
-                        imageVector = Icons.Default.Check,
+                        imageVector = Icons.Rounded.CheckCircle,
                         contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onPrimary
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(30.dp)
+                    )
+                } else {
+                    CircularProgressIndicator(
+                        progress = { animatedProgress },
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.primary,
+                        strokeWidth = 4.dp,
+                        trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f),
+                        strokeCap = StrokeCap.Round
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.width(16.dp))
+            Spacer(Modifier.width(16.dp))
 
+            // Text Content
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = task.title,
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = if (task.isCompleted) FontWeight.Normal else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
+
+                // Dòng mô tả tiến độ (VD: 1/5)
+                if (!task.isCompleted) {
+                    Text(
+                        text = "Tiến độ: ${task.currentProgress}/${task.target}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    Text(
+                        text = "Đã xong!",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
 
-            // Reward Badge
+            // --- REWARD BADGE ---
             Surface(
-                color = Color(0xFFF9A546).copy(alpha = 0.15f),
+                color = if (task.isCompleted) MaterialTheme.colorScheme.primary.copy(alpha = 0.2f) else Gold.copy(alpha = 0.1f),
                 shape = RoundedCornerShape(8.dp)
             ) {
                 Text(
-                    text = "+${task.reward} RIZZ",
+                    // Thay đổi nội dung badge
+                    text = if (task.isCompleted) "Đã xong" else "+${task.reward} RIZZ",
+                    color = if (task.isCompleted) MaterialTheme.colorScheme.primary else Gold,
                     style = MaterialTheme.typography.labelMedium,
-                    color = Color(0xFFF9A546),
                     fontWeight = FontWeight.Bold,
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
+                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
                 )
             }
         }
     }
 }
-
 
 // Preview functions
 @Preview(showBackground = true)
@@ -716,7 +747,7 @@ private fun AIFeatureCardPreview() {
 @Composable
 private fun DailyTasksSectionPreview() {
     DailyTasksSection(
-        onTaskClick = { },
+        tasks = {} as List<DailyTask>,
         modifier = TODO()
     )
 }
