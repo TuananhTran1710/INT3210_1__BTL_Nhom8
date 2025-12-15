@@ -42,6 +42,12 @@ class MessageViewModelForAI @Inject constructor(
         content = "Bạn là một trợ lý AI hữu ích tên là Wink, được tích hợp trong một ứng dụng mạng xã hội. Hãy trả lời một cách thân thiện, ngắn gọn và hữu ích."
     )
 
+    private val _analyzeResult = MutableStateFlow<String?>(null)
+    val analyzeResult = _analyzeResult.asStateFlow()
+
+    private val _isAnalyzing = MutableStateFlow(false)
+    val isAnalyzing = _isAnalyzing.asStateFlow()
+
     init {
         loadMessages()
     }
@@ -119,6 +125,56 @@ class MessageViewModelForAI @Inject constructor(
                 e.printStackTrace()
             } finally {
                 _isSending.value = false
+            }
+        }
+    }
+
+    fun analyzeConversation() {
+        viewModelScope.launch {
+            if (_messages.value.isEmpty()) return@launch
+
+            _isAnalyzing.value = true
+            _analyzeResult.value = null
+
+            try {
+                val lastMessages = _messages.value
+                    .filter { !it.content.startsWith("Xin chào") }
+                    .take(10)
+                    .reversed()
+
+                val chatHistory = lastMessages.map { msg ->
+                    val role = if (msg.senderId == aiUserId) "assistant" else "user"
+                    ChatGptMessage(role = role, content = msg.content)
+                }
+
+                val analyzePrompt = ChatGptMessage(
+                    role = "system",
+                    content = """
+                    Bạn là AI chuyên phân tích hội thoại.
+                    Hãy:
+                    - Tóm tắt nội dung
+                    - Nhận xét cảm xúc người dùng
+                    - Đưa ra insight
+                    Trả lời ngắn gọn, gạch đầu dòng.
+                """.trimIndent()
+                )
+
+                val request = ChatGptRequest(
+                    model = "gpt-4o-mini",
+                    messages = listOf(analyzePrompt) + chatHistory
+                )
+
+                val apiKey = "Bearer ${BuildConfig.OPENAI_API_KEY}"
+                val response = chatGptApiService.createChatCompletion(apiKey, request)
+
+                _analyzeResult.value =
+                    response.choices.firstOrNull()?.message?.content
+                        ?: "Không có kết quả phân tích."
+
+            } catch (e: Exception) {
+                _analyzeResult.value = "Không thể phân tích lúc này."
+            } finally {
+                _isAnalyzing.value = false
             }
         }
     }

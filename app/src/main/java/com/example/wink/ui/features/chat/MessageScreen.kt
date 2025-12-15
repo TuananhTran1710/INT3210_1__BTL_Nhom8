@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -48,6 +49,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wink.R
 import com.example.wink.data.model.Message
+import com.example.wink.ui.features.chat.AnalyzeDialog
 
 @Composable
 fun MessageScreen(
@@ -64,7 +66,8 @@ fun MessageScreen(
             MessageTopBar(
                 title = chatTitle,
                 avatarUrl = chatAvatarUrl,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onAnalyzeClick = { /* TODO: Handle analyze click */ }
             )
         },
         bottomBar = {
@@ -111,6 +114,13 @@ fun MessageScreen(
             modifier = Modifier.padding(paddingValues)
         )
     }
+//    if (showAnalyzeDialog) {
+//        AnalyzeDialog(
+//            isLoading = isAnalyzing,
+//            result = analyzeResult,
+//            onDismiss = { showAnalyzeDialog = false }
+//        )
+//    }
 }
 
 // --- PHẦN QUAN TRỌNG CẦN SỬA ---
@@ -119,7 +129,9 @@ fun MessageScreen(
 fun MessageTopBar(
     title: String,
     avatarUrl: String?,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onAnalyzeClick: () -> Unit,
+    showAnalyzeButton: Boolean = false,
 ) {
     TopAppBar(
         // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
@@ -161,6 +173,16 @@ fun MessageTopBar(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis // Nếu tên dài quá sẽ hiện dấu ...
                 )
+            }
+        },
+        actions = {
+            if (showAnalyzeButton) {   // ✅ condition
+                IconButton(onClick = onAnalyzeClick) {
+                    Icon(
+                        imageVector = Icons.Default.Analytics,
+                        contentDescription = "Analyze"
+                    )
+                }
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(

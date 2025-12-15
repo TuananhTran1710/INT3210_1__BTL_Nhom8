@@ -24,13 +24,22 @@ fun MessageScreenForAI(
     val isSending by viewModel.isSending.collectAsState()
     var messageText by remember { mutableStateOf("") }
     val currentUserId = FirebaseAuth.getInstance().currentUser?.uid ?: ""
+    var showAnalyzeDialog by remember { mutableStateOf(false) }
+
+    val analyzeResult by viewModel.analyzeResult.collectAsState()
+    val isAnalyzing by viewModel.isAnalyzing.collectAsState()
 
     Scaffold(
         topBar = {
             MessageTopBar(
                 title = "Wink AI",
                 avatarUrl = null, // Có thể thêm URL ảnh robot vào đây
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onAnalyzeClick = {
+                    showAnalyzeDialog = true
+                    viewModel.analyzeConversation()
+                },
+                showAnalyzeButton = true
             )
         },
         bottomBar = {
@@ -79,5 +88,12 @@ fun MessageScreenForAI(
                 isTyping = isSending
             )
         }
+    }
+    if (showAnalyzeDialog) {
+        AnalyzeDialog(
+            isLoading = isAnalyzing,
+            result = analyzeResult,
+            onDismiss = { showAnalyzeDialog = false }
+        )
     }
 }
