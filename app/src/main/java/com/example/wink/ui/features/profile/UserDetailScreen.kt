@@ -268,7 +268,7 @@ fun UserDetailScreen(
                     ) {
                         StatItem(value = "${user.rizzPoints}", label = "RIZZ")
                         VerticalDivider()
-                        StatItem(value = "${user.loginStreak}", label = "Streak")
+                        StatItem(value = "${state.userPosts.size}", label = "Bài đăng")
                         VerticalDivider()
                         StatItem(value = "10", label = "Bạn bè")
                     }

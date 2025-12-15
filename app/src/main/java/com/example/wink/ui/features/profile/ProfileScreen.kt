@@ -159,7 +159,7 @@ fun ProfileScreen(
                     ) {
                         ProfileStatItem("${uiState.rizzPoints}", "RIZZ")
                         ProfileVerticalDivider()
-                        ProfileStatItem("12", "Streak")
+                        ProfileStatItem("${uiState.posts.size}", "Bài đăng")
                         ProfileVerticalDivider()
                         ProfileStatItem("${uiState.friendCount}", "Bạn bè")
                     }
