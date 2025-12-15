@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Tip
 import com.example.wink.data.model.User
 import com.example.wink.data.repository.AuthRepository
+import com.example.wink.data.repository.TaskRepository
 import com.example.wink.data.repository.TipsRepository // Import mới
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -14,7 +15,8 @@ import javax.inject.Inject
 @HiltViewModel
 class TipsViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val tipsRepository: TipsRepository // Inject thêm
+    private val tipsRepository: TipsRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TipsState())
@@ -94,7 +96,10 @@ class TipsViewModel @Inject constructor(
         if (tip.isLocked) {
             _uiState.update { it.copy(selectedTipToUnlock = tip, unlockError = null) }
         } else {
-            viewModelScope.launch { _navigationEvent.emit(tip.id) }
+            viewModelScope.launch {
+                _navigationEvent.emit(tip.id)
+                taskRepository.updateTaskProgress("READ_TIP")
+            }
         }
     }
 

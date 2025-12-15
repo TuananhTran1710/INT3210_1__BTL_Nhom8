@@ -3,6 +3,7 @@ package com.example.wink.ui.features.tarot.card
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.R
+import com.example.wink.data.repository.TaskRepository
 import com.example.wink.data.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
@@ -17,7 +18,8 @@ private const val CARD_RETRY_COST = 50
 
 @HiltViewModel
 class TarotCardViewModel @Inject constructor(
-    private val userRepository: UserRepository
+    private val userRepository: UserRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(TarotCardState())
@@ -220,6 +222,7 @@ class TarotCardViewModel @Inject constructor(
                     error = null
                 )
             }
+            taskRepository.updateTaskProgress("DRAW_TAROT")
         }
     }
 

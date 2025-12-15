@@ -3,27 +3,43 @@ package com.example.wink.ui
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.repository.ChatRepository
+import com.example.wink.data.repository.TaskRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class MainViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
-    private val auth: FirebaseAuth
+    private val auth: FirebaseAuth,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _unreadCount = MutableStateFlow(0)
     val unreadCount: StateFlow<Int> = _unreadCount.asStateFlow()
+    private val _globalMessage = Channel<String>()
+    val globalMessage = _globalMessage.receiveAsFlow()
 
     init {
         observeUnreadCount()
+        observeGlobalNotifications()
+    }
+
+    private fun observeGlobalNotifications() {
+        viewModelScope.launch {
+            // Lắng nghe sự kiện từ TaskRepository
+            taskRepository.taskCompletionEvent.collect { message ->
+                _globalMessage.send(message)
+            }
+        }
     }
 
     private fun observeUnreadCount() {

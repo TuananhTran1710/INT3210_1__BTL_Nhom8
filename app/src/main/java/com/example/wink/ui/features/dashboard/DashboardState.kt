@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.dashboard
 
+import com.example.wink.data.model.DailyTask
 import com.example.wink.data.model.FriendRequest
 import com.example.wink.data.model.Notification
 
@@ -33,16 +34,7 @@ data class DashboardState(
     val isAIUnlocked: Boolean = true,
     
     // Tasks
-    val dailyTasks: List<DashboardTask> = listOf(
-        DashboardTask("task1", "Nhiệm vụ hôm nay", "+50 RIZZ", 50),
-        DashboardTask("task2", "Game: AI hay thật?", "+20 RIZZ", 20)
-    ),
-    
-    // Rewards and achievements  
-    val availableRewards: List<DashboardReward> = listOf(
-        DashboardReward("reward1", "Bí kíp đàng khóa", "Cần thêm 300 RIZZ để mở 'Nghệ thuật bắt chuyện'", 300, "🎯"),
-        DashboardReward("reward2", "Góc Tiên Tri", "", 0, "✨")
-    ),
+    val dailyTasks: List<DailyTask>,
     
     // Error states
     val errorMessage: String? = null,
@@ -57,5 +49,7 @@ data class DashboardState(
     val showNotificationsDialog: Boolean = false,
     
     // Accepted friend request notification
-    val acceptedFriendNotification: String? = null
+    val acceptedFriendNotification: String? = null,
+
+    val completedTaskNotification: String? = null
 )

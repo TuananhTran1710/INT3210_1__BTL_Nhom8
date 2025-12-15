@@ -8,7 +8,7 @@ sealed class DashboardEvent {
     object OnStartAIChat : DashboardEvent()
     
     // Daily tasks
-    object OnCompleteTask : DashboardEvent()
+    object OnClearTaskNotification : DashboardEvent()
     object OnClaimTaskReward : DashboardEvent()
     
     // Gaming events

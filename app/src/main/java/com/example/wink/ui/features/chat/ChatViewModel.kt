@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Message
 import com.example.wink.data.repository.ChatRepository
+import com.example.wink.data.repository.TaskRepository
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await // Cần import để fetch user info
@@ -18,6 +19,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
+    private val taskRepository: TaskRepository,
     private val auth: FirebaseAuth,
     private val firestore: FirebaseFirestore, // Inject thêm Firestore để lấy thông tin User đối diện
     savedStateHandle: SavedStateHandle
@@ -105,6 +107,7 @@ class ChatViewModel @Inject constructor(
                 readBy = listOf(currentUserId),
             )
             chatRepository.sendMessage(chatId, message)
+            taskRepository.updateTaskProgress("CHAT_FRIEND")
         }
     }
 }

@@ -7,12 +7,14 @@ import com.example.wink.data.model.Notification
 import com.example.wink.data.model.NotificationType
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.FriendRequestRepository
+import com.example.wink.data.repository.TaskRepository
 import com.example.wink.util.BaseViewModel
 import com.google.firebase.Timestamp
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.TimeZone
@@ -22,7 +24,8 @@ import javax.inject.Inject
 @HiltViewModel
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
-    private val friendRequestRepository: FriendRequestRepository
+    private val friendRequestRepository: FriendRequestRepository,
+    private val taskRepository: TaskRepository
 ) : BaseViewModel<DashboardState, DashboardEvent>() {
 
     // Cho UI dùng
@@ -48,6 +51,20 @@ class DashboardViewModel @Inject constructor(
         observeUser()
         observeFriendRequests()
         observeAcceptedFriendRequests()
+        initializeDailyTasks()
+    }
+
+    private fun initializeDailyTasks() {
+        viewModelScope.launch {
+            taskRepository.checkAndGenerateDailyTasks()
+            taskRepository.getDailyTasks().collectLatest { newTasks ->
+                _uiState.update { state ->
+                    state.copy(
+                        dailyTasks = newTasks,
+                    )
+                }
+            }
+        }
     }
 
     // Nhận event từ UI
@@ -55,7 +72,6 @@ class DashboardViewModel @Inject constructor(
         when (event) {
             is DashboardEvent.OnDailyCheckIn -> handleDailyCheckIn()
             is DashboardEvent.OnStartAIChat -> { /* điều hướng màn AI chat */ }
-            is DashboardEvent.OnCompleteTask -> handleTaskCompletion()
             is DashboardEvent.OnClaimTaskReward -> handleClaimTaskReward()
             is DashboardEvent.OnPlayGame -> { /* điều hướng game */ }
             is DashboardEvent.OnClaimReward -> handleClaimReward()
@@ -94,6 +110,9 @@ class DashboardViewModel @Inject constructor(
             }
             is DashboardEvent.OnMarkNotificationRead -> handleMarkNotificationRead(event.notificationId)
             is DashboardEvent.OnClearAllNotifications -> handleClearAllNotifications()
+            is DashboardEvent.OnClearTaskNotification -> {
+                _uiState.update { it.copy(completedTaskNotification = null) }
+            }
         }
     }
 
@@ -151,22 +170,6 @@ class DashboardViewModel @Inject constructor(
                     errorMessage = "Check-in thất bại: ${e.message}"
                 )
             }
-        }
-    }
-
-    private fun handleTaskCompletion() {
-        viewModelScope.launch {
-            val current = _uiState.value
-            val updatedTasks = current.dailyTasks.map { task ->
-                if (!task.isCompleted) task.copy(isCompleted = true) else task
-            }
-
-            val completedTasksReward = updatedTasks.sumOf { if (it.isCompleted) it.reward else 0 }
-
-            _uiState.value = current.copy(
-                dailyTasks = updatedTasks,
-                rizzPoints = current.rizzPoints + completedTasksReward
-            )
         }
     }
 

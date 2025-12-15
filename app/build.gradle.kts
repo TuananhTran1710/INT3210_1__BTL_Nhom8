@@ -82,6 +82,7 @@ dependencies {
     implementation("io.coil-kt:coil-compose:2.6.0")
     implementation("androidx.core:core-ktx:1.17.0")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.10.0")
+    implementation(libs.androidx.compose.runtime)
     kapt(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
     implementation(platform(libs.firebase.bom)) // Quan trọng: Dùng platform cho BOM

@@ -11,6 +11,8 @@ import com.example.wink.data.repository.UserRepository
 import com.example.wink.data.repository.UserRepositoryImpl
 import com.example.wink.data.repository.SocialRepository
 import com.example.wink.data.repository.SocialRepositoryImpl
+import com.example.wink.data.repository.TaskRepository
+import com.example.wink.data.repository.TaskRepositoryImpl
 import com.example.wink.data.repository.TipsRepository
 import dagger.Binds
 import dagger.Module
@@ -59,4 +61,8 @@ abstract class RepositoryModule {
     abstract fun bindGameRepository(
         impl: GameRepositoryImpl
     ): GameRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindTaskRepository(impl: TaskRepositoryImpl): TaskRepository
 }
