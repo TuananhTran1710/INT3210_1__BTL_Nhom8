@@ -136,12 +136,12 @@ class SocialViewModel @Inject constructor(
         if ((content.isBlank() && selectedImages.isEmpty()) || user == null) return
 
         viewModelScope.launch {
-            // 1. BẬT LOADING
+            // A. Bật trạng thái đang đăng (để hiện loading xoay xoay)
             _uiState.update { it.copy(isPosting = true) }
 
             val uploadedImageUrls = mutableListOf<String>()
 
-            // 2. Upload ảnh (nếu có)
+            // Upload ảnh (nếu có)
             for (uri in selectedImages) {
                 val result = socialRepository.uploadImage(uri)
                 result.onSuccess { url ->
@@ -149,21 +149,28 @@ class SocialViewModel @Inject constructor(
                 }
             }
 
-            // 3. Tạo bài viết
-            socialRepository.createPost(content, uploadedImageUrls, user)
+            // Gọi Repository tạo bài
+            val result = socialRepository.createPost(content, uploadedImageUrls, user)
 
-            // 4. TẮT LOADING & RESET & ĐÓNG DIALOG
-            _uiState.update {
-                it.copy(
-                    isPosting = false, // Tắt loading
-                    isCreatingPost = false, // Đóng dialog
-                    newPostContent = "",
-                    selectedImageUris = emptyList()
-                )
+            // B. Xử lý kết quả
+            if (result.isSuccess) {
+                // 1. Đóng Dialog và Reset form ngay lập tức
+                _uiState.update {
+                    it.copy(
+                        isPosting = false,
+                        isCreatingPost = false,
+                        newPostContent = "",
+                        selectedImageUris = emptyList()
+                    )
+                }
+
+                // 2. QUAN TRỌNG: Gọi tải lại Feed ngay lập tức để bài mới hiện lên đầu
+                loadFeed(isRefresh = true)
+
+            } else {
+                // Nếu lỗi thì giữ nguyên Dialog để user thử lại
+                _uiState.update { it.copy(isPosting = false) }
             }
-
-            // 5 cap nhat nhiem vu
-            taskRepository.updateTaskProgress("POST_FEED")
         }
     }
 
@@ -271,11 +278,14 @@ class SocialViewModel @Inject constructor(
     fun onDeletePost(postId: String) {
         val user = currentUser ?: return
 
+        // Cập nhật UI NGAY LẬP TỨC (Xóa bài khỏi list đang hiển thị)
+        _uiState.update { state ->
+            state.copy(feedList = state.feedList.filter { it.id != postId })
+        }
+
         viewModelScope.launch {
-            val result = socialRepository.deletePost(postId, user.uid)
-            if (result.isSuccess) {
-                // Tự động update feed (vì đang listen realtime từ repo)
-            }
+            // Sau đó mới gọi Server xóa thật (chạy ngầm)
+            socialRepository.deletePost(postId, user.uid)
         }
     }
 
@@ -283,11 +293,21 @@ class SocialViewModel @Inject constructor(
     fun onEditPost(postId: String, newContent: String, newImageUrls: List<String>) {
         val user = currentUser ?: return
 
-        viewModelScope.launch {
-            val result = socialRepository.editPost(postId, user.uid, newContent, newImageUrls)
-            if (result.isSuccess) {
-                // Tự động update feed (vì đang listen realtime từ repo)
+        // Cập nhật UI NGAY LẬP TỨC (Tìm bài đó và thay nội dung mới)
+        _uiState.update { state ->
+            val updatedList = state.feedList.map { post ->
+                if (post.id == postId) {
+                    post.copy(content = newContent, imageUrls = newImageUrls)
+                } else {
+                    post
+                }
             }
+            state.copy(feedList = updatedList)
+        }
+
+        viewModelScope.launch {
+            // Gọi Server cập nhật thật (chạy ngầm)
+            socialRepository.editPost(postId, user.uid, newContent, newImageUrls)
         }
     }
 

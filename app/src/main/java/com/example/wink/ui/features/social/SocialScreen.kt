@@ -279,7 +279,7 @@ fun FeedList(
         }
 
         // Các bài post bên dưới
-        items(posts) { post ->
+        items(posts, key = { it.id }) { post ->
             FeedItem(
                 post,
                 onUserClick,
@@ -311,7 +311,7 @@ fun FeedItem(
     onEditPost: (String, String, List<String>) -> Unit = { _, _, _ -> }
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
-    var editContent by remember { mutableStateOf(post.content) }
+    var editContent by remember(post.content) { mutableStateOf(post.content) }
 
     Column(
         modifier = Modifier
@@ -1064,36 +1064,31 @@ fun LeaderboardItem(rank: Int, user: User, onUserClick: (String) -> Unit) {
 fun ExpandableText(
     text: String,
     modifier: Modifier = Modifier,
-    minimizedMaxLines: Int = 3, // Số dòng tối đa khi thu gọn
+    minimizedMaxLines: Int = 3,
     style: TextStyle = MaterialTheme.typography.bodyMedium,
     color: Color = MaterialTheme.colorScheme.onSurface
 ) {
-    var isExpanded by remember { mutableStateOf(false) }
-    var textLayoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
-    var isClickable by remember { mutableStateOf(false) }
-    var finalText by remember { mutableStateOf(text) }
-
-    // Tính toán xem có cần cắt bớt chữ không
-    LaunchedEffect(textLayoutResult) {
-        textLayoutResult?.let {
-            if (it.hasVisualOverflow) {
-                isClickable = true
-            }
-        }
-    }
+    var isExpanded by remember(text) { mutableStateOf(false) }
+    var showSeeMore by remember(text) { mutableStateOf(false) }
 
     Column(modifier = modifier) {
         Text(
-            text = finalText,
+            text = text,
             style = style,
             color = color,
+            // Nếu đã mở rộng -> hiện hết, ngược lại -> giới hạn dòng
             maxLines = if (isExpanded) Int.MAX_VALUE else minimizedMaxLines,
             overflow = TextOverflow.Ellipsis,
-            onTextLayout = { textLayoutResult = it }
+            onTextLayout = { textLayoutResult ->
+                // Logic kiểm tra: Nếu chưa mở rộng VÀ có dòng bị ẩn (overflow) -> Hiện nút Xem thêm
+                // Chỉ update state nếu nó chưa đúng để tránh recomposition vòng lặp
+                if (!isExpanded && textLayoutResult.hasVisualOverflow) {
+                    if (!showSeeMore) showSeeMore = true
+                }
+            }
         )
 
-        // Nếu văn bản dài quá số dòng quy định -> Hiện nút Xem thêm
-        if (isClickable || (textLayoutResult?.lineCount ?: 0) > minimizedMaxLines) {
+        if (showSeeMore) {
             Text(
                 text = if (isExpanded) "Thu gọn" else "Xem thêm",
                 style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Bold),
