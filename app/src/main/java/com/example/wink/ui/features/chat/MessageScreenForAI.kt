@@ -53,7 +53,8 @@ fun MessageScreenForAI(
     var currentStepIndex by remember { mutableStateOf(-1) } // Chỉ số message đang highlight
     val analysisSteps by viewModel.analysisSteps.collectAsState() // Kết quả phân tích
     val listState = rememberLazyListState()
-
+// --- STATE QUẢN LÝ ẢNH FULL SCREEN ---
+    var clickedImageUrl by remember { mutableStateOf<String?>(null) }
 // --- STATE MỚI: Lưu danh sách ảnh (List) ---
     // Sử dụng mutableStateListOf để Compose dễ dàng theo dõi thay đổi thêm/xóa
     val selectedImageUris = remember { mutableStateListOf<android.net.Uri>() }
@@ -205,6 +206,10 @@ fun MessageScreenForAI(
                 highlightMessageId = currentHighlightMessageId,
                 insightMessage = currentInsight,
                 avatarUrl = avatarUri,
+                // --- TRUYỀN CALLBACK VÀO ĐÂY ---
+                onImageClick = { url ->
+                    clickedImageUrl = url
+                }
             )
         }
     }
@@ -251,6 +256,14 @@ fun MessageScreenForAI(
             isLoading = isAnalyzing,
 //            result = analyzeResult,
             onDismiss = { showAnalyzeDialog = false }
+        )
+    }
+
+    // --- HIỂN THỊ ẢNH FULL MÀN HÌNH ---
+    if (clickedImageUrl != null) {
+        FullScreenImageViewer(
+            imageUrl = clickedImageUrl!!,
+            onDismiss = { clickedImageUrl = null }
         )
     }
 }

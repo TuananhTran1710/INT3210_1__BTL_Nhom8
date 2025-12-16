@@ -117,10 +117,25 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+    // SỬA HÀM NÀY
     private fun listenMessages() {
         viewModelScope.launch {
-            chatRepository.listenMessages(chatId).collect {
-                _messages.value = it
+            chatRepository.listenMessages(chatId).collect { newMessages ->
+                _messages.value = newMessages
+
+                // --- FIX BUG: Tự động đánh dấu đã đọc khi có tin nhắn mới đến ---
+                if (newMessages.isNotEmpty()) {
+                    // Vì query trong Repository là DESCENDING (Mới nhất lên đầu)
+                    // Nên phần tử đầu tiên (index 0) là tin nhắn mới nhất
+                    val newestMessage = newMessages.first()
+
+                    // Kiểm tra: Nếu mình chưa đọc tin nhắn mới nhất này -> Gọi markAsRead ngay
+                    val amIRead = newestMessage.readBy?.contains(currentUserId) == true
+
+                    if (!amIRead) {
+                        markAsRead()
+                    }
+                }
             }
         }
     }

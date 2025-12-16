@@ -71,6 +71,8 @@ fun MessageScreen(
     navController: NavController,
     viewModel: ChatViewModel = hiltViewModel()
 ) {
+    // 1. STATE MỚI: Lưu URL của ảnh đang được bấm vào để xem
+    var clickedImageUrl by remember { mutableStateOf<String?>(null) }
     val messages by viewModel.messages.collectAsState()
     val chatTitle by viewModel.chatTitle.collectAsState()
     val chatAvatarUrl by viewModel.chatAvatarUrl.collectAsState()
@@ -203,9 +205,21 @@ fun MessageScreen(
             messages = messages,
             currentUserId = viewModel.currentUserId,
             avatarUrl = chatAvatarUrl,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(paddingValues),
+            // 2. TRUYỀN CALLBACK XỬ LÝ CLICK ẢNH
+            onImageClick = { url ->
+                clickedImageUrl = url
+            }
         )
     }
+    // 3. HIỂN THỊ TRÌNH XEM ẢNH NẾU CÓ URL
+    if (clickedImageUrl != null) {
+        FullScreenImageViewer(
+            imageUrl = clickedImageUrl!!,
+            onDismiss = { clickedImageUrl = null }
+        )
+    }
+
 //    if (showAnalyzeDialog) {
 //        AnalyzeDialog(
 //            isLoading = isAnalyzing,
@@ -293,7 +307,8 @@ fun MessageContainer(
     isTyping: Boolean = false,
     listState: LazyListState = rememberLazyListState(),
     highlightMessageId: String? = null,
-    insightMessage: String? = null
+    insightMessage: String? = null,
+    onImageClick: (String) -> Unit // 4. THÊM THAM SỐ NHẬN CALLBACK
 ) {
     LaunchedEffect(highlightMessageId) {
         highlightMessageId?.let { id ->
@@ -347,7 +362,8 @@ fun MessageContainer(
                 highlight = highlight,
                 avatarUrl = avatarUrl,
                 insight = if (highlight) insightMessage else null,
-                showTail = showTail // Truyền logic grouping vào
+                showTail = showTail, // Truyền logic grouping vào
+                onImageClick = onImageClick // 5. TRUYỀN XUỐNG MESSAGE ITEM
             )
 
             // B. Time Separator (Hiển thị ở giữa các nhóm tin nhắn xa nhau)

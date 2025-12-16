@@ -395,7 +395,6 @@ private fun SpecialAIItem(onClick: () -> Unit) {
         }
     }
 }
-
 @Composable
 private fun ChatRowItem(
     uiChat: UiChat,
@@ -405,13 +404,20 @@ private fun ChatRowItem(
 ) {
     var expanded by remember { mutableStateOf(false) }
 
-    val isUnread = uiChat.isUnread && !uiChat.isAiChat
-    val nameWeight = if (isUnread) FontWeight.Bold else FontWeight.SemiBold
-    // Màu text tin nhắn: Sáng hơn nếu chưa đọc
-    val msgColor = if (isUnread) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
+    // --- LOGIC CHECK UNREAD ---
+    val isUnread = uiChat.isUnread && !uiChat.isAiChat // AI Chat thì ko cần check unread kiểu này (tuỳ logic)
 
-    // === Logic làm nổi bật tin nhắn chưa đọc ===
-    // Sử dụng surfaceContainer (sáng hơn) cho chưa đọc, và surfaceContainerLow (tối hơn) cho đã đọc
+    // 1. Cấu hình Font chữ: Đậm (Chưa đọc) vs Thường (Đã đọc)
+    val nameWeight = if (isUnread) FontWeight.ExtraBold else FontWeight.SemiBold
+    val messageWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal
+
+    // 2. Cấu hình Màu sắc: Đen rõ (Chưa đọc) vs Xám (Đã đọc)
+    val msgColor = if (isUnread)
+        MaterialTheme.colorScheme.onSurface
+    else
+        MaterialTheme.colorScheme.onSurfaceVariant
+
+    // 3. Cấu hình Nền: Sáng hơn (Chưa đọc) vs Tối hơn (Đã đọc) - Tạo độ tương phản
     val containerColor = if (isUnread) {
         MaterialTheme.colorScheme.surfaceContainerHigh
     } else {
@@ -430,7 +436,7 @@ private fun ChatRowItem(
             modifier = Modifier.padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Avatar
+            // --- AVATAR & UNREAD DOT ---
             Box {
                 UserAvatar(
                     imageUrl = uiChat.displayAvatarUrl,
@@ -438,28 +444,29 @@ private fun ChatRowItem(
                     modifier = Modifier.size(52.dp)
                 )
 
-                // Dấu chấm xanh online/unread
+                // Dấu chấm xanh báo tin chưa đọc
                 if (isUnread) {
                     Box(
                         modifier = Modifier
                             .align(Alignment.BottomEnd)
-                            .size(14.dp)
-                            .background(containerColor, CircleShape)
-                            .padding(2.dp)
-                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                            .size(16.dp)
+                            .background(containerColor, CircleShape) // Viền giả trùng màu nền để cắt hình
+                            .padding(3.dp) // Độ dày viền
+                            .background(MaterialTheme.colorScheme.primary, CircleShape) // Chấm xanh chủ đạo
                     )
                 }
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
-            // Text Content
+            // --- TEXT CONTENT ---
             Column(modifier = Modifier.weight(1f)) {
+                // Hàng 1: Tên + Icon Ghim
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = uiChat.displayName,
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = nameWeight,
+                        fontWeight = nameWeight, // Font đậm
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -478,11 +485,13 @@ private fun ChatRowItem(
 
                 Spacer(modifier = Modifier.height(4.dp))
 
+                // Hàng 2: Nội dung tin nhắn + Thời gian
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = uiChat.lastMessage.ifBlank { "Hình ảnh" },
                         style = MaterialTheme.typography.bodyMedium,
-                        color = msgColor,
+                        fontWeight = messageWeight, // Font đậm
+                        color = msgColor,           // Màu đậm
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f)
@@ -493,12 +502,13 @@ private fun ChatRowItem(
                     Text(
                         text = "• ${formatChatRowTime(uiChat.chat.updatedAt)}",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
+                        fontWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal, // Giờ cũng in đậm
+                        color = if (isUnread) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)
                     )
                 }
             }
 
-            // Menu Options
+            // --- MENU OPTIONS (3 DOTS) ---
             Box {
                 IconButton(
                     onClick = { expanded = true },

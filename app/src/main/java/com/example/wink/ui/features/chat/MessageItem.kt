@@ -52,7 +52,8 @@ fun MessageItem(
     modifier: Modifier = Modifier,
     highlight: Boolean = false,
     insight: String? = null,
-    showTail: Boolean = true
+    showTail: Boolean = true,
+    onImageClick: (String) -> Unit
 ) {
     // 1. Cấu hình căn lề: Tin mình -> Phải (End), Tin bạn -> Trái (Start)
     val horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
@@ -152,6 +153,7 @@ fun MessageItem(
                                         .heightIn(max = 300.dp)
                                         .clip(RoundedCornerShape(12.dp))
                                         .padding(bottom = if (message.content.isNotBlank() && message.content != "Đã gửi một ảnh") 4.dp else 0.dp)
+                                        .clickable { onImageClick(imageUrl) }
                                 )
                             }
                         }
