@@ -159,14 +159,26 @@ fun SettingsScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                // Gmail (Đã khóa chỉnh sửa)
                 OutlinedTextField(
                     value = state.email,
-                    onValueChange = { viewModel.onEmailChange(it) },
-                    label = { Text("Gmail (Đăng nhập)") },
+                    onValueChange = { }, // Không làm gì khi người dùng cố nhập
+                    label = { Text("Email (Không thể sửa)") },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
-                    leadingIcon = { Icon(Icons.Outlined.Email, null) }
+                    leadingIcon = { Icon(Icons.Outlined.Email, null) },
+
+                    // --- CÁC THAY ĐỔI QUAN TRỌNG Ở ĐÂY ---
+                    readOnly = true, // Chế độ chỉ đọc
+                    enabled = false, // Vô hiệu hóa tương tác (làm mờ đi để người dùng biết là không sửa được)
+                    colors = OutlinedTextFieldDefaults.colors(
+                        // Tùy chỉnh màu để text vẫn dễ đọc dù bị disable (tùy chọn)
+                        disabledTextColor = MaterialTheme.colorScheme.onSurface,
+                        disabledBorderColor = MaterialTheme.colorScheme.outline,
+                        disabledLeadingIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
                 )
             }
 
