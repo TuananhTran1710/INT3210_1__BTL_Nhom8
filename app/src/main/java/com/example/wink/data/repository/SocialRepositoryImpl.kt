@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
+import kotlinx.coroutines.withContext
 import java.util.UUID
 import javax.inject.Inject
 
@@ -36,37 +37,46 @@ class SocialRepositoryImpl @Inject constructor(
     // 1. TẢI FEED TỐI ƯU (Batch Fetching)
     override suspend fun getSocialFeed(): Result<List<SocialPost>> {
         return try {
-            // A. Tải 50 bài mới nhất
+            // 1. Tải dữ liệu từ Firestore
             val snapshot = firestore.collection("posts")
                 .orderBy("timestamp", Query.Direction.DESCENDING)
                 .limit(50)
                 .get()
                 .await()
 
-            // B. Lọc ra các ID bài gốc cần lấy (để xử lý Repost)
-            val originalPostIds = snapshot.documents
-                .filter { it.getBoolean("isRepost") == true }
-                .mapNotNull { it.getString("originalPostId") }
-                .distinct() // Loại bỏ trùng lặp
+            // 2. CHUYỂN TOÀN BỘ VIỆC XỬ LÝ DỮ LIỆU SANG BACKGROUND THREAD
+            // Dispatchers.Default chuyên dùng cho các tác vụ tính toán CPU nặng (như map, filter list lớn)
+            val posts = withContext(Dispatchers.Default) {
 
-            // C. Tải tất cả bài gốc trong 1 lần (hoặc vài lần nếu > 10 bài)
-            val originalPostsMap = mutableMapOf<String, DocumentSnapshot>()
-            if (originalPostIds.isNotEmpty()) {
-                // Firestore giới hạn 'whereIn' tối đa 10 phần tử, nên cần chia nhỏ (chunk)
-                originalPostIds.chunked(10).forEach { chunk ->
-                    val origins = firestore.collection("posts")
-                        .whereIn(FieldPath.documentId(), chunk)
-                        .get()
-                        .await()
-                    origins.documents.forEach { doc ->
-                        originalPostsMap[doc.id] = doc
+                // A. Lọc ra các ID bài gốc cần lấy (để xử lý Repost)
+                val originalPostIds = snapshot.documents
+                    .filter { it.getBoolean("isRepost") == true }
+                    .mapNotNull { it.getString("originalPostId") }
+                    .distinct() // Loại bỏ trùng lặp
+
+                // B. Tải tất cả bài gốc (IO trong background thread vẫn an toàn vì dùng await)
+                val originalPostsMap = mutableMapOf<String, DocumentSnapshot>()
+
+                if (originalPostIds.isNotEmpty()) {
+                    // Firestore giới hạn 'whereIn' tối đa 10 phần tử, nên cần chia nhỏ (chunk)
+                    // Vì đang ở trong coroutine, các lệnh này sẽ chạy tuần tự nhưng không block UI
+                    originalPostIds.chunked(10).forEach { chunk ->
+                        val origins = firestore.collection("posts")
+                            .whereIn(FieldPath.documentId(), chunk)
+                            .get()
+                            .await()
+
+                        origins.documents.forEach { doc ->
+                            originalPostsMap[doc.id] = doc
+                        }
                     }
                 }
-            }
 
-            // D. Map dữ liệu (Xử lý trên Memory -> Cực nhanh)
-            val posts = snapshot.documents.mapNotNull { doc ->
-                mapDocumentToPost(doc, originalPostsMap)
+                // C. Map dữ liệu (Đây là phần nặng nhất gây lag nếu để ở Main Thread)
+                // Chuyển đổi từ DocumentSnapshot sang SocialPost object
+                snapshot.documents.mapNotNull { doc ->
+                    mapDocumentToPost(doc, originalPostsMap)
+                }
             }
 
             Result.success(posts)
@@ -557,19 +567,18 @@ class SocialRepositoryImpl @Inject constructor(
 
     override suspend fun uploadImage(uri: Uri): Result<String> {
         return try {
-            // --- BƯỚC NÉN ẢNH Ở ĐÂY ---
-            // Biến uri gốc (nặng) thành uri đã nén (nhẹ)
-            val compressedUri = ImageUtils.compressImage(context, uri)
-            // ---------------------------
+            // Chuyển toàn bộ việc xử lý file ảnh sang luồng IO
+            val compressedUri = withContext(Dispatchers.IO) {
+                ImageUtils.compressImage(context, uri)
+            }
 
             val filename = UUID.randomUUID().toString()
             val ref = storage.reference.child("images/$filename.jpg")
 
-            ref.putFile(uri).await()
-            // Upload ảnh nén thay vì ảnh gốc
-            ref.putFile(compressedUri).await() // Dùng compressedUri
-
+            // putFile là hàm suspend của Firebase nên nó tự xử lý luồng, không lo
+            ref.putFile(compressedUri).await()
             val downloadUrl = ref.downloadUrl.await()
+
             Result.success(downloadUrl.toString())
         } catch (e: Exception) {
             Result.failure(e)
