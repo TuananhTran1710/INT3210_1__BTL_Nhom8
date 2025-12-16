@@ -1,6 +1,12 @@
 package com.example.wink.ui.features.chat
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -11,13 +17,17 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -33,6 +43,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,6 +62,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wink.R
 import com.example.wink.data.model.Message
+import com.example.wink.ui.common.DateUtils
 import com.example.wink.ui.features.chat.AnalyzeDialog
 
 @Composable
@@ -62,7 +74,17 @@ fun MessageScreen(
     val chatTitle by viewModel.chatTitle.collectAsState()
     val chatAvatarUrl by viewModel.chatAvatarUrl.collectAsState()
     var messageText by remember { mutableStateOf("") }
+// 1. STATE MỚI: Danh sách ảnh đang chọn
+    val selectedImageUris = remember { mutableStateListOf<android.net.Uri>() }
 
+    // 2. LAUNCHER: Chọn NHIỀU ảnh
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10)
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            selectedImageUris.addAll(uris)
+        }
+    }
     Scaffold(
         topBar = {
             MessageTopBar(
@@ -74,37 +96,103 @@ fun MessageScreen(
         },
         bottomBar = {
             Surface(tonalElevation = 4.dp) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { /* TODO: Handle image picking */ }) {
-                        Icon(
-                            Icons.Default.Photo,
-                            contentDescription = "Add image"
-                        )
-                    }
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Type a message") },
-                        shape = CircleShape
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (messageText.isNotBlank()) {
-                                viewModel.sendMessage(messageText)
-                                messageText = ""
+                Column(modifier = Modifier.fillMaxWidth()) {
+
+                    // 3. VÙNG PREVIEW ẢNH (Copy từ Chat AI sang, đã làm đẹp nút X)
+                    if (selectedImageUris.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(selectedImageUris) { uri ->
+                                Box(modifier = Modifier.size(100.dp)) {
+                                    // Ảnh Thumbnail
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = "Selected Image",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(16.dp))
+                                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp))
+                                    )
+
+                                    // Nút Xóa đẹp
+                                    Surface(
+                                        onClick = { selectedImageUris.remove(uri) },
+                                        shape = CircleShape,
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        tonalElevation = 4.dp,
+                                        shadowElevation = 4.dp,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp)
+                                            .size(28.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Remove",
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier.padding(6.dp)
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        enabled = messageText.isNotBlank()
+                        }
+                    }
+
+                    // 4. INPUT ROW
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send"
+                        // Nút chọn ảnh
+                        IconButton(onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }) {
+                            Icon(
+                                Icons.Default.Photo,
+                                contentDescription = "Add image"
+                            )
+                        }
+
+                        // Input Text
+                        OutlinedTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Nhập tin nhắn...") },
+                            shape = CircleShape,
+                            maxLines = 3
                         )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Nút Gửi
+                        val canSend = messageText.isNotBlank() || selectedImageUris.isNotEmpty()
+                        IconButton(
+                            onClick = {
+                                if (canSend) {
+                                    // GỌI HÀM GỬI MỚI (Text + List Ảnh)
+                                    viewModel.sendMessage(messageText, selectedImageUris.toList())
+
+                                    // Reset UI ngay lập tức
+                                    messageText = ""
+                                    selectedImageUris.clear()
+                                }
+                            },
+                            enabled = canSend
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
                     }
                 }
             }
@@ -113,6 +201,7 @@ fun MessageScreen(
         MessageContainer(
             messages = messages,
             currentUserId = viewModel.currentUserId,
+            avatarUrl = chatAvatarUrl,
             modifier = Modifier.padding(paddingValues)
         )
     }
@@ -197,54 +286,91 @@ fun MessageTopBar(
 fun MessageContainer(
     messages: List<Message>,
     currentUserId: String,
+    avatarUrl: String?,
     modifier: Modifier = Modifier,
     isTyping: Boolean = false,
     listState: LazyListState = rememberLazyListState(),
-    highlightMessageId: String? = null,  // message đang highlight
+    highlightMessageId: String? = null,
     insightMessage: String? = null
 ) {
-//    val listState = rememberLazyListState()
-
     LaunchedEffect(highlightMessageId) {
         highlightMessageId?.let { id ->
             val index = messages.indexOfFirst { it.messageId == id }
-            if (index != -1) {
-                listState.animateScrollToItem(index)
-            }
+            if (index != -1) listState.animateScrollToItem(index)
         }
     }
 
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp), // Thêm chút padding dưới cùng
-        reverseLayout = true
+        contentPadding = PaddingValues(bottom = 16.dp, top = 8.dp),
+        reverseLayout = true // List bị đảo ngược
     ) {
-        // --- SỬ DỤNG MESSAGE ITEM MỚI TẠI ĐÂY ---
-        items(messages) { message ->
+        if (isTyping) {
+            item { TypingIndicator() }
+        }
+
+        itemsIndexed(messages) { index, message ->
+            // --- LOGIC GROUPING & SEPARATOR ---
+
+            // 1. Xác định tin nhắn CŨ HƠN (liền kề phía trên visual, nhưng là index + 1 trong list đảo)
+            val olderMessage = messages.getOrNull(index + 1)
+
+            // 2. Xác định tin nhắn MỚI HƠN (liền kề phía dưới visual, index - 1)
+            val newerMessage = messages.getOrNull(index - 1)
+
+            // Logic Separator: So sánh tin hiện tại với tin CŨ HƠN
+            val showTimeSeparator = if (olderMessage != null) {
+                DateUtils.shouldShowTimeSeparator(message.timestamp, olderMessage.timestamp)
+            } else {
+                true // Tin nhắn đầu tiên của lịch sử chat luôn hiện giờ
+            }
+
+            // Logic Grouping (Tail): Hiện đuôi/avatar nếu tin MỚI HƠN là của người khác HOẶC cách quá xa về thời gian
+            val showTail = if (newerMessage != null) {
+                newerMessage.senderId != message.senderId ||
+                        DateUtils.shouldShowTimeSeparator(newerMessage.timestamp, message.timestamp)
+            } else {
+                true // Tin nhắn mới nhất (cuối cùng) luôn hiện đuôi
+            }
+
+            // --- RENDER ---
+
+            // A. Tin nhắn
             val highlight = message.messageId == highlightMessageId
 
             MessageItem(
                 message = message,
                 isMyMessage = message.senderId == currentUserId,
                 highlight = highlight,
-                insight = if (highlight) insightMessage else null
+                avatarUrl = avatarUrl,
+                insight = if (highlight) insightMessage else null,
+                showTail = showTail // Truyền logic grouping vào
             )
 
-//            if (highlight && insightMessage != null) {
-//                Text(
-//                    text = insightMessage,
-//                    color = Color.Yellow,
-//                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-//                )
-//            }
-        }
-
-        if (isTyping) {
-            item {
-                TypingIndicator()
+            // B. Time Separator (Hiển thị ở giữa các nhóm tin nhắn xa nhau)
+            // Vì reverseLayout, item render sau sẽ nằm PHÍA TRÊN item render trước
+            if (showTimeSeparator) {
+                TimeSeparator(timestamp = message.timestamp)
             }
         }
+    }
+}
+
+// Component hiển thị giờ ở giữa màn hình (nhỏ, màu xám)
+@Composable
+fun TimeSeparator(timestamp: Long) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = DateUtils.formatTimeSeparator(timestamp),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
+        )
     }
 }
 

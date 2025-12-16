@@ -1,5 +1,6 @@
 package com.example.wink.data.repository
 
+import android.net.Uri
 import com.example.wink.data.model.Chat
 import com.example.wink.data.model.Message
 import com.google.firebase.firestore.FirebaseFirestore
@@ -10,11 +11,27 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import com.google.firebase.firestore.Filter // Import thêm Filter nếu cần
+import com.google.firebase.storage.FirebaseStorage
+import java.util.UUID
 
 class ChatRepository @Inject constructor(
-    private val firestore: FirebaseFirestore
+    private val firestore: FirebaseFirestore,
+    private val storage: FirebaseStorage
 ) {
+    // 2. Thêm hàm Upload Ảnh
+    suspend fun uploadImage(uri: Uri): Result<String> = try {
+        val filename = UUID.randomUUID().toString()
+        val ref = storage.reference.child("chat_images/$filename.jpg")
 
+        // Upload
+        ref.putFile(uri).await()
+
+        // Lấy URL download
+        val downloadUrl = ref.downloadUrl.await().toString()
+        Result.success(downloadUrl)
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
     /** ---------------------------
      * Chat Realtime
      * --------------------------- */
@@ -103,9 +120,13 @@ class ChatRepository @Inject constructor(
      * Gửi tin nhắn vào chat subcollection
      * - Đồng thời update updatedAt của chat
      */
+    /**
+     * Gửi tin nhắn và UPDATE luôn thông tin ra document Chat cha
+     */
     suspend fun sendMessage(chatId: String, message: Message): Result<Unit> = try {
         val chatRef = firestore.collection("chats").document(chatId)
 
+        // 1. Dữ liệu tin nhắn trong subcollection (Giữ nguyên)
         val messageData = hashMapOf<String, Any?>(
             "senderId" to message.senderId,
             "receiverId" to message.receiverId,
@@ -115,19 +136,26 @@ class ChatRepository @Inject constructor(
             "mediaUrl" to message.mediaUrl,
         )
 
-        // Thêm message vào subcollection
-        chatRef.collection("messages")
-            .add(messageData)
-            .await()
+        val batch = firestore.batch()
 
-        // Update updatedAt của chat
-        chatRef.update("updatedAt", message.timestamp).await()
-        
-        // Update lastMessage của chat
-        chatRef.update("lastMessage", message.content).await()
+        // Thêm message mới
+        val newMessageRef = chatRef.collection("messages").document()
+        batch.set(newMessageRef, messageData)
 
-        // Update lastMessage của chat
-        chatRef.update("lastMessage", message.content).await()
+        // 2. CHUẨN BỊ DỮ LIỆU UPDATE DOCUMENT CHAT (QUAN TRỌNG)
+        // Đây là bước giúp ChatListViewModel không cần query thêm
+        val updateData = hashMapOf<String, Any?>(
+            "updatedAt" to message.timestamp,
+            "lastMessage" to message.content,
+            "lastSenderId" to message.senderId,
+            "lastReadBy" to listOf(message.senderId) // Reset người đọc, chỉ có người gửi là đã đọc
+        )
+
+        // (Tùy chọn nâng cao) Nếu muốn chắc chắn cache User Info luôn mới nhất,
+        // bạn có thể truyền thêm name/avatar của người gửi vào hàm sendMessage và update lại map participantInfo tại đây.
+
+        batch.update(chatRef, updateData)
+        batch.commit().await()
 
         Result.success(Unit)
     } catch (e: Exception) {
@@ -162,12 +190,14 @@ class ChatRepository @Inject constructor(
             "senderId" to message.senderId,
             "content" to message.content,
             "timestamp" to message.timestamp,
+            "mediaUrl" to message.mediaUrl
         )
 
         firestore.collection("ai_chats")
             .document(userId)
             .collection("messages")
-            .add(messageData)
+            .document(message.messageId) // Dùng ID mà ViewModel đã tạo
+            .set(messageData)
             .await()
 
         Result.success(Unit)
@@ -208,6 +238,9 @@ class ChatRepository @Inject constructor(
      */
     suspend fun markMessagesAsRead(chatId: String, userId: String) {
         try {
+            // Update thẳng vào document Chat để UI bên ngoài cập nhật ngay lập tức
+            val chatRef = firestore.collection("chats").document(chatId)
+            chatRef.update("lastReadBy", com.google.firebase.firestore.FieldValue.arrayUnion(userId)).await()
             // 1. Lấy các tin nhắn chưa đọc
             val messagesRef = firestore.collection("chats")
                 .document(chatId)
@@ -255,6 +288,31 @@ class ChatRepository @Inject constructor(
      * Nếu chưa có -> Tạo mới.
      * Trả về chatId.
      */
+    suspend fun migrateChatInfo(chatId: String, targetUserId: String) {
+        try {
+            // 1. Lấy thông tin user (Query mạng tốn thời gian, nhưng chạy ngầm nên ko sao)
+            val userSnapshot = firestore.collection("users").document(targetUserId).get().await()
+            val username = userSnapshot.getString("username") ?: "Người dùng"
+            val avatarUrl = userSnapshot.getString("avatarUrl") ?: ""
+
+            // 2. Tạo map info
+            val infoMap = mapOf(
+                "name" to username,
+                "avatar" to avatarUrl
+            )
+
+            // 3. Update ngược lại vào document Chat
+            // Lần sau mở app sẽ có sẵn data này -> Load nhanh
+            val updateData = mapOf("participantInfo.$targetUserId" to infoMap)
+
+            firestore.collection("chats").document(chatId)
+                .update(updateData)
+                .await()
+
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
     suspend fun findOrCreatePrivateChat(currentUserId: String, targetUserId: String): Result<String> {
         return try {
             // 1. Tìm xem đã có chat nào chứa cả 2 người chưa
