@@ -55,14 +55,14 @@ class DashboardViewModel @Inject constructor(
     }
 
     private fun initializeDailyTasks() {
-        viewModelScope.launch {
-            taskRepository.checkAndGenerateDailyTasks()
+        viewModelScope.launch(Dispatchers.IO) { // Chạy trên IO
+            try {
+                taskRepository.checkAndGenerateDailyTasks()
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
             taskRepository.getDailyTasks().collectLatest { newTasks ->
-                _uiState.update { state ->
-                    state.copy(
-                        dailyTasks = newTasks,
-                    )
-                }
+                _uiState.update { it.copy(dailyTasks = newTasks) }
             }
         }
     }
@@ -116,30 +116,40 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
-    /** Lắng nghe user từ AuthRepository và merge vào DashboardState */
     private fun observeUser() {
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->
-                val current = _uiState.value
-                val now = com.google.firebase.Timestamp.now()
+                // Chuyển việc tính toán ngày tháng sang Default Thread (CPU intensive nhẹ)
+                val (hasCheckIn, username, email) = withContext(Dispatchers.Default) {
+                    val now = Timestamp.now()
+                    val offsetSeconds = TimeZone.getDefault().rawOffset.toLong() / 1000L
 
-                val offsetSeconds = TimeZone.getDefault().rawOffset.toLong() / 1000L
-                fun dayNumber(ts: com.google.firebase.Timestamp?): Long? {
-                    return ts?.seconds?.let { (it + offsetSeconds) / 86400L }
+                    fun dayNumber(ts: Timestamp?): Long? {
+                        return ts?.seconds?.let { (it + offsetSeconds) / 86400L }
+                    }
+
+                    val todayDay = (now.seconds + offsetSeconds) / 86400L
+                    val lastAny = user?.lastCheckInDate
+                    val lastTs = lastAny
+                    val lastDay = dayNumber(lastTs)
+
+                    val checkedIn = (lastDay == todayDay)
+                    val uName = user?.username ?: "Người dùng"
+                    val uEmail = user?.email ?: "Không tìm thấy Email"
+
+                    Triple(checkedIn, uName, uEmail)
                 }
-                val todayDay = (now.seconds + offsetSeconds) / 86400L
-                val lastAny = user?.lastCheckInDate?:null
-                val lastTs = lastAny as? Timestamp
-                val lastDay = dayNumber(lastTs)
-                _uiState.value = current.copy(
-                    userEmail = user?.email ?: "Không tìm thấy Email",
-                    username = user?.username ?: user?.email?.substringBefore("@") ?: "Người dùng",
-                    rizzPoints = user?.rizzPoints ?: current.rizzPoints,
-                    dailyStreak = user?.loginStreak ?: current.dailyStreak,
-                    hasDailyCheckIn = (lastDay == todayDay),
-                    isLoading = false
-                )
-                Log.d("dvm","$lastDay:$todayDay:$lastAny")
+
+                _uiState.update { current ->
+                    current.copy(
+                        userEmail = email,
+                        username = username,
+                        rizzPoints = user?.rizzPoints ?: current.rizzPoints,
+                        dailyStreak = user?.loginStreak ?: current.dailyStreak,
+                        hasDailyCheckIn = hasCheckIn,
+                        isLoading = false
+                    )
+                }
             }
         }
     }
