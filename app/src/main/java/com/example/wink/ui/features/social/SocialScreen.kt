@@ -403,7 +403,6 @@ fun FeedItem(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(displayAvatarUrl)
                             .crossfade(true)
-                            .size(Size.ORIGINAL)
                             .diskCachePolicy(CachePolicy.ENABLED)
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
@@ -515,7 +514,6 @@ fun FeedItem(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(imageUrl)
                             .crossfade(true)
-                            .size(Size.ORIGINAL)
                             .diskCachePolicy(CachePolicy.ENABLED)
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
