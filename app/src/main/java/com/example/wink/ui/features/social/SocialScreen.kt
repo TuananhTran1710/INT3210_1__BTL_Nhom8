@@ -72,8 +72,21 @@ fun SocialScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val tabs = listOf("Bảng tin", "Xếp hạng")
-
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     var viewingImageUrl by remember { mutableStateOf<String?>(null) }
+
+    val actions = remember(viewModel, navController) {
+        SocialActions(
+            onUserClick = { userId -> navController.navigate(Screen.UserDetail.createRoute(userId)) },
+            onLikeClick = viewModel::onLikeClick,
+            onCommentClick = viewModel::onOpenCommentSheet,
+            onImageClick = { url -> viewingImageUrl = url }, // Lưu ý: Biến này thay đổi local state
+            onRetweetClick = viewModel::onRetweetClick,
+            onDeletePost = viewModel::onDeletePost,
+            onEditPost = viewModel::onEditPost,
+            onCreatePostClick = viewModel::onFabClick
+        )
+    }
 
     if (viewingImageUrl != null) {
         ImagePreviewDialog(
@@ -81,24 +94,19 @@ fun SocialScreen(
             onDismiss = { viewingImageUrl = null }
         )
     }
-
-    // BottomSheetState
-    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-
     // --- BOTTOM SHEET BÌNH LUẬN ---
     if (state.activePostId != null) {
         ModalBottomSheet(
             onDismissRequest = { viewModel.onDismissCommentSheet() },
             sheetState = sheetState
         ) {
-            // Nội dung Bottom Sheet
             CommentSheetContent(
                 comments = state.commentsForActivePost,
                 newComment = state.newCommentContent,
-                onValueChange = { viewModel.onCommentContentChange(it) },
-                onSend = { viewModel.onSendComment() },
-                onCommentLikeClick = { commentId -> viewModel.onCommentLikeClick(commentId) },
-                onEditComment = { commentId, newContent -> viewModel.onEditComment(commentId, newContent) }
+                onValueChange = viewModel::onCommentContentChange,
+                onSend = viewModel::onSendComment,
+                onCommentLikeClick = viewModel::onCommentLikeClick,
+                onEditComment = viewModel::onEditComment
             )
         }
     }
@@ -107,12 +115,12 @@ fun SocialScreen(
     if (state.isCreatingPost) {
         CreatePostDialog(
             content = state.newPostContent,
-            selectedImages = state.selectedImageUris, // Truyền list ảnh
-            onContentChange = { viewModel.onPostContentChange(it) },
-            onImagesSelected = { viewModel.onImagesSelected(it) }, // Callback chọn ảnh
-            onRemoveImage = { viewModel.onRemoveSelectedImage(it) }, // Callback xóa ảnh
-            onDismiss = { viewModel.onDismissPostDialog() },
-            onPost = { viewModel.onSendPost() },
+            selectedImages = state.selectedImageUris,
+            onContentChange = viewModel::onPostContentChange,
+            onImagesSelected = viewModel::onImagesSelected,
+            onRemoveImage = viewModel::onRemoveSelectedImage,
+            onDismiss = viewModel::onDismissPostDialog,
+            onPost = viewModel::onSendPost,
             isPosting = state.isPosting,
             userAvatarUrl = state.currentUserAvatarUrl,
         )
@@ -120,21 +128,11 @@ fun SocialScreen(
 
     Scaffold(
         topBar = {
-            TabRow(selectedTabIndex = state.selectedTab) {
-                tabs.forEachIndexed { index, title ->
-                    Tab(
-                        selected = state.selectedTab == index,
-                        onClick = { viewModel.onTabSelected(index) },
-                        text = {
-                            Text(
-                                text = title,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = if (state.selectedTab == index) FontWeight.Bold else FontWeight.Normal
-                            )
-                        }
-                    )
-                }
-            }
+            SocialTabRow(
+                tabs = tabs,
+                selectedTab = state.selectedTab,
+                onTabSelected = viewModel::onTabSelected
+            )
         }
     ) { padding ->
         Box(modifier = Modifier.padding(top = padding.calculateTopPadding()).fillMaxSize()) {
@@ -145,37 +143,14 @@ fun SocialScreen(
                     FeedList(
                         posts = state.feedList,
                         currentUserAvatarUrl = state.currentUserAvatarUrl,
-                        onUserClick = { userId ->
-                            // Chuyển sang màn hình hồ sơ người khác
-                            navController.navigate(Screen.UserDetail.createRoute(userId))
-                        },
-                        onCreatePostClick = { viewModel.onFabClick() },
-                        onLikeClick = { postId -> viewModel.onLikeClick(postId) },
-                        onCommentClick = { postId -> viewModel.onOpenCommentSheet(postId) },
-                        onImageClick = { url -> viewingImageUrl = url },
-                        onRetweetClick = { postId -> viewModel.onRetweetClick(postId) },
-                        onDeletePost = { postId -> viewModel.onDeletePost(postId) },
-                        onEditPost = { postId, content, imageUrls ->
-                            viewModel.onEditPost(postId, content, imageUrls)
-                        }
+                        actions = actions,
+                        onImageClickOverride = { viewingImageUrl = it }
                     )
-                    AnimatedVisibility(
+                    NewPostsButton(
                         visible = state.hasNewPosts,
-                        enter = fadeIn() + slideInVertically(),
-                        exit = fadeOut() + slideOutVertically(),
+                        onClick = viewModel::onRefreshFeed,
                         modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp)
-                    ) {
-                        Button(
-                            onClick = { viewModel.onRefreshFeed() },
-                            shape = RoundedCornerShape(50),
-                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
-                        ) {
-                            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(8.dp))
-                            Text("Có bài viết mới")
-                        }
-                    }
+                    )
 
                     // Loading khi refresh
                     if (state.isRefreshing) {
@@ -186,6 +161,46 @@ fun SocialScreen(
                         navController.navigate(Screen.UserDetail.createRoute(userId)) })
                 }
             }
+        }
+    }
+}
+
+@Composable
+fun SocialTabRow(tabs: List<String>, selectedTab: Int, onTabSelected: (Int) -> Unit) {
+    TabRow(selectedTabIndex = selectedTab) {
+        tabs.forEachIndexed { index, title ->
+            Tab(
+                selected = selectedTab == index,
+                onClick = { onTabSelected(index) },
+                text = {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = if (selectedTab == index) FontWeight.Bold else FontWeight.Normal
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+fun NewPostsButton(visible: Boolean, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically(),
+        exit = fadeOut() + slideOutVertically(),
+        modifier = modifier
+    ) {
+        Button(
+            onClick = onClick,
+            shape = RoundedCornerShape(50),
+            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 6.dp)
+        ) {
+            Icon(Icons.Default.ArrowUpward, null, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Có bài viết mới")
         }
     }
 }
@@ -236,7 +251,6 @@ fun CreatePostInputBar(currentUserAvatarUrl: String, onClick: () -> Unit) {
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
-                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(24.dp))
                     .clip(RoundedCornerShape(24.dp))
                     .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
                     .padding(horizontal = 16.dp),
@@ -258,23 +272,15 @@ fun CreatePostInputBar(currentUserAvatarUrl: String, onClick: () -> Unit) {
 fun FeedList(
     posts: List<SocialPost>,
     currentUserAvatarUrl: String,
-    onUserClick: (String) -> Unit,
-    onCreatePostClick: () -> Unit,
-    onLikeClick: (String) -> Unit,
-    onCommentClick: (String) -> Unit,
-    onImageClick: (String) -> Unit,
-    onRetweetClick: (String) -> Unit = {},
-    onDeletePost: (String) -> Unit = {},
-    onEditPost: (String, String, List<String>) -> Unit = { _, _, _ -> }
+    actions: SocialActions,
+    onImageClickOverride: (String) -> Unit
 ) {
     LazyColumn {
-        // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
         item(key = "create_post_input") {
             CreatePostInputBar(
                 currentUserAvatarUrl = currentUserAvatarUrl,
-                onClick = onCreatePostClick
+                onClick = actions.onCreatePostClick
             )
-            // Đường kẻ phân cách đậm hơn chút để tách phần nhập liệu với Feed
             HorizontalDivider(thickness = 4.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f))
         }
 
@@ -285,14 +291,9 @@ fun FeedList(
             contentType = { "social_post" }
         ) { post ->
             FeedItem(
-                post,
-                onUserClick,
-                onLikeClick,
-                onCommentClick,
-                onImageClick = onImageClick,
-                onRetweetClick = onRetweetClick,
-                onDeletePost = onDeletePost,
-                onEditPost = onEditPost
+                post = post,
+                actions = actions,
+                onImageClick = onImageClickOverride
             )
             // Đường kẻ mờ phân cách các bài viết
             HorizontalDivider(
@@ -306,16 +307,12 @@ fun FeedList(
 @Composable
 fun FeedItem(
     post: SocialPost,
-    onUserClick: (String) -> Unit,
-    onLikeClick: (String) -> Unit = {},
-    onCommentClick: (String) -> Unit = {},
-    onImageClick: (String) -> Unit = {},
-    onRetweetClick: (String) -> Unit = {},
-    onDeletePost: (String) -> Unit = {},
-    onEditPost: (String, String, List<String>) -> Unit = { _, _, _ -> }
+    actions: SocialActions,
+    onImageClick: (String) -> Unit
 ) {
     var showEditDialog by remember { mutableStateOf(false) }
     var editContent by remember(post.content) { mutableStateOf(post.content) }
+    var showMenu by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -323,293 +320,248 @@ fun FeedItem(
             .background(MaterialTheme.colorScheme.surface)
             .padding(top = 12.dp, bottom = 4.dp)
     ) {
-        // Retweet Badge (if applicable)
-        if (post.isRepost && !post.originalUsername.isNullOrBlank()) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Repeat,
-                    contentDescription = "Retweet",
-                    modifier = Modifier.size(14.dp),
-                    tint = MaterialTheme.colorScheme.outline
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "@${post.username} đã đăng lại",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.outline
-                )
-            }
-        }
-
-        // Hiển thị thông báo nếu bài gốc đã bị xóa
-        if (post.isRepost && post.isOriginalDeleted) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
-                    .background(
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        shape = RoundedCornerShape(8.dp)
-                    )
-                    .padding(12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Warning,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
-                    tint = MaterialTheme.colorScheme.error
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = "Bài gốc đã bị xóa",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onErrorContainer
-                )
-            }
-        }
-
-        if (!post.isOriginalDeleted) {
-            // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
-            val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
-            val displayUsername =
-                if (post.isRepost) post.originalUsername ?: post.username else post.username
-            val displayUserId =
-                if (post.isRepost) post.originalUserId ?: post.userId else post.userId
-
-            // 1. Header (Avatar + Tên + More Button)
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-            ) {
-                Surface(
-                    modifier = Modifier.size(40.dp).clickable { onUserClick(displayUserId) },
-                    shape = CircleShape,
-                    color = MaterialTheme.colorScheme.secondaryContainer
-                ) {
-                    if (displayAvatarUrl.isNullOrBlank()) {
-                        // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
-                        Box(contentAlignment = Alignment.Center) {
-                            Text(
-                                text = displayUsername.take(1).uppercase(),
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onPrimaryContainer
-                            )
-                        }
-                    } else {
-                        // Trường hợp 2: Có avatar -> Load ảnh từ URL
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(displayAvatarUrl)
-                                .crossfade(true)
-                                .size(100, 100)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .build(),
-                            contentDescription = "Avatar",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier.fillMaxSize()
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.width(10.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = displayUsername,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = TimeUtils.getRelativeTime(post.timestamp),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                // More Menu (Edit/Delete)
-                if (post.canDelete || post.canEdit) {
-                    var showMenu by remember { mutableStateOf(false) }
-                    Box {
-                        IconButton(onClick = { showMenu = true }) {
-                            Icon(Icons.Default.MoreVert, contentDescription = "More")
-                        }
-                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                            if (post.canEdit) {
-                                DropdownMenuItem(
-                                    text = { Text("Chỉnh sửa") },
-                                    onClick = {
-                                        editContent = post.content
-                                        showEditDialog = true
-                                        showMenu = false
-                                    }
-                                )
-                            }
-                            if (post.canDelete) {
-                                DropdownMenuItem(
-                                    text = { Text("Xóa") },
-                                    onClick = {
-                                        onDeletePost(post.id)
-                                        showMenu = false
-                                    }
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Edit Post Dialog
-            if (showEditDialog) {
-                AlertDialog(
-                    onDismissRequest = { showEditDialog = false },
-                    title = { Text("Chỉnh sửa bài viết") },
-                    text = {
-                        OutlinedTextField(
-                            value = editContent,
-                            onValueChange = { editContent = it },
-                            modifier = Modifier.fillMaxWidth(),
-                            placeholder = { Text("Nội dung bài viết") },
-                            minLines = 3
-                        )
-                    },
-                    confirmButton = {
-                        TextButton(
+        FeedItemHeader(
+            post = post,
+            onUserClick = actions.onUserClick,
+            onMoreClick = { showMenu = true }
+        )
+        if (showMenu) {
+            Box(modifier = Modifier.wrapContentSize().align(Alignment.End).padding(end = 16.dp)) {
+                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                    if (post.canEdit) {
+                        DropdownMenuItem(
+                            text = { Text("Chỉnh sửa") },
                             onClick = {
-                                if (editContent.isNotBlank()) {
-                                    onEditPost(post.id, editContent, post.imageUrls)
-                                    showEditDialog = false
-                                }
-                            }
-                        ) {
-                            Text("Lưu")
-                        }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showEditDialog = false }) {
-                            Text("Hủy")
-                        }
+                                editContent = post.content
+                                showEditDialog = true
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Edit, null) }
+                        )
                     }
-                )
-            }
-
-            // 2. Nội dung chữ
-            if (post.content.isNotBlank()) {
-                Spacer(modifier = Modifier.height(8.dp))
-                ExpandableText(
-                    text = post.content,
-                    modifier = Modifier.padding(horizontal = 16.dp)
-                )
-            }
-
-            // 3. hiển thị ảnh
-            if (post.imageUrls.isNotEmpty()) {
-                Spacer(modifier = Modifier.height(8.dp))
-
-                LazyRow(
-                    contentPadding = PaddingValues(horizontal = 16.dp), // Cách lề 2 bên
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)  // Khoảng cách giữa các ảnh
-                ) {
-                    items(post.imageUrls) { imageUrl ->
-                        AsyncImage(
-                            model = ImageRequest.Builder(LocalContext.current)
-                                .data(imageUrl)
-                                .crossfade(true)
-                                .diskCachePolicy(CachePolicy.ENABLED)
-                                .memoryCachePolicy(CachePolicy.ENABLED)
-                                .build(),
-                            contentDescription = "Post Image",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(200.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .clickable { onImageClick(imageUrl) }
+                    if (post.canDelete) {
+                        DropdownMenuItem(
+                            text = { Text("Xóa", color = MaterialTheme.colorScheme.error) },
+                            onClick = {
+                                actions.onDeletePost(post.id)
+                                showMenu = false
+                            },
+                            leadingIcon = { Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error) }
                         )
                     }
                 }
             }
+        }
 
-            // 4. Action Bar (Like/Comment/Retweet)
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
+        // Dialog Edit
+        if (showEditDialog) {
+            EditPostDialog(
+                initialContent = editContent,
+                onDismiss = { showEditDialog = false },
+                onConfirm = { newContent ->
+                    actions.onEditPost(post.id, newContent, post.imageUrls)
+                    showEditDialog = false
+                }
+            )
+        }
+
+        // --- Content Text ---
+        if (post.content.isNotBlank()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            ExpandableText(
+                text = post.content,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        // --- Images Grid/Row ---
+        if (post.imageUrls.isNotEmpty()) {
+            Spacer(modifier = Modifier.height(8.dp))
+            // Tối ưu: Dùng Key cho item trong LazyRow
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 16.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Nút Like
-                Row(
-                    modifier = Modifier.clickable { onLikeClick(post.id) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = if (post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                        contentDescription = null,
-                        tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${post.likes}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                // Nút Comment
-                Row(
-                    modifier = Modifier.clickable { onCommentClick(post.id) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ChatBubbleOutline,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${post.comments}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Spacer(modifier = Modifier.width(24.dp))
-
-                // Nút Retweet
-                Row(
-                    modifier = Modifier.clickable { onRetweetClick(post.id) },
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Repeat,
-                        contentDescription = null,
-                        tint = if (post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(20.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(
-                        text = "${post.retweetCount}",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                items(
+                    items = post.imageUrls,
+                    key = { url -> url } // Dùng URL làm key
+                ) { imageUrl ->
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(imageUrl)
+                            .crossfade(true)
+                            .size(Size.ORIGINAL) // Hoặc set size cụ thể để nhẹ hơn
+                            .build(),
+                        contentDescription = "Post Image",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(200.dp) // Cố định size giúp layout tính toán nhanh hơn
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .clickable { onImageClick(imageUrl) }
                     )
                 }
             }
+        }
 
-            Spacer(modifier = Modifier.height(8.dp))
+        // --- Action Buttons (Like, Comment, Retweet) ---
+        Spacer(modifier = Modifier.height(12.dp))
+        FeedItemActionsBar(
+            post = post,
+            onLikeClick = { actions.onLikeClick(post.id) },
+            onCommentClick = { actions.onCommentClick(post.id) },
+            onRetweetClick = { actions.onRetweetClick(post.id) }
+        )
+        Spacer(modifier = Modifier.height(8.dp))
+    }
+}
+
+@Composable
+fun FeedItemHeader(
+    post: SocialPost,
+    onUserClick: (String) -> Unit,
+    onMoreClick: () -> Unit
+) {
+    // Logic xác định Repost
+    val isRepost = post.isRepost
+    val displayAvatar = if (isRepost) post.originalAvatarUrl else post.avatarUrl
+    val displayName = if (isRepost) post.originalUsername ?: post.username else post.username
+    val displayId = if (isRepost) post.originalUserId ?: post.userId else post.userId
+
+    Column {
+        // Repost Label
+        if (isRepost && !post.originalUsername.isNullOrBlank()) {
+            Row(
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Default.Repeat, null, modifier = Modifier.size(14.dp), tint = MaterialTheme.colorScheme.outline)
+                Spacer(Modifier.width(6.dp))
+                Text("@${post.username} đã đăng lại", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+            }
+        }
+
+        // Main Header
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+        ) {
+            Surface(
+                modifier = Modifier.size(40.dp).clickable { onUserClick(displayId) },
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.secondaryContainer
+            ) {
+                if (displayAvatar.isNullOrBlank()) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(displayName.take(1).uppercase(), fontWeight = FontWeight.Bold)
+                    }
+                } else {
+                    AsyncImage(
+                        model = displayAvatar,
+                        contentDescription = "Avatar",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                }
+            }
+            Spacer(Modifier.width(10.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                Text(TimeUtils.getRelativeTime(post.timestamp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            if (post.canDelete || post.canEdit) {
+                IconButton(onClick = onMoreClick) {
+                    Icon(Icons.Default.MoreVert, "More")
+                }
+            }
         }
     }
+}
+
+@Composable
+fun FeedItemActionsBar(
+    post: SocialPost,
+    onLikeClick: () -> Unit,
+    onCommentClick: () -> Unit,
+    onRetweetClick: () -> Unit
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)
+    ) {
+        // Like
+        SocialActionButton(
+            icon = if (post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+            count = post.likes,
+            tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            onClick = onLikeClick
+        )
+        Spacer(modifier = Modifier.width(24.dp))
+
+        // Comment
+        SocialActionButton(
+            icon = Icons.Outlined.ChatBubbleOutline,
+            count = post.comments,
+            onClick = onCommentClick
+        )
+        Spacer(modifier = Modifier.width(24.dp))
+
+        // Retweet
+        SocialActionButton(
+            icon = Icons.Default.Repeat,
+            count = post.retweetCount,
+            tint = if (post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            onClick = onRetweetClick
+        )
+    }
+}
+
+@Composable
+fun SocialActionButton(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    count: Int,
+    tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(6.dp))
+        Text("$count", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+// --- Component Dialog Edit tách riêng ---
+@Composable
+fun EditPostDialog(
+    initialContent: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var content by remember { mutableStateOf(initialContent) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Chỉnh sửa bài viết") },
+        text = {
+            OutlinedTextField(
+                value = content,
+                onValueChange = { content = it },
+                modifier = Modifier.fillMaxWidth(),
+                minLines = 3
+            )
+        },
+        confirmButton = {
+            TextButton(onClick = { if (content.isNotBlank()) onConfirm(content) }) {
+                Text("Lưu")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("Hủy") }
+        }
+    )
 }
 
 // --- UI NỘI DUNG COMMENT SHEET ---
