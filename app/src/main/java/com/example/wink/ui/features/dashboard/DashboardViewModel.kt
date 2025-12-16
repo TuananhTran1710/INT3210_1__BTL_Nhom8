@@ -133,7 +133,7 @@ class DashboardViewModel @Inject constructor(
                 val lastDay = dayNumber(lastTs)
                 _uiState.value = current.copy(
                     userEmail = user?.email ?: "Không tìm thấy Email",
-                    username = user?.username ?: user?.email?.substringBefore("@") ?: "Người dùng",
+                    username = user?.username ?: "Người dùng",
                     rizzPoints = user?.rizzPoints ?: current.rizzPoints,
                     dailyStreak = user?.loginStreak ?: current.dailyStreak,
                     hasDailyCheckIn = (lastDay == todayDay),

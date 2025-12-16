@@ -685,4 +685,18 @@ class AuthRepositoryImpl @Inject constructor(
         // Khi Coroutine bị hủy (người dùng thoát màn hình), tự động gỡ listener để tiết kiệm pin
         awaitClose { listener.remove() }
     }
+
+    override suspend fun checkUsernameExists(username: String): Boolean {
+        return try {
+            val querySnapshot = firestore.collection("users")
+                .whereEqualTo("username", username)
+                .get()
+                .await()
+            
+            !querySnapshot.isEmpty
+        } catch (e: Exception) {
+            Log.e("AuthRepository", "Error checking username", e)
+            false // Nếu có lỗi, cho phép tiếp tục đăng ký
+        }
+    }
 }

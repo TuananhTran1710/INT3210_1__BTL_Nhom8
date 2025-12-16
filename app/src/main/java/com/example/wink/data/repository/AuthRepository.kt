@@ -39,4 +39,7 @@ interface AuthRepository {
         isPerfectScore: Boolean
     ): Int
     suspend fun unlockQuiz(quizId: String, cost: Int): Boolean
+
+    // Kiểm tra username đã tồn tại hay chưa
+    suspend fun checkUsernameExists(username: String): Boolean
 }
