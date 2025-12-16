@@ -116,6 +116,7 @@ class MessageViewModelForAI @Inject constructor(
 
             response.choices.firstOrNull()?.message?.content?.let { aiContent ->
                 val aiResponseMessage = Message(
+                    messageId = UUID.randomUUID().toString(),
                     senderId = aiUserId,
                     content = aiContent.trim(),
                     timestamp = System.currentTimeMillis(),
