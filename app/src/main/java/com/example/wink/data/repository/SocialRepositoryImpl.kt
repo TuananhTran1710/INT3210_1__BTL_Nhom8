@@ -327,24 +327,33 @@ class SocialRepositoryImpl @Inject constructor(
     // 7. XÓA BÀI VIẾT
     override suspend fun deletePost(postId: String, userId: String): Result<Unit> {
         return try {
+            val batch = firestore.batch()
+
+            // 1. Tham chiếu đến bài gốc
             val postRef = firestore.collection("posts").document(postId)
+            batch.delete(postRef)
 
-            // Kiểm tra quyền sở hữu
-            val doc = postRef.get().await()
-            val ownerId = doc.getString("userId")
+            // 2. Tìm và xóa tất cả REPOSTS
+            val repostsSnapshot = firestore.collection("posts")
+                .whereEqualTo("originalPostId", postId)
+                .get()
+                .await()
 
-            if (ownerId != userId) {
-                return Result.failure(Exception("Bạn không có quyền xóa bài viết này"))
+            for (doc in repostsSnapshot.documents) {
+                batch.delete(doc.reference)
             }
 
-            // Xóa tất cả comment của bài này trước
-            val commentsSnapshot = postRef.collection("comments").get().await()
-            for (commentDoc in commentsSnapshot.documents) {
-                commentDoc.reference.delete().await()
+            // 3. Tìm và xóa tất cả COMMENTS
+            val commentsSnapshot = postRef.collection("comments")
+                .get()
+                .await()
+
+            for (doc in commentsSnapshot.documents) {
+                batch.delete(doc.reference)
             }
 
-            // Xóa bài viết
-            postRef.delete().await()
+            // 4. Thực thi tất cả lệnh xóa cùng lúc
+            batch.commit().await()
 
             Result.success(Unit)
         } catch (e: Exception) {

@@ -303,11 +303,14 @@ class SocialViewModel @Inject constructor(
 
         // Cập nhật UI NGAY LẬP TỨC (Xóa bài khỏi list đang hiển thị)
         _uiState.update { state ->
-            state.copy(feedList = state.feedList.filter { it.id != postId })
+            val updatedList = state.feedList.filter { post ->
+                post.id != postId && post.originalPostId != postId
+            }
+
+            state.copy(feedList = updatedList)
         }
 
         viewModelScope.launch {
-            // Sau đó mới gọi Server xóa thật (chạy ngầm)
             socialRepository.deletePost(postId, user.uid)
         }
     }

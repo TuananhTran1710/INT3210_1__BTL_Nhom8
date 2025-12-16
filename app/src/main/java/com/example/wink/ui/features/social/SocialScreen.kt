@@ -440,7 +440,6 @@ fun FeedItemHeader(
                 Text("@${post.username} đã đăng lại", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
             }
         }
-
         // Main Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -466,8 +465,16 @@ fun FeedItemHeader(
             }
             Spacer(Modifier.width(10.dp))
             Column(modifier = Modifier.weight(1f)) {
-                Text(displayName, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
-                Text(TimeUtils.getRelativeTime(post.timestamp), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    TimeUtils.getRelativeTime(post.timestamp),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
 
             if (post.canDelete || post.canEdit) {
