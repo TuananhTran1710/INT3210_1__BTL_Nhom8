@@ -14,8 +14,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import androidx.navigation.NavHostController // Import NavHostController
+import androidx.navigation.compose.rememberNavController
 import com.example.wink.ui.MainViewModel
-import com.google.accompanist.navigation.animation.rememberAnimatedNavController
 import com.example.wink.ui.features.navigation.MainBottomNavigation
 import com.example.wink.ui.features.navigation.MainNavHost
 
@@ -24,7 +24,7 @@ import com.example.wink.ui.features.navigation.MainNavHost
 @Composable
 fun MainScreen(navController: NavHostController, mainViewModel: MainViewModel = hiltViewModel()) {  // nhận từ ngoài cho logout navigation
     // Tạo NavController riêng cho bottom navigation
-    val bottomNavController = rememberAnimatedNavController()
+    val bottomNavController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
     val context = LocalContext.current
 
