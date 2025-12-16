@@ -374,237 +374,241 @@ fun FeedItem(
             }
         }
 
-        // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
-        val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
-        val displayUsername = if (post.isRepost) post.originalUsername ?: post.username else post.username
-        val displayUserId = if (post.isRepost) post.originalUserId ?: post.userId else post.userId
+        if (!post.isOriginalDeleted) {
+            // Xác định avatar và username để hiển thị (dùng bài gốc nếu là repost)
+            val displayAvatarUrl = if (post.isRepost) post.originalAvatarUrl else post.avatarUrl
+            val displayUsername =
+                if (post.isRepost) post.originalUsername ?: post.username else post.username
+            val displayUserId =
+                if (post.isRepost) post.originalUserId ?: post.userId else post.userId
 
-        // 1. Header (Avatar + Tên + More Button)
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            Surface(
-                modifier = Modifier.size(40.dp).clickable { onUserClick(displayUserId) },
-                shape = CircleShape,
-                color = MaterialTheme.colorScheme.secondaryContainer
+            // 1. Header (Avatar + Tên + More Button)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             ) {
-                if (displayAvatarUrl.isNullOrBlank()) {
-                    // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = displayUsername.take(1).uppercase(),
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onPrimaryContainer
+                Surface(
+                    modifier = Modifier.size(40.dp).clickable { onUserClick(displayUserId) },
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.secondaryContainer
+                ) {
+                    if (displayAvatarUrl.isNullOrBlank()) {
+                        // Trường hợp 1: Không có avatar -> Hiện Icon mặc định
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(
+                                text = displayUsername.take(1).uppercase(),
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onPrimaryContainer
+                            )
+                        }
+                    } else {
+                        // Trường hợp 2: Có avatar -> Load ảnh từ URL
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(displayAvatarUrl)
+                                .crossfade(true)
+                                .size(100, 100)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
+                            contentDescription = "Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier.fillMaxSize()
                         )
                     }
-                } else {
-                    // Trường hợp 2: Có avatar -> Load ảnh từ URL
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(displayAvatarUrl)
-                            .crossfade(true)
-                            .size(100, 100)
-                            .diskCachePolicy(CachePolicy.ENABLED)
-                            .memoryCachePolicy(CachePolicy.ENABLED)
-                            .build(),
-                        contentDescription = "Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier.fillMaxSize()
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = displayUsername,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Text(
+                        text = TimeUtils.getRelativeTime(post.timestamp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-            }
-            Spacer(modifier = Modifier.width(10.dp))
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = displayUsername,
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold
-                )
-                Text(
-                    text = TimeUtils.getRelativeTime(post.timestamp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
 
-            // More Menu (Edit/Delete)
-            if (post.canDelete || post.canEdit) {
-                var showMenu by remember { mutableStateOf(false) }
-                Box {
-                    IconButton(onClick = { showMenu = true }) {
-                        Icon(Icons.Default.MoreVert, contentDescription = "More")
-                    }
-                    DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                        if (post.canEdit) {
-                            DropdownMenuItem(
-                                text = { Text("Chỉnh sửa") },
-                                onClick = {
-                                    editContent = post.content
-                                    showEditDialog = true
-                                    showMenu = false
-                                }
-                            )
+                // More Menu (Edit/Delete)
+                if (post.canDelete || post.canEdit) {
+                    var showMenu by remember { mutableStateOf(false) }
+                    Box {
+                        IconButton(onClick = { showMenu = true }) {
+                            Icon(Icons.Default.MoreVert, contentDescription = "More")
                         }
-                        if (post.canDelete) {
-                            DropdownMenuItem(
-                                text = { Text("Xóa") },
-                                onClick = {
-                                    onDeletePost(post.id)
-                                    showMenu = false
-                                }
-                            )
-                        }
-                    }
-                }
-            }
-        }
-
-        // Edit Post Dialog
-        if (showEditDialog) {
-            AlertDialog(
-                onDismissRequest = { showEditDialog = false },
-                title = { Text("Chỉnh sửa bài viết") },
-                text = {
-                    OutlinedTextField(
-                        value = editContent,
-                        onValueChange = { editContent = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = { Text("Nội dung bài viết") },
-                        minLines = 3
-                    )
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            if (editContent.isNotBlank()) {
-                                onEditPost(post.id, editContent, post.imageUrls)
-                                showEditDialog = false
+                        DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
+                            if (post.canEdit) {
+                                DropdownMenuItem(
+                                    text = { Text("Chỉnh sửa") },
+                                    onClick = {
+                                        editContent = post.content
+                                        showEditDialog = true
+                                        showMenu = false
+                                    }
+                                )
+                            }
+                            if (post.canDelete) {
+                                DropdownMenuItem(
+                                    text = { Text("Xóa") },
+                                    onClick = {
+                                        onDeletePost(post.id)
+                                        showMenu = false
+                                    }
+                                )
                             }
                         }
-                    ) {
-                        Text("Lưu")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showEditDialog = false }) {
-                        Text("Hủy")
                     }
                 }
-            )
-        }
+            }
 
-        // 2. Nội dung chữ
-        if (post.content.isNotBlank()) {
-            Spacer(modifier = Modifier.height(8.dp))
-            ExpandableText(
-                text = post.content,
-                modifier = Modifier.padding(horizontal = 16.dp)
-            )
-        }
+            // Edit Post Dialog
+            if (showEditDialog) {
+                AlertDialog(
+                    onDismissRequest = { showEditDialog = false },
+                    title = { Text("Chỉnh sửa bài viết") },
+                    text = {
+                        OutlinedTextField(
+                            value = editContent,
+                            onValueChange = { editContent = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = { Text("Nội dung bài viết") },
+                            minLines = 3
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (editContent.isNotBlank()) {
+                                    onEditPost(post.id, editContent, post.imageUrls)
+                                    showEditDialog = false
+                                }
+                            }
+                        ) {
+                            Text("Lưu")
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showEditDialog = false }) {
+                            Text("Hủy")
+                        }
+                    }
+                )
+            }
 
-        // 3. hiển thị ảnh
-        if (post.imageUrls.isNotEmpty()) {
-            Spacer(modifier = Modifier.height(8.dp))
+            // 2. Nội dung chữ
+            if (post.content.isNotBlank()) {
+                Spacer(modifier = Modifier.height(8.dp))
+                ExpandableText(
+                    text = post.content,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
 
-            LazyRow(
-                contentPadding = PaddingValues(horizontal = 16.dp), // Cách lề 2 bên
-                horizontalArrangement = Arrangement.spacedBy(8.dp)  // Khoảng cách giữa các ảnh
+            // 3. hiển thị ảnh
+            if (post.imageUrls.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(8.dp))
+
+                LazyRow(
+                    contentPadding = PaddingValues(horizontal = 16.dp), // Cách lề 2 bên
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)  // Khoảng cách giữa các ảnh
+                ) {
+                    items(post.imageUrls) { imageUrl ->
+                        AsyncImage(
+                            model = ImageRequest.Builder(LocalContext.current)
+                                .data(imageUrl)
+                                .crossfade(true)
+                                .diskCachePolicy(CachePolicy.ENABLED)
+                                .memoryCachePolicy(CachePolicy.ENABLED)
+                                .build(),
+                            contentDescription = "Post Image",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(200.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { onImageClick(imageUrl) }
+                        )
+                    }
+                }
+            }
+
+            // 4. Action Bar (Like/Comment/Retweet)
+            Spacer(modifier = Modifier.height(12.dp))
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
             ) {
-                items(post.imageUrls) { imageUrl ->
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(imageUrl)
-                            .crossfade(true)
-                            .diskCachePolicy(CachePolicy.ENABLED)
-                            .memoryCachePolicy(CachePolicy.ENABLED)
-                            .build(),
-                        contentDescription = "Post Image",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(200.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { onImageClick(imageUrl) }
+                // Nút Like
+                Row(
+                    modifier = Modifier.clickable { onLikeClick(post.id) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = if (post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                        contentDescription = null,
+                        tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${post.likes}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(24.dp))
+
+                // Nút Comment
+                Row(
+                    modifier = Modifier.clickable { onCommentClick(post.id) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Outlined.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${post.comments}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+
+                Spacer(modifier = Modifier.width(24.dp))
+
+                // Nút Retweet
+                Row(
+                    modifier = Modifier.clickable { onRetweetClick(post.id) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Repeat,
+                        contentDescription = null,
+                        tint = if (post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(20.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "${post.retweetCount}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(8.dp))
         }
-
-        // 4. Action Bar (Like/Comment/Retweet)
-        Spacer(modifier = Modifier.height(12.dp))
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
-        ) {
-            // Nút Like
-            Row(
-                modifier = Modifier.clickable { onLikeClick(post.id) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = if(post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                    contentDescription = null,
-                    tint = if(post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "${post.likes}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            // Nút Comment
-            Row(
-                modifier = Modifier.clickable { onCommentClick(post.id) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Outlined.ChatBubbleOutline,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "${post.comments}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-
-            Spacer(modifier = Modifier.width(24.dp))
-
-            // Nút Retweet
-            Row(
-                modifier = Modifier.clickable { onRetweetClick(post.id) },
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Repeat,
-                    contentDescription = null,
-                    tint = if(post.isRetweetedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(20.dp)
-                )
-                Spacer(modifier = Modifier.width(6.dp))
-                Text(
-                    text = "${post.retweetCount}",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
     }
 }
 
