@@ -117,75 +117,83 @@ class ChatListViewModel @Inject constructor(
         viewModelScope.launch {
             _isLoading.value = true
 
-            // Lắng nghe thay đổi từ danh sách chat (Realtime)
+            // Lắng nghe Realtime - Code chạy ĐỒNG BỘ, không có async/await chặn luồng
             chatRepository.listenChats(myId).collect { rawChats ->
 
-                // Xử lý song song từng đoạn chat để lấy thông tin người dùng và tin nhắn cuối
+                // Danh sách các chat cũ bị thiếu thông tin cần fix
+                val chatsNeedsFixing = mutableListOf<Chat>()
+
                 val processedChats = rawChats.map { chat ->
-                    async {
-                        // 1. Lấy Last Message Object (để check cả nội dung và trạng thái đã đọc)
-                        val lastMsgObj = chatRepository.getLastMessage(chat.chatId)
-                        val lastMessageContent = lastMsgObj?.content ?: ""
+                    // 1. Logic Unread
+                    val isUnread = if (chat.lastMessage.isNotEmpty()) {
+                        !chat.lastReadBy.contains(myId)
+                    } else false
 
-                        // 2. Logic Check Unread (Chưa đọc)
-                        // Tin nhắn tồn tại VÀ danh sách người đã đọc chưa chứa ID của mình
-                        val isUnread = if (lastMsgObj != null) {
-                            val readBy = lastMsgObj.readBy ?: emptyList()
-                            !readBy.contains(myId)
-                        } else {
-                            false
-                        }
+                    // 2. Logic Tên & Avatar
+                    var displayName = chat.name
+                    var displayAvatar = chat.avatarUrl
 
-                        // 3. Xử lý Tên và Avatar hiển thị
-                        var displayName = chat.name
-                        var displayAvatar = chat.avatarUrl
+                    if (chat.name.isBlank()) { // Chat 1-1
+                        val otherUserId = chat.participants.find { it != myId }
 
-                        // Nếu tên chat rỗng (chat 1-1 chưa đặt tên nhóm), tìm người kia
-                        if (chat.name.isBlank()) {
-                            val otherUserId = chat.participants.find { it != myId }
-                            if (otherUserId != null) {
-                                try {
-                                    val userSnapshot = firestore.collection("users")
-                                        .document(otherUserId)
-                                        .get()
-                                        .await()
+                        if (otherUserId != null) {
+                            // Lấy từ Cache
+                            val cachedInfo = chat.participantInfo[otherUserId]
 
-                                    displayName = userSnapshot.getString("username") ?: "Người dùng"
-                                    displayAvatar = userSnapshot.getString("avatarUrl")
-                                } catch (e: Exception) {
-                                    displayName = "Người dùng"
-                                }
+                            if (cachedInfo != null && !cachedInfo["name"].isNullOrBlank()) {
+                                // CASE 1: Đã có cache (Chat mới hoặc đã fix) -> Hiển thị ngay
+                                displayName = cachedInfo["name"] ?: "Người dùng"
+                                displayAvatar = cachedInfo["avatar"]
                             } else {
-                                displayName = "Chat riêng"
+                                // CASE 2: Dữ liệu cũ (Chưa có cache)
+                                // -> Tạm thời hiển thị placeholder hoặc "Đang tải..."
+                                // -> Đẩy vào danh sách cần fix
+                                displayName = "..."
+                                chatsNeedsFixing.add(chat)
                             }
                         }
-
-                        // 4. Kiểm tra xem user hiện tại có pin chat này không
-                        val isPinned = chat.pinnedBy.containsKey(myId)
-
-                        // Trả về object UiChat hoàn chỉnh
-                        UiChat(
-                            chat = chat,
-                            lastMessage = lastMessageContent,
-                            displayName = displayName,
-                            displayAvatarUrl = displayAvatar,
-                            isPinned = isPinned,
-                            isAiChat = false, // Chat thường
-                            isUnread = isUnread // Truyền trạng thái chưa đọc vào UI
-                        )
                     }
-                }.awaitAll() // Chờ tất cả các coroutine con chạy xong
 
-                // 5. LOGIC SẮP XẾP QUAN TRỌNG
-                val sortedChats = processedChats.sortedWith(
-                    compareBy<UiChat> { !it.isPinned } // Ưu tiên Pinned lên đầu (false < true)
-                        .thenBy { it.chat.pinnedBy[myId] } // Nếu cùng Pinned -> Ai pin trước nằm trên (Tăng dần theo timestamp)
-                        .thenByDescending { it.chat.updatedAt } // Nếu không Pinned (hoặc cùng trạng thái) -> Tin mới nhất nằm trên
+                    // 3. Logic nội dung tin nhắn
+                    val prefix = if (chat.lastSenderId == myId) "Bạn: " else ""
+                    val finalContent = if (chat.lastMessage.isNotBlank()) "$prefix${chat.lastMessage}" else "Bắt đầu trò chuyện"
+
+                    UiChat(
+                        chat = chat,
+                        lastMessage = finalContent,
+                        displayName = displayName,
+                        displayAvatarUrl = displayAvatar,
+                        isPinned = chat.pinnedBy.containsKey(myId),
+                        isAiChat = false,
+                        isUnread = isUnread
+                    )
+                }
+
+                // 4. Update UI ngay lập tức (Không chờ fix)
+                _chats.value = processedChats.sortedWith(
+                    compareBy<UiChat> { !it.isPinned }
+                        .thenBy { it.chat.pinnedBy[myId] }
+                        .thenByDescending { it.chat.updatedAt }
                 )
-
-                // 6. Cập nhật vào StateFlow (LƯU Ý: Phải gán sortedChats)
-                _chats.value = sortedChats
                 _isLoading.value = false
+
+                // 5. Kích hoạt luồng chạy ngầm để sửa dữ liệu cũ (Background Auto-Fix)
+                if (chatsNeedsFixing.isNotEmpty()) {
+                    fixOldChatsInBackground(chatsNeedsFixing, myId)
+                }
+            }
+        }
+    }
+    /**
+     * Hàm chạy ngầm: Tự động điền thông tin còn thiếu vào Firestore
+     * Khi hàm này chạy xong -> Firestore update -> Trigger lại listenChats -> UI tự cập nhật tên đúng
+     */
+    private fun fixOldChatsInBackground(chatsToFix: List<Chat>, myId: String) {
+        viewModelScope.launch {
+            chatsToFix.forEach { chat ->
+                val otherUserId = chat.participants.find { it != myId } ?: return@forEach
+                // Gọi hàm sửa lỗi trong Repository
+                chatRepository.migrateChatInfo(chat.chatId, otherUserId)
             }
         }
     }

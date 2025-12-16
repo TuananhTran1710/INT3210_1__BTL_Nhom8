@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.chat
 
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -18,6 +19,8 @@ import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
@@ -87,6 +90,52 @@ class MessageViewModelForAI @Inject constructor(
     init {
         loadMessages()
     }
+    // --- THÊM HÀM MỚI: sendImage ---
+
+    // Tách logic gọi API ra hàm riêng để tái sử dụng cho cả sendMessage và sendImage
+    private suspend fun getAiResponse() {
+        try {
+            val chatHistory = _messages.value.reversed().mapNotNull { msg ->
+                if (msg.content.startsWith("Rất tiếc")) null
+                else {
+                    val role = if (msg.senderId == aiUserId) "assistant" else "user"
+                    // Lưu ý: GPT-4o-mini text-only chỉ đọc được text.
+                    // Nếu muốn AI "nhìn" thấy ảnh, cần update API request phức tạp hơn.
+                    // Ở đây AI sẽ chỉ thấy text "Đã gửi một ảnh" và phản hồi dựa trên đó.
+                    ChatGptMessage(role = role, content = msg.content)
+                }
+            }
+
+            val request = ChatGptRequest(
+                model = "gpt-4o-mini",
+                messages = listOf(systemPrompt) + chatHistory
+            )
+
+            val apiKey = "Bearer ${BuildConfig.OPENAI_API_KEY}"
+            val response = chatGptApiService.createChatCompletion(apiKey, request)
+
+            response.choices.firstOrNull()?.message?.content?.let { aiContent ->
+                val aiResponseMessage = Message(
+                    senderId = aiUserId,
+                    content = aiContent.trim(),
+                    timestamp = System.currentTimeMillis(),
+                )
+                _messages.value = listOf(aiResponseMessage) + _messages.value
+                chatRepository.sendAiMessage(currentUserId, aiResponseMessage)
+            }
+
+        } catch (e: Exception) {
+            val errorMessage = Message(
+                senderId = aiUserId,
+                content = "Rất tiếc, em đang bận xíu (Lỗi mạng).",
+                timestamp = System.currentTimeMillis(),
+            )
+            _messages.value = listOf(errorMessage) + _messages.value
+            e.printStackTrace()
+        } finally {
+            _isSending.value = false
+        }
+    }
 
     private fun loadMessages() {
         viewModelScope.launch {
@@ -107,68 +156,138 @@ class MessageViewModelForAI @Inject constructor(
         }
     }
 
-    fun sendMessage(content: String) {
+    // HÀM CHÍNH: Đã sửa lại logic Batching
+    fun sendMessage(content: String, imageUris: List<Uri>) {
         viewModelScope.launch {
             _isSending.value = true
-//            val userMessage = Message(
-//                senderId = currentUserId,
-//                content = content,
-//                timestamp = System.currentTimeMillis(),
-//            )
-            val userMessageId = UUID.randomUUID().toString()
+            val sendingJobs = mutableListOf<Job>()
+
+            // 1. BẮN JOB GỬI TEXT (Nếu có)
+            // Lưu ý: Chỉ lưu vào DB, KHÔNG gọi AI ở đây
+            if (content.isNotBlank()) {
+                val textJob = launch {
+                    saveTextMessageToDb(content)
+                }
+                sendingJobs.add(textJob)
+            }
+
+            // 2. BẮN CÁC JOB GỬI ẢNH (Nếu có)
+            // Mỗi ảnh là 1 luồng upload riêng, chạy song song với nhau và với text
+            imageUris.forEach { uri ->
+                val imageJob = launch {
+                    uploadAndSaveImageToDb(uri)
+                }
+                sendingJobs.add(imageJob)
+            }
+
+            // 3. CHỜ TẤT CẢ HOÀN THÀNH (Magic Step)
+            // joinAll sẽ treo hàm này lại cho đến khi tất cả text và ảnh đã được xử lý xong
+            // (đã hiện lên UI và đã lưu vào Firebase)
+            sendingJobs.joinAll()
+
+            // 4. GỌI AI MỘT LẦN DUY NHẤT
+            // Lúc này, _messages.value đã chứa đủ cả Text và Ảnh vừa gửi
+            getAiResponse()
+
+            _isSending.value = false
+        }
+    }
+// --- CÁC HÀM CON (Chỉ làm nhiệm vụ lưu DB, không gọi AI) ---
+
+    private suspend fun saveTextMessageToDb(content: String) {
+        try {
             val userMessage = Message(
-                messageId = userMessageId, // Gắn ID vừa tạo
+                messageId = UUID.randomUUID().toString(),
                 senderId = currentUserId,
                 content = content,
                 timestamp = System.currentTimeMillis(),
+                mediaUrl = null
             )
-            // Add user message to UI immediately
+            // Update UI ngay lập tức
             _messages.value = listOf(userMessage) + _messages.value
-            // Save user message to Firebase
+            // Lưu Firebase
+            chatRepository.sendAiMessage(currentUserId, userMessage)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    private suspend fun uploadAndSaveImageToDb(uri: Uri) {
+        try {
+            // Upload ảnh
+            val uploadResult = chatRepository.uploadImage(uri)
+
+            uploadResult.onSuccess { imageUrl ->
+                val userMessage = Message(
+                    messageId = UUID.randomUUID().toString(),
+                    senderId = currentUserId,
+                    content = "Đã gửi một ảnh", // Nội dung để AI nhận biết context
+                    timestamp = System.currentTimeMillis(),
+                    mediaUrl = listOf(imageUrl) // Tin nhắn riêng cho ảnh
+                )
+                // Update UI ngay khi ảnh này upload xong (không cần chờ ảnh khác)
+                _messages.value = listOf(userMessage) + _messages.value
+                // Lưu Firebase
+                chatRepository.sendAiMessage(currentUserId, userMessage)
+            }.onFailure {
+                it.printStackTrace()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    // Hàm con: Gửi Text
+    private suspend fun sendTextMessage(content: String) {
+        _isSending.value = true
+        try {
+            val userMessage = Message(
+                messageId = UUID.randomUUID().toString(),
+                senderId = currentUserId,
+                content = content,
+                timestamp = System.currentTimeMillis(),
+                mediaUrl = null // Tin nhắn text không có ảnh
+            )
+
+            // Update UI & Save DB
+            _messages.value = listOf(userMessage) + _messages.value
             chatRepository.sendAiMessage(currentUserId, userMessage)
 
+            // Gọi AI trả lời cho tin nhắn text này
+            getAiResponse()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        } finally {
+            // Lưu ý: Logic loading có thể cần tinh chỉnh nếu muốn chờ tất cả xong mới tắt
+            // Nhưng với yêu cầu bất đồng bộ, ta có thể tắt loading của input ngay
+            _isSending.value = false
+        }
+    }
 
-            try {
-                val chatHistory = _messages.value.reversed().mapNotNull { msg ->
-                    // Don't include error messages in the history sent to the API
-                    if (msg.content.startsWith("Rất tiếc")) null
-                    else {
-                        val role = if (msg.senderId == aiUserId) "assistant" else "user"
-                        ChatGptMessage(role = role, content = msg.content)
-                    }
-                }
+    // Hàm con: Gửi Ảnh (Upload -> Gửi tin)
+    private suspend fun sendImageMessage(uri: Uri) {
+        // Không set _isSending = true ở đây để không chặn UI nhập liệu tiếp
 
-                val request = ChatGptRequest(
-                    model = "gpt-4o-mini", // Explicitly set the model
-                    messages = listOf(systemPrompt) + chatHistory
-                )
+        // 1. Upload ảnh
+        val uploadResult = chatRepository.uploadImage(uri)
 
-                val apiKey = "Bearer ${BuildConfig.OPENAI_API_KEY}"
-                val response = chatGptApiService.createChatCompletion(apiKey, request)
+        uploadResult.onSuccess { imageUrl ->
+            val userMessage = Message(
+                messageId = UUID.randomUUID().toString(),
+                senderId = currentUserId,
+                content = "Đã gửi một ảnh", // Nội dung placeholder
+                timestamp = System.currentTimeMillis(),
+                mediaUrl = listOf(imageUrl) // Tin nhắn ảnh
+            )
 
-                response.choices.firstOrNull()?.message?.content?.let { aiContent ->
-                    val aiResponseMessage = Message(
-                        senderId = aiUserId,
-                        content = aiContent.trim(),
-                        timestamp = System.currentTimeMillis(),
-                    )
-                    // Add AI response to UI
-                    _messages.value = listOf(aiResponseMessage) + _messages.value
-                    // Save AI response to Firebase
-                    chatRepository.sendAiMessage(currentUserId, aiResponseMessage)
-                }
+            // 2. Update UI & Save DB (Độc lập với các tin khác)
+            _messages.value = listOf(userMessage) + _messages.value
+            chatRepository.sendAiMessage(currentUserId, userMessage)
 
-            } catch (e: Exception) {
-                val errorMessage = Message(
-                    senderId = aiUserId,
-                    content = "Rất tiếc, đã có lỗi xảy ra. Vui lòng thử lại sau.",
-                    timestamp = System.currentTimeMillis(),
-                )
-                _messages.value = listOf(errorMessage) + _messages.value
-                e.printStackTrace()
-            } finally {
-                _isSending.value = false
-            }
+            // 3. Gọi AI (Tùy chọn: Bạn có thể muốn AI bình luận về bức ảnh này)
+            getAiResponse()
+
+        }.onFailure {
+            it.printStackTrace()
         }
     }
 

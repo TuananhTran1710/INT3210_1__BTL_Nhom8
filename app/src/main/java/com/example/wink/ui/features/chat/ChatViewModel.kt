@@ -1,5 +1,6 @@
 package com.example.wink.ui.features.chat
 
+import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.UUID
 import javax.inject.Inject
 
 @HiltViewModel
@@ -84,7 +86,37 @@ class ChatViewModel @Inject constructor(
             }
         }
     }
+    // THÊM HÀM NÀY
+    fun sendImage(uri: android.net.Uri) {
+        if (chatId.isBlank()) return
 
+        viewModelScope.launch {
+            // 1. Upload ảnh trước
+            val uploadResult = chatRepository.uploadImage(uri)
+
+            uploadResult.onSuccess { imageUrl ->
+                val chat = chatRepository.getChat(chatId)
+                val receiverId = chat?.participants?.firstOrNull { it != currentUserId }
+
+                // 2. Tạo message với mediaUrl
+                val message = Message(
+                    senderId = currentUserId,
+                    receiverId = receiverId,
+                    content = "Đã gửi một ảnh", // Nội dung hiển thị ở danh sách chat (Last Message)
+                    timestamp = System.currentTimeMillis(),
+                    readBy = listOf(currentUserId),
+                    mediaUrl = listOf(imageUrl) // Lưu URL vào list
+                )
+
+                // 3. Gửi tin nhắn
+                chatRepository.sendMessage(chatId, message)
+                taskRepository.updateTaskProgress("CHAT_FRIEND")
+            }.onFailure {
+                // Xử lý lỗi upload (ví dụ: Toast lỗi)
+                it.printStackTrace()
+            }
+        }
+    }
     private fun listenMessages() {
         viewModelScope.launch {
             chatRepository.listenMessages(chatId).collect {
@@ -93,21 +125,72 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendMessage(content: String) {
+    // --- HÀM GỬI TIN NHẮN MỚI (Xử lý Text + Nhiều Ảnh) ---
+    fun sendMessage(content: String, imageUris: List<Uri>) {
         if (chatId.isBlank()) return
+
+        // 1. Gửi Text (nếu có) - Chạy luồng riêng
+        if (content.isNotBlank()) {
+            viewModelScope.launch {
+                sendTextMessage(content)
+            }
+        }
+
+        // 2. Gửi Ảnh (Duyệt list và upload song song)
+        if (imageUris.isNotEmpty()) {
+            imageUris.forEach { uri ->
+                viewModelScope.launch {
+                    sendImageMessage(uri)
+                }
+            }
+        }
+
+        // Cập nhật nhiệm vụ (chỉ cần gọi 1 lần)
         viewModelScope.launch {
+            taskRepository.updateTaskProgress("CHAT_FRIEND")
+        }
+    }
+    // --- Hàm con: Gửi Text ---
+    private suspend fun sendTextMessage(content: String) {
+        val chat = chatRepository.getChat(chatId) ?: return
+        val receiverId = chat.participants.firstOrNull { it != currentUserId }
+
+        val message = Message(
+            messageId = UUID.randomUUID().toString(), // Tạo ID client-side để quản lý UI nếu cần
+            senderId = currentUserId,
+            receiverId = receiverId,
+            content = content,
+            timestamp = System.currentTimeMillis(),
+            readBy = listOf(currentUserId),
+            mediaUrl = null
+        )
+        chatRepository.sendMessage(chatId, message)
+    }
+
+    // --- Hàm con: Upload & Gửi Ảnh ---
+    private suspend fun sendImageMessage(uri: Uri) {
+        // 1. Upload ảnh
+        val uploadResult = chatRepository.uploadImage(uri)
+
+        uploadResult.onSuccess { imageUrl ->
             val chat = chatRepository.getChat(chatId)
             val receiverId = chat?.participants?.firstOrNull { it != currentUserId }
 
+            // 2. Tạo tin nhắn ảnh
             val message = Message(
+                messageId = UUID.randomUUID().toString(),
                 senderId = currentUserId,
                 receiverId = receiverId,
-                content = content,
+                content = "Đã gửi một ảnh", // Nội dung hiển thị ở danh sách chat (Last Message)
                 timestamp = System.currentTimeMillis(),
                 readBy = listOf(currentUserId),
+                mediaUrl = listOf(imageUrl) // Lưu URL ảnh vào list
             )
+
+            // 3. Gửi tin nhắn
             chatRepository.sendMessage(chatId, message)
-            taskRepository.updateTaskProgress("CHAT_FRIEND")
+        }.onFailure {
+            it.printStackTrace()
         }
     }
 }

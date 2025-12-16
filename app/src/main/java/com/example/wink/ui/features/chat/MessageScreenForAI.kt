@@ -1,20 +1,34 @@
 package com.example.wink.ui.features.chat
 
 import android.util.Log
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.foundation.lazy.LazyRow // Import LazyRow
+import androidx.compose.foundation.lazy.items // Import items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
+import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.example.wink.R
 import kotlinx.coroutines.delay
@@ -40,7 +54,18 @@ fun MessageScreenForAI(
     val analysisSteps by viewModel.analysisSteps.collectAsState() // Kết quả phân tích
     val listState = rememberLazyListState()
 
+// --- STATE MỚI: Lưu danh sách ảnh (List) ---
+    // Sử dụng mutableStateListOf để Compose dễ dàng theo dõi thay đổi thêm/xóa
+    val selectedImageUris = remember { mutableStateListOf<android.net.Uri>() }
 
+    // Launcher chọn NHIỀU ảnh
+    val photoPickerLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 10) // Cho phép chọn tối đa 10 ảnh
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            selectedImageUris.addAll(uris)
+        }
+    }
     Scaffold(
         topBar = {
             MessageTopBar(
@@ -56,32 +81,108 @@ fun MessageScreenForAI(
         },
         bottomBar = {
             Surface(tonalElevation = 4.dp) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Photo, contentDescription = "Add image")
-                    }
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Hỏi Wink AI...") },
-                        shape = CircleShape,
-                        enabled = !isSending
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (messageText.isNotBlank()) {
-                                viewModel.sendMessage(messageText)
-                                messageText = ""
+                Column(modifier = Modifier.fillMaxWidth()) {
+
+                    // --- PHẦN 1: PREVIEW DANH SÁCH ẢNH (LazyRow) ---
+                    // --- PHẦN 1: PREVIEW DANH SÁCH ẢNH (LazyRow) ---
+                    if (selectedImageUris.isNotEmpty()) {
+                        LazyRow(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp) // Tăng khoảng cách giữa các ảnh chút cho thoáng
+                        ) {
+                            items(selectedImageUris) { uri ->
+                                Box(
+                                    modifier = Modifier.size(100.dp)
+                                ) {
+                                    // 1. Ảnh Thumbnail
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = "Selected Image",
+                                        contentScale = ContentScale.Crop,
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .clip(RoundedCornerShape(16.dp)) // Bo góc 16dp cho mềm mại, hiện đại
+                                            .border(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f), RoundedCornerShape(16.dp)) // Viền mờ nhẹ
+                                    )
+
+                                    // 2. Nút Xóa (Đã làm đẹp)
+                                    Surface(
+                                        onClick = { selectedImageUris.remove(uri) },
+                                        shape = CircleShape,
+                                        // Màu nền: Dùng màu Surface (thường là trắng hoặc xám đậm) pha chút trong suốt nhẹ
+                                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                        tonalElevation = 4.dp, // Đổ bóng để nút nổi lên
+                                        shadowElevation = 4.dp,
+                                        modifier = Modifier
+                                            .align(Alignment.TopEnd)
+                                            .padding(6.dp) // Cách lề góc phải 6dp
+                                            .size(28.dp)   // Kích thước nút to hơn chút cho dễ bấm
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Close,
+                                            contentDescription = "Remove",
+                                            // Màu icon: Dùng màu tương phản với nền
+                                            tint = MaterialTheme.colorScheme.onSurface,
+                                            modifier = Modifier
+                                                .padding(6.dp) // Padding bên trong để chữ X nhỏ nhắn tinh tế
+                                                .fillMaxSize()
+                                        )
+                                    }
+                                }
                             }
-                        },
-                        enabled = messageText.isNotBlank() && !isSending
+                        }
+                    }
+
+                    // --- PHẦN 2: THANH NHẬP LIỆU ---
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        // Nút chọn ảnh
+                        IconButton(onClick = {
+                            photoPickerLauncher.launch(
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                            )
+                        }) {
+                            Icon(Icons.Default.Photo, contentDescription = "Add images")
+                        }
+
+                        // Input Text
+                        OutlinedTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Hỏi Wink AI...") },
+                            shape = CircleShape,
+                            enabled = !isSending,
+                            maxLines = 3
+                        )
+
+                        Spacer(modifier = Modifier.width(8.dp))
+
+                        // Nút Gửi
+                        val canSend = (messageText.isNotBlank() || selectedImageUris.isNotEmpty()) && !isSending
+                        IconButton(
+                            onClick = {
+                                if (canSend) {
+                                    // Gửi text và copy danh sách ảnh để gửi
+                                    viewModel.sendMessage(messageText, selectedImageUris.toList())
+
+                                    // Reset UI ngay lập tức
+                                    messageText = ""
+                                    selectedImageUris.clear()
+                                }
+                            },
+                            enabled = canSend
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.Send,
+                                contentDescription = "Send",
+                                tint = if (canSend) MaterialTheme.colorScheme.primary else Color.Gray
+                            )
+                        }
                     }
                 }
             }
@@ -102,7 +203,8 @@ fun MessageScreenForAI(
                 modifier = Modifier.padding(paddingValues),
                 isTyping = isSending,
                 highlightMessageId = currentHighlightMessageId,
-                insightMessage = currentInsight
+                insightMessage = currentInsight,
+                avatarUrl = avatarUri,
             )
         }
     }
