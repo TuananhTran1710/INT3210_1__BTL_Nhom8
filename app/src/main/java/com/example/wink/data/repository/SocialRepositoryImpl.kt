@@ -2,6 +2,7 @@ package com.example.wink.data.repository
 
 import android.content.Context
 import android.net.Uri
+import android.util.Log
 import com.example.wink.data.model.Comment
 import com.example.wink.data.model.SocialPost
 import com.example.wink.data.model.User
@@ -45,16 +46,14 @@ class SocialRepositoryImpl @Inject constructor(
                 .await()
 
             // 2. CHUYỂN TOÀN BỘ VIỆC XỬ LÝ DỮ LIỆU SANG BACKGROUND THREAD
-            // Dispatchers.Default chuyên dùng cho các tác vụ tính toán CPU nặng (như map, filter list lớn)
             val posts = withContext(Dispatchers.Default) {
-
                 // A. Lọc ra các ID bài gốc cần lấy (để xử lý Repost)
                 val originalPostIds = snapshot.documents
                     .filter { it.getBoolean("isRepost") == true }
                     .mapNotNull { it.getString("originalPostId") }
-                    .distinct() // Loại bỏ trùng lặp
+                    .distinct()
 
-                // B. Tải tất cả bài gốc (IO trong background thread vẫn an toàn vì dùng await)
+                // B. Tải tất cả bài gốc
                 val originalPostsMap = mutableMapOf<String, DocumentSnapshot>()
 
                 if (originalPostIds.isNotEmpty()) {
@@ -72,7 +71,7 @@ class SocialRepositoryImpl @Inject constructor(
                     }
                 }
 
-                // C. Map dữ liệu (Đây là phần nặng nhất gây lag nếu để ở Main Thread)
+                // C. Map dữ liệu
                 // Chuyển đổi từ DocumentSnapshot sang SocialPost object
                 snapshot.documents.mapNotNull { doc ->
                     mapDocumentToPost(doc, originalPostsMap)
@@ -580,6 +579,28 @@ class SocialRepositoryImpl @Inject constructor(
             val downloadUrl = ref.downloadUrl.await()
 
             Result.success(downloadUrl.toString())
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    override suspend fun getPostById(postId: String): Result<SocialPost> {
+        return try {
+            val documentSnapshot = firestore.collection("posts")
+                .document(postId)
+                .get()
+                .await()
+
+            val post = mapDocumentToPost(documentSnapshot, emptyMap())
+
+//            Log.d("SocialRepositoryImpl", "getPostById: $documentSnapshot")
+//            Log.d("SocialRepositoryImpl", "getPostById: $post")
+
+
+            if (post != null) {
+                Result.success(post)
+            } else {
+                Result.failure(Exception("Post not found"))
+            }
         } catch (e: Exception) {
             Result.failure(e)
         }

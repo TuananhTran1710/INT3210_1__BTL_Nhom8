@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.social
 
 import android.net.Uri
+import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Comment
@@ -233,10 +234,31 @@ class SocialViewModel @Inject constructor(
         if (content.isBlank() || postId == null || user == null) return
 
         viewModelScope.launch {
-            socialRepository.sendComment(postId, content, user)
-            taskRepository.updateTaskProgress("COMMENT_POST")
-            _uiState.update { it.copy(newCommentContent = "") }
+            val result = socialRepository.sendComment(postId, content, user)
+            result.onSuccess {
+                val fetchResult = socialRepository.getPostById(postId)
+                Log.d("SocialViewModel", fetchResult.toString())
+
+                fetchResult.onSuccess { freshPost ->
+                    // CẬP NHẬT LẠI LIST VỚI DỮ LIỆU THẬT
+                    _uiState.update { state ->
+                        state.copy(
+                            feedList = state.feedList.updateItem(postId) { freshPost },
+                            newCommentContent = ""
+                        )
+                    }
+                }
+                taskRepository.updateTaskProgress("COMMENT_POST")
+            }.onFailure {
+                _uiState.update { state ->
+                    state.copy(feedList = state.feedList.updateItem(postId) { it.copy(comments = it.comments - 1) })
+                }
+            }
         }
+    }
+
+    fun List<SocialPost>.updateItem(id: String, block: (SocialPost) -> SocialPost): List<SocialPost> {
+        return map { if (it.id == id) block(it) else it }
     }
 
     fun onImagesSelected(uris: List<Uri>) {
