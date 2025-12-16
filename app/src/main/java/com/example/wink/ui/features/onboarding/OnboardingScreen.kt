@@ -1,5 +1,7 @@
 package com.example.wink.ui.features.onboarding
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -15,23 +17,32 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -46,239 +57,301 @@ fun OnboardingScreen(
     viewModel: OnboardingViewModel = hiltViewModel()
 ) {
     val state = viewModel.state
-    val pagerState = rememberPagerState(pageCount = { 4 })
-
-    LaunchedEffect(state.currentPage) {
-        pagerState.animateScrollToPage(state.currentPage)
-    }
 
     LaunchedEffect(state.isSavedSuccess) {
         if (state.isSavedSuccess) {
-            // Lưu xong -> Vào Dashboard
-            // Xóa hết backstack cũ (Login, Signup, Onboarding) để không back lại được
             navController.navigate(Screen.MAIN_GRAPH_ROUTE) {
                 popUpTo(0) { inclusive = true }
             }
         }
     }
 
-    Box(
-        modifier = Modifier.fillMaxSize()
-    ) {
+    OnboardingContent(
+        state = state,
+        onEvent = viewModel::onEvent
+    )
+}
 
-        if (state.isLoading) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(MaterialTheme.colorScheme.background.copy(alpha = 0.5f))
-                    .clickable(enabled = false) {}, // Chặn click khi đang loading
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator()
-            }
+@Composable
+fun OnboardingContent(
+    state: OnboardingState,
+    onEvent: (OnboardingEvent) -> Unit
+) {
+    val pagerState = rememberPagerState(pageCount = { 4 })
+
+    LaunchedEffect(state.currentPage) {
+        pagerState.animateScrollToPage(state.currentPage)
+    }
+
+    Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
+        bottomBar = {
+            BottomControls(
+                currentPage = state.currentPage,
+                onNext = {
+                    if (state.currentPage < 3) onEvent(OnboardingEvent.NextPage)
+                    else onEvent(OnboardingEvent.FinishOnboarding)
+                },
+                onBack = {
+                    if (state.currentPage > 0) onEvent(OnboardingEvent.PreviousPage)
+                },
+                totalPages = 4
+            )
         }
-
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            when (page) {
-                0 -> IntroPage()
-                1 -> GenderPage(state, viewModel)
-                2 -> PreferencePage(state, viewModel)
-                3 -> PersonalityPage(state, viewModel)
-            }
-        }
-
-        BottomControls(
-            currentPage = state.currentPage,
-            onNext = {
-                if (state.currentPage < 3) {
-                    viewModel.onEvent(OnboardingEvent.NextPage)
-                } else {
-                    viewModel.onEvent(OnboardingEvent.FinishOnboarding)
-                }
-            },
-            onBack = {
-                if (state.currentPage > 0) {
-                    viewModel.onEvent(OnboardingEvent.PreviousPage)
-                }
-            },
+    ) { padding ->
+        Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(16.dp)
-        )
+                .fillMaxSize()
+                .padding(padding)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                userScrollEnabled = false,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                when (page) {
+                    0 -> IntroPage()
+                    1 -> GenderPage(
+                        selectedGender = state.selectedGender,
+                        onSelect = { onEvent(OnboardingEvent.SelectGender(it)) }
+                    )
+                    2 -> PreferencePage(
+                        selectedPreference = state.selectedPreference,
+                        onSelect = { onEvent(OnboardingEvent.SelectPreference(it)) }
+                    )
+                    3 -> PersonalityPage(
+                        selectedPersonalities = state.selectedPersonalities,
+                        onToggle = { onEvent(OnboardingEvent.TogglePersonality(it)) }
+                    )
+                }
+            }
+
+            if (state.isLoading) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.3f))
+                        .clickable(enabled = false) {},
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun IntroPage() {
-    Box(
-        Modifier.fillMaxSize(),
-        contentAlignment = Alignment.Center
-    ) {
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                "Welcome to Wink!",
-                style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold)
-            )
-            Spacer(Modifier.height(16.dp))
-            Text(
-                "Hãy giúp chúng tôi hiểu bạn hơn nhé!",
-                style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun GenderPage(state: OnboardingState, viewModel: OnboardingViewModel) {
     Column(
-        Modifier
+        modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(32.dp),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("Giới tính của bạn là?", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-        Spacer(Modifier.height(24.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            GenderBox("Nam", state.selectedGender == "male") {
-                viewModel.onEvent(OnboardingEvent.SelectGender("male"))
-            }
-            GenderBox("Nữ", state.selectedGender == "female") {
-                viewModel.onEvent(OnboardingEvent.SelectGender("female"))
-            }
-            GenderBox("Khác", state.selectedGender == "other") {
-                viewModel.onEvent(OnboardingEvent.SelectGender("other"))
-            }
-        }
-    }
-}
-
-@Composable
-fun PreferencePage(state: OnboardingState, viewModel: OnboardingViewModel) {
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Bạn quan tâm đến?", fontWeight = FontWeight.Bold, fontSize = 22.sp)
-        Spacer(Modifier.height(24.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(16.dp)) {
-            GenderBox("Con trai", state.selectedPreference == "male") {
-                viewModel.onEvent(OnboardingEvent.SelectPreference("male"))
-            }
-            GenderBox("Con gái", state.selectedPreference == "female") {
-                viewModel.onEvent(OnboardingEvent.SelectPreference("female"))
-            }
-            GenderBox("Cả hai", state.selectedPreference == "both") {
-                viewModel.onEvent(OnboardingEvent.SelectPreference("both"))
+        Surface(
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer,
+            modifier = Modifier.size(120.dp)
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text(
+                    text = "W",
+                    style = MaterialTheme.typography.displayLarge,
+                    fontWeight = FontWeight.Black,
+                    color = MaterialTheme.colorScheme.primary
+                )
             }
         }
-    }
-}
-
-@Composable
-fun PersonalityPage(state: OnboardingState, viewModel: OnboardingViewModel) {
-    val personalities = listOf("Hài hước", "Lãng mạn", "Thông minh", "Gia trưởng", "Cơ bắp", "Tinh tế", "Hướng nội")
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .padding(24.dp),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text("Chọn những tính cách bạn ấn tượng\n(Có thể chọn nhiều)",
-            fontWeight = FontWeight.Bold,
-            fontSize = 20.sp,
+        Spacer(Modifier.height(32.dp))
+        Text(
+            "Welcome to Wink!",
+            style = MaterialTheme.typography.headlineLarge.copy(fontWeight = FontWeight.ExtraBold),
             textAlign = TextAlign.Center
         )
-        Spacer(Modifier.height(24.dp))
+        Spacer(Modifier.height(16.dp))
+        Text(
+            "Hành trình tìm kiếm một nửa hoàn hảo bắt đầu từ đây. Hãy giúp chúng tôi hiểu bạn hơn nhé!",
+            style = MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center
+        )
+    }
+}
 
-        // Dùng LazyColumn hoặc Column cuộn được nếu danh sách dài
-        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            personalities.forEach { personality ->
-                // Kiểm tra xem item này có trong list đã chọn không
-                val isSelected = state.selectedPersonalities.contains(personality)
+@Composable
+fun GenderPage(selectedGender: String, onSelect: (String) -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Giới tính của bạn?", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(32.dp))
 
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            // Gọi event Toggle
-                            viewModel.onEvent(OnboardingEvent.TogglePersonality(personality))
-                        }
-                        .shadow(if (isSelected) 4.dp else 1.dp, RoundedCornerShape(12.dp)),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = CardDefaults.cardColors(
-                        // Đổi màu nền nếu được chọn
-                        containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                        else MaterialTheme.colorScheme.surface
-                    )
-                ) {
-                    Text(
-                        text = personality,
-                        modifier = Modifier.padding(16.dp),
-                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer
-                        else MaterialTheme.colorScheme.onSurface,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                    )
-                }
-            }
+        SelectableCard(text = "Nam", isSelected = selectedGender == "male") { onSelect("male") }
+        Spacer(Modifier.height(16.dp))
+        SelectableCard(text = "Nữ", isSelected = selectedGender == "female") { onSelect("female") }
+        Spacer(Modifier.height(16.dp))
+        SelectableCard(text = "Khác", isSelected = selectedGender == "other") { onSelect("other") }
+    }
+}
+
+@Composable
+fun PreferencePage(selectedPreference: String, onSelect: (String) -> Unit) {
+    Column(
+        Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Bạn muốn tìm?", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+        Spacer(Modifier.height(32.dp))
+
+        SelectableCard(text = "Bạn Trai (Male)", isSelected = selectedPreference == "male") { onSelect("male") }
+        Spacer(Modifier.height(16.dp))
+        SelectableCard(text = "Bạn Gái (Female)", isSelected = selectedPreference == "female") { onSelect("female") }
+        Spacer(Modifier.height(16.dp))
+        SelectableCard(text = "Cả hai (Both)", isSelected = selectedPreference == "both") { onSelect("both") }
+    }
+}
+
+@Composable
+fun PersonalityPage(selectedPersonalities: List<String>, onToggle: (String) -> Unit) {
+    val personalities = listOf("Hài hước", "Lãng mạn", "Thông minh", "Gia trưởng", "Cơ bắp", "Tinh tế", "Hướng nội", "Hướng ngoại", "Yêu động vật")
+    val scrollState = rememberScrollState()
+
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.Center,
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        Text("Điểm nổi bật ở bạn", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text("(Chọn nhiều)", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.secondary)
+        Spacer(Modifier.height(32.dp))
+
+        personalities.forEach { item ->
+            val isSelected = selectedPersonalities.contains(item)
+            SelectableCard(text = item, isSelected = isSelected, showCheck = true) { onToggle(item) }
+            Spacer(Modifier.height(12.dp))
         }
     }
 }
 
 @Composable
-fun GenderBox(text: String, isSelected: Boolean, onClick: () -> Unit) {
-    Box(
+fun SelectableCard(
+    text: String,
+    isSelected: Boolean,
+    showCheck: Boolean = false,
+    onClick: () -> Unit
+) {
+    val backgroundColor by animateColorAsState(
+        if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface
+    )
+    val borderColor by animateColorAsState(
+        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant
+    )
+
+    ElevatedCard(
+        onClick = onClick,
         modifier = Modifier
-            .size(100.dp)
-            .background(
-                if (isSelected) MaterialTheme.colorScheme.primary
-                else MaterialTheme.colorScheme.surfaceVariant,
-                RoundedCornerShape(16.dp)
-            )
-            .clickable { onClick() }
-            .padding(8.dp),
-        contentAlignment = Alignment.Center
+            .fillMaxWidth()
+            .height(60.dp),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.elevatedCardColors(containerColor = backgroundColor),
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = if (isSelected) 4.dp else 1.dp)
     ) {
-        Text(
-            text,
-            fontWeight = FontWeight.Medium,
-            color = if (isSelected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface
-        )
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 20.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+                color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+            )
+            if (showCheck && isSelected) {
+                Icon(
+                    imageVector = Icons.Default.Check,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary
+                )
+            }
+        }
     }
 }
 
 @Composable
 fun BottomControls(
     currentPage: Int,
+    totalPages: Int,
     onNext: () -> Unit,
-    onBack: () -> Unit,
-    modifier: Modifier = Modifier
+    onBack: () -> Unit
 ) {
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(24.dp)
     ) {
-        if (currentPage > 0) {
-            TextButton(onClick = onBack) {
-                Text("Back")
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.Center
+        ) {
+            repeat(totalPages) { index ->
+                val width by animateDpAsState(if (currentPage == index) 24.dp else 8.dp)
+                val color by animateColorAsState(if (currentPage == index) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant)
+
+                Box(
+                    modifier = Modifier
+                        .padding(horizontal = 4.dp)
+                        .height(8.dp)
+                        .width(width)
+                        .clip(CircleShape)
+                        .background(color)
+                )
             }
-        } else {
-            Spacer(Modifier.width(1.dp))
         }
 
-        Button(onClick = onNext) {
-            Text(if (currentPage == 3) "Finish" else "Next")
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            if (currentPage > 0) {
+                TextButton(onClick = onBack) {
+                    Text("Quay lại", fontSize = 16.sp)
+                }
+            } else {
+                Spacer(modifier = Modifier.width(1.dp))
+            }
+
+            Button(
+                onClick = onNext,
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                )
+            ) {
+                Text(
+                    if (currentPage == totalPages - 1) "Hoàn thành" else "Tiếp theo",
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(horizontal = 16.dp)
+                )
+            }
         }
     }
 }

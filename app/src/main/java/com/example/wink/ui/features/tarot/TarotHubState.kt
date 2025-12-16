@@ -14,7 +14,7 @@ data class TarotSubFeatureUi(
     val type: LoveFortuneType,
     val title: String,
     val description: String,
-    val price: Int = 50,
+    val price: Int = 5,
     val usedFreeToday: Boolean = false          // true -> đã hết lượt free hôm nay
 )
 
@@ -35,8 +35,8 @@ data class TarotHubState(
         ),
         TarotSubFeatureUi(
             type = LoveFortuneType.TAROT_CARD,
-            title = "Bài Tây Tiên Tri",
-            description = "Nhận thông điệp bí ẩn từ những lá bài"
+            title = "Bài Tarot",
+            description = "Nhận thông điệp bí ẩn từ những lá bài Tarot!"
         )
     ),
 

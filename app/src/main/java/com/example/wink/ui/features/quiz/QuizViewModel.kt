@@ -133,7 +133,7 @@ class QuizViewModel @Inject constructor(
                 try {
                     rizzPointsAwarded = authRepository.completeQuizAndAwardPoints(
                         quizId = current.quiz.id,
-                        firstTimeAward = 50,
+                        firstTimeAward = 15,
                         isPerfectScore = isPerfectScore
                     )
                 } catch (e: Exception) {

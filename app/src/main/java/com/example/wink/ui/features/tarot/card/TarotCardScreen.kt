@@ -15,6 +15,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
@@ -27,9 +28,9 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.AutoAwesome
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -70,46 +71,73 @@ private const val CARD_ASPECT_RATIO = 0.577f
 // Màu nền background: fcf4db
 private val CARD_BG_COLOR = Color(0xFFFCF4DB)
 
-@OptIn(ExperimentalMaterial3Api::class)
+// --- PHẦN 1: STATEFUL COMPOSABLE (Logic kết nối ViewModel) ---
 @Composable
 fun TarotCardScreen(
     navController: NavController,
     viewModel: TarotCardViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    // Gọi hàm Content và truyền các sự kiện (Lambda) xuống
+    TarotCardScreenContent(
+        state = state,
+        onBackClick = { navController.popBackStack() },
+        onReturnHomeClick = {
+            navController.popBackStack(Screen.TarotHub.route, inclusive = false)
+        },
+        onDrawClick = { viewModel.onDrawButtonClicked() },
+        onConfirmUseRizz = { viewModel.onConfirmUseRizz() },
+        onDismissDialogs = { viewModel.onDismissDialogs() },
+        onNotEnoughDialogHandled = {
+            viewModel.onNotEnoughDialogHandled()
+            navController.popBackStack(Screen.TarotHub.route, inclusive = false)
+        }
+    )
+}
+
+// --- PHẦN 2: STATELESS COMPOSABLE (Chỉ hiển thị UI - Dùng để Test) ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TarotCardScreenContent(
+    state: TarotCardState,
+    onBackClick: () -> Unit,
+    onReturnHomeClick: () -> Unit,
+    onDrawClick: () -> Unit,
+    onConfirmUseRizz: () -> Unit,
+    onDismissDialogs: () -> Unit,
+    onNotEnoughDialogHandled: () -> Unit
+) {
     val scrollState = rememberScrollState()
 
-    // Dialog xác nhận (Giữ nguyên)
+    // Dialogs Logic
     if (state.showConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { viewModel.onDismissDialogs() },
+            onDismissRequest = onDismissDialogs,
             icon = { Icon(Icons.Rounded.AutoAwesome, null) },
             title = { Text("Rút bài lại?") },
-            text = { Text("Vũ trụ nói rằng bạn cần 50 RIZZ để thấu hiểu thêm một thông điệp nữa.") },
+            text = { Text("Vũ trụ nói rằng bạn cần 5 RIZZ để thấu hiểu thêm một thông điệp nữa.") },
             confirmButton = {
-                Button(onClick = { viewModel.onConfirmUseRizz() }) { Text("Dùng 50 Rizz") }
+                Button(onClick = onConfirmUseRizz) { Text("Dùng 5 Rizz") }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.onDismissDialogs() }) { Text("Thôi") }
+                TextButton(onClick = onDismissDialogs) { Text("Thôi") }
             }
         )
     }
 
     if (state.showNotEnoughDialog) {
         AlertDialog(
-            onDismissRequest = {},
+            onDismissRequest = {}, // Chặn tắt ngang xương nếu muốn
             title = { Text("Thiếu năng lượng") },
             text = { Text("Bạn không đủ RIZZ để thực hiện kết nối này.") },
             confirmButton = {
-                Button(onClick = {
-                    viewModel.onNotEnoughDialogHandled()
-                    navController.popBackStack(Screen.TarotHub.route, inclusive = false)
-                }) { Text("Quay về") }
+                Button(onClick = onNotEnoughDialogHandled) { Text("Quay về") }
             }
         )
     }
 
-    // Background Gradient tối
+    // Background Gradient Logic
     val bgColors = if (state.currentCard == null) {
         listOf(Color(0xFF1A1A2E), Color(0xFF16213E))
     } else {
@@ -129,7 +157,7 @@ fun TarotCardScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back", tint = Color.White)
                     }
                 },
@@ -146,7 +174,7 @@ fun TarotCardScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState) // Cho phép cuộn để không bị vỡ layout
+                    .verticalScroll(scrollState)
                     .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = if (state.currentCard == null) Arrangement.Center else Arrangement.Top
@@ -156,15 +184,13 @@ fun TarotCardScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                 }
 
-                // --- KHUNG HIỂN THỊ LÁ BÀI ---
                 TarotCardView(
                     state = state,
-                    onDrawClick = { viewModel.onDrawButtonClicked() }
+                    onDrawClick = onDrawClick
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                // --- GIẢI NGHĨA ---
                 AnimatedVisibility(
                     visible = state.currentCard != null,
                     enter = fadeIn() + slideInVertically(initialOffsetY = { 50 })
@@ -174,10 +200,9 @@ fun TarotCardScreen(
                     }
                 }
 
-                // Hướng dẫn khi chưa rút
                 if (state.currentCard == null) {
                     Text(
-                        "Hãy tập trung vào câu hỏi của bạn\nvà chạm vào lá bài",
+                        "Chạm vào lá bài",
                         color = Color.White.copy(alpha = 0.7f),
                         textAlign = TextAlign.Center,
                         style = MaterialTheme.typography.bodyLarge
@@ -186,18 +211,31 @@ fun TarotCardScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                // Nút Rút lại
                 if (state.currentCard != null) {
                     FilledTonalButton(
-                        onClick = { viewModel.onDrawButtonClicked() },
+                        onClick = onReturnHomeClick,
+                        modifier = Modifier
+                            .fillMaxWidth(0.8f)
+                            .height(56.dp),
+                        shape = RoundedCornerShape(16.dp),
                         colors = ButtonDefaults.filledTonalButtonColors(
                             containerColor = MaterialTheme.colorScheme.primaryContainer,
                             contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                     ) {
-                        Icon(Icons.Rounded.Refresh, null)
-                        Spacer(Modifier.width(8.dp))
-                        Text("Rút lá khác (50 Rizz)")
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Quay về",
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                "Quay về trang chủ",
+                                fontSize = 16.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                     Spacer(modifier = Modifier.height(40.dp))
                 }
@@ -205,6 +243,8 @@ fun TarotCardScreen(
         }
     }
 }
+
+// --- CÁC COMPOSABLE CON GIỮ NGUYÊN ---
 
 @Composable
 fun TarotCardView(
@@ -231,8 +271,8 @@ fun TarotCardView(
 
     Box(
         modifier = Modifier
-            .fillMaxWidth(0.75f) // Chiếm 75% chiều rộng màn hình
-            .aspectRatio(CARD_ASPECT_RATIO) // Tỉ lệ 1664/2880
+            .fillMaxWidth(0.75f)
+            .aspectRatio(CARD_ASPECT_RATIO)
             .scale(if (state.currentCard == null) scale else 1f)
             .graphicsLayer {
                 rotationY = rotation
@@ -293,36 +333,32 @@ fun CardBackDesign() {
     }
 }
 
-// --- THIẾT KẾ MẶT TRƯỚC (Sửa lại theo yêu cầu) ---
 @Composable
 fun CardFrontDesign(card: TarotCardInfo?) {
     Card(
         modifier = Modifier.fillMaxSize(),
-        shape = RoundedCornerShape(12.dp), // Bo góc vừa phải như ảnh mẫu
-        colors = CardDefaults.cardColors(containerColor = CARD_BG_COLOR), // Màu fcf4db
+        shape = RoundedCornerShape(12.dp),
+        colors = CardDefaults.cardColors(containerColor = CARD_BG_COLOR),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(12.dp), // Padding để tạo viền màu kem bao quanh
+                .padding(12.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            // 1. Phần ảnh (Chiếm phần lớn không gian)
             Box(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth()
-                    // Có thể thêm border mảnh bao quanh ảnh nếu muốn giống ảnh mẫu "The Fool"
                     .border(1.dp, Color.Black, RoundedCornerShape(2.dp))
-                    .padding(1.dp) // Khoảng cách nhỏ giữa border và ảnh
+                    .padding(1.dp)
             ) {
                 if (card != null) {
                     Image(
                         painter = painterResource(id = card.imageRes),
                         contentDescription = card.name,
                         modifier = Modifier.fillMaxSize(),
-                        // ContentScale.Fit giúp thấy toàn bộ ảnh mà không bị cắt
                         contentScale = ContentScale.Fit
                     )
                 }
@@ -330,7 +366,6 @@ fun CardFrontDesign(card: TarotCardInfo?) {
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // 2. Phần Tên lá bài (Nằm dưới ảnh, màu đen, font đậm)
             Text(
                 text = card?.name?.uppercase() ?: "",
                 style = MaterialTheme.typography.titleMedium,

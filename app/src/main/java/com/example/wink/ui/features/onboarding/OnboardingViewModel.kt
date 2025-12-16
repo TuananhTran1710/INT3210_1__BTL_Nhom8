@@ -23,18 +23,15 @@ class OnboardingViewModel @Inject constructor(
         when (event) {
             is OnboardingEvent.SelectGender -> state = state.copy(selectedGender = event.gender)
             is OnboardingEvent.SelectPreference -> state = state.copy(selectedPreference = event.preference)
-
-            // LOGIC CHỌN NHIỀU (TOGGLE)
             is OnboardingEvent.TogglePersonality -> {
                 val currentList = state.selectedPersonalities.toMutableList()
                 if (currentList.contains(event.personality)) {
-                    currentList.remove(event.personality) // Bỏ chọn
+                    currentList.remove(event.personality)
                 } else {
-                    currentList.add(event.personality)    // Chọn thêm
+                    currentList.add(event.personality)
                 }
                 state = state.copy(selectedPersonalities = currentList)
             }
-
             OnboardingEvent.NextPage -> state = state.copy(currentPage = state.currentPage + 1)
             OnboardingEvent.PreviousPage -> state = state.copy(currentPage = state.currentPage - 1)
             OnboardingEvent.FinishOnboarding -> saveOnboardingResult()
@@ -49,7 +46,6 @@ class OnboardingViewModel @Inject constructor(
                     ?: throw IllegalStateException("No logged in user")
                 val email = userRepo.getCurrentUserEmail()
 
-                // 1. Tạo chuỗi mô tả giới tính quan tâm
                 val prefGenderText = when (state.selectedPreference) {
                     "male" -> "Thích Nam"
                     "female" -> "Thích Nữ"
@@ -57,11 +53,8 @@ class OnboardingViewModel @Inject constructor(
                     else -> ""
                 }
 
-                // 2. Gộp danh sách tính cách thành chuỗi: "Vui vẻ, Hòa đồng, ..."
                 val personalitiesText = state.selectedPersonalities.joinToString(", ")
 
-                // 3. TẠO CHUỖI PREFERENCE DÀI
-                // Kết quả ví dụ: "Thích Nữ. Gu: Hài hước, Thông minh"
                 val finalPreferenceString = if (personalitiesText.isNotEmpty()) {
                     "$prefGenderText. Gu: $personalitiesText"
                 } else {
@@ -73,10 +66,7 @@ class OnboardingViewModel @Inject constructor(
                     email = email,
                     username = email?.substringBefore("@") ?: "user_$uid",
                     gender = state.selectedGender,
-
-                    // LƯU CHUỖI ĐÃ GỘP VÀO ĐÂY
                     preference = finalPreferenceString,
-
                     rizzPoints = 0,
                     loginStreak = 1,
                     avatarUrl = "",
@@ -86,7 +76,7 @@ class OnboardingViewModel @Inject constructor(
 
                 userRepo.saveUserProfile(user)
 
-                state = state.copy(isLoading = false, isSavedSuccess = true) // Kích hoạt chuyển màn hình
+                state = state.copy(isLoading = false, isSavedSuccess = true)
             } catch (e: Exception) {
                 state = state.copy(isLoading = false, errorMessage = e.message)
             }

@@ -5,7 +5,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -24,13 +23,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -62,7 +59,7 @@ import androidx.navigation.NavController
 import com.example.wink.ui.navigation.Screen
 import kotlinx.coroutines.flow.collectLatest
 
-@OptIn(ExperimentalMaterial3Api::class)
+// --- PHẦN 1: CONTAINER ---
 @Composable
 fun TarotNameResultScreen(
     navController: NavController,
@@ -85,21 +82,44 @@ fun TarotNameResultScreen(
         }
     }
 
-    // --- DIALOGS (Giữ nguyên logic) ---
+    TarotNameResultScreenContent(
+        state = state,
+        onBackClick = { navController.popBackStack(Screen.TarotHub.route, false) },
+        onReturnHomeClick = { navController.popBackStack(Screen.TarotHub.route, false) },
+        onRetryClick = { viewModel.onRetryClick() }, // Nếu bạn có nút retry trên UI (hiện tại chưa có nhưng có thể thêm)
+        onConfirmRetry = { viewModel.confirmRetry() },
+        onDismissDialogs = { viewModel.dismissDialogs() },
+        onNotEnoughBack = { viewModel.backToHubFromNotEnough() }
+    )
+}
+
+// --- PHẦN 2: CONTENT ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TarotNameResultScreenContent(
+    state: TarotNameResultState,
+    onBackClick: () -> Unit,
+    onReturnHomeClick: () -> Unit,
+    onRetryClick: () -> Unit,
+    onConfirmRetry: () -> Unit,
+    onDismissDialogs: () -> Unit,
+    onNotEnoughBack: () -> Unit
+) {
+    // --- DIALOGS ---
     if (state.showConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { viewModel.dismissDialogs() },
+            onDismissRequest = onDismissDialogs,
             title = { Text("Thử lại lần nữa?") },
-            text = { Text("Bạn muốn dùng 50 Rizz để bói lại cho cặp đôi khác không?") },
+            text = { Text("Bạn muốn dùng 5 Rizz để bói lại cho cặp đôi khác không?") },
             confirmButton = {
                 Button(
-                    onClick = { viewModel.confirmRetry() },
+                    onClick = onConfirmRetry,
                     enabled = !state.isProcessing
                 ) { Text("Chốt đơn") }
             },
             dismissButton = {
                 TextButton(
-                    onClick = { viewModel.dismissDialogs() },
+                    onClick = onDismissDialogs,
                     enabled = !state.isProcessing
                 ) { Text("Thôi") }
             },
@@ -113,12 +133,11 @@ fun TarotNameResultScreen(
             title = { Text("Không đủ Rizz") },
             text = { Text("Bạn không đủ điểm RIZZ để thử lại. Hẹn bạn lần sau nhé!") },
             confirmButton = {
-                Button(onClick = { viewModel.backToHubFromNotEnough() }) { Text("Quay về") }
+                Button(onClick = onNotEnoughBack) { Text("Quay về") }
             }
         )
     }
 
-    // Gradient Background (Hồng nhạt -> Tím nhạt)
     val backgroundBrush = Brush.verticalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.surface,
@@ -128,6 +147,7 @@ fun TarotNameResultScreen(
     )
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -137,7 +157,7 @@ fun TarotNameResultScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack(Screen.TarotHub.route, false) }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Quay lại")
                     }
                 },
@@ -163,16 +183,14 @@ fun TarotNameResultScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 1. Animated Score Section
                 AnimatedVisibility(
-                    visible = true, // Luôn hiện khi vào màn hình
+                    visible = true,
                     enter = fadeIn(tween(1000)) + slideInVertically(tween(1000))
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(bottom = 32.dp)
                     ) {
-                        // Tên 2 người
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)) {
@@ -189,9 +207,7 @@ fun TarotNameResultScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Điểm số % (Big & Bold)
                         Box(contentAlignment = Alignment.Center) {
-                            // Vòng tròn trang trí mờ phía sau
                             Surface(
                                 shape = CircleShape,
                                 color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
@@ -210,7 +226,6 @@ fun TarotNameResultScreen(
                     }
                 }
 
-                // 2. Advice Card (Elevated)
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn(tween(1500)) + slideInVertically(tween(1500), initialOffsetY = { 50 })
@@ -254,7 +269,7 @@ fun TarotNameResultScreen(
                             Text(
                                 text = state.message,
                                 style = MaterialTheme.typography.bodyLarge,
-                                textAlign = TextAlign.Center, // Căn giữa cho đẹp
+                                textAlign = TextAlign.Center,
                                 color = MaterialTheme.colorScheme.onSurface,
                                 lineHeight = 28.sp
                             )
@@ -264,35 +279,29 @@ fun TarotNameResultScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // 3. Action Buttons
                 Button(
-                    onClick = { viewModel.onRetryClick() },
+                    onClick = onReturnHomeClick,
                     modifier = Modifier
                         .fillMaxWidth(0.8f)
                         .height(56.dp),
-                    enabled = !state.isProcessing,
                     shape = RoundedCornerShape(16.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer
                     )
                 ) {
-                    if (state.isProcessing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(24.dp),
-                            color = MaterialTheme.colorScheme.onPrimaryContainer,
-                            strokeWidth = 3.dp
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay về",
+                            modifier = Modifier.size(20.dp)
                         )
-                    } else {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(Icons.Default.Refresh, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                "Thử Cặp Đôi Khác",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            "Quay về trang chủ",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
