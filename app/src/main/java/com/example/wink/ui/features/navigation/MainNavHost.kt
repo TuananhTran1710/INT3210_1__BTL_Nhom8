@@ -46,10 +46,33 @@ fun MainNavHost(
     NavHost(
         navController = navController,
         startDestination = BottomNavItem.Dashboard.route,
-        enterTransition = { EnterTransition.None },
-        exitTransition = { ExitTransition.None },
-        popEnterTransition = { EnterTransition.None },
-        popExitTransition = { ExitTransition.None }
+        enterTransition = {
+        slideInHorizontally(
+            initialOffsetX = { fullWidth -> fullWidth },
+            animationSpec = tween(300)
+        ) + fadeIn(animationSpec = tween(300))
+    },
+        // 2. Màn hình cũ trượt sang Trái rồi biến mất
+        exitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { fullWidth -> -fullWidth }, // Trượt hết sang trái
+                animationSpec = tween(300)
+            ) + fadeOut(animationSpec = tween(300))
+        },
+        // 3. (Khi bấm Back) Màn hình cũ trượt từ Trái về lại
+        popEnterTransition = {
+            slideInHorizontally(
+                initialOffsetX = { fullWidth -> -fullWidth },
+                animationSpec = tween(300)
+            ) + fadeIn(animationSpec = tween(300))
+        },
+        // 4. (Khi bấm Back) Màn hình hiện tại trượt sang Phải biến mất
+        popExitTransition = {
+            slideOutHorizontally(
+                targetOffsetX = { fullWidth -> fullWidth },
+                animationSpec = tween(300)
+            ) + fadeOut(animationSpec = tween(300))
+        }
     ) {
         composable(BottomNavItem.Dashboard.route) {
             DashboardScreen(navController = navController) // Use main nav controller for navigation
