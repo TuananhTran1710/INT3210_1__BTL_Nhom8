@@ -10,12 +10,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
+import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -37,6 +39,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -48,6 +51,7 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.wink.R
 import com.example.wink.data.model.Message
+import com.example.wink.ui.features.chat.AnalyzeDialog
 
 @Composable
 fun MessageScreen(
@@ -64,7 +68,8 @@ fun MessageScreen(
             MessageTopBar(
                 title = chatTitle,
                 avatarUrl = chatAvatarUrl,
-                onBackClick = { navController.popBackStack() }
+                onBackClick = { navController.popBackStack() },
+                onAnalyzeClick = { /* TODO: Handle analyze click */ }
             )
         },
         bottomBar = {
@@ -111,6 +116,13 @@ fun MessageScreen(
             modifier = Modifier.padding(paddingValues)
         )
     }
+//    if (showAnalyzeDialog) {
+//        AnalyzeDialog(
+//            isLoading = isAnalyzing,
+//            result = analyzeResult,
+//            onDismiss = { showAnalyzeDialog = false }
+//        )
+//    }
 }
 
 // --- PHẦN QUAN TRỌNG CẦN SỬA ---
@@ -119,7 +131,9 @@ fun MessageScreen(
 fun MessageTopBar(
     title: String,
     avatarUrl: String?,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onAnalyzeClick: () -> Unit,
+    showAnalyzeButton: Boolean = false,
 ) {
     TopAppBar(
         // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
@@ -163,6 +177,16 @@ fun MessageTopBar(
                 )
             }
         },
+        actions = {
+            if (showAnalyzeButton) {   // ✅ condition
+                IconButton(onClick = onAnalyzeClick) {
+                    Icon(
+                        imageVector = Icons.Default.Analytics,
+                        contentDescription = "Analyze"
+                    )
+                }
+            }
+        },
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = MaterialTheme.colorScheme.surface,
         )
@@ -174,13 +198,19 @@ fun MessageContainer(
     messages: List<Message>,
     currentUserId: String,
     modifier: Modifier = Modifier,
-    isTyping: Boolean = false
+    isTyping: Boolean = false,
+    listState: LazyListState = rememberLazyListState(),
+    highlightMessageId: String? = null,  // message đang highlight
+    insightMessage: String? = null
 ) {
-    val listState = rememberLazyListState()
+//    val listState = rememberLazyListState()
 
-    LaunchedEffect(messages, isTyping) {
-        if (messages.isNotEmpty() || isTyping) {
-            listState.animateScrollToItem(0)
+    LaunchedEffect(highlightMessageId) {
+        highlightMessageId?.let { id ->
+            val index = messages.indexOfFirst { it.messageId == id }
+            if (index != -1) {
+                listState.animateScrollToItem(index)
+            }
         }
     }
 
@@ -192,10 +222,22 @@ fun MessageContainer(
     ) {
         // --- SỬ DỤNG MESSAGE ITEM MỚI TẠI ĐÂY ---
         items(messages) { message ->
+            val highlight = message.messageId == highlightMessageId
+
             MessageItem(
                 message = message,
-                isMyMessage = message.senderId == currentUserId // Đổi tên tham số cho khớp
+                isMyMessage = message.senderId == currentUserId,
+                highlight = highlight,
+                insight = if (highlight) insightMessage else null
             )
+
+//            if (highlight && insightMessage != null) {
+//                Text(
+//                    text = insightMessage,
+//                    color = Color.Yellow,
+//                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
+//                )
+//            }
         }
 
         if (isTyping) {
