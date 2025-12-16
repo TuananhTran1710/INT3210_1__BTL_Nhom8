@@ -103,7 +103,7 @@ fun ChatListScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(padding)
+                .padding(top = padding.calculateTopPadding())
         ) {
             ChatSearchBar(
                 query = searchQuery,
