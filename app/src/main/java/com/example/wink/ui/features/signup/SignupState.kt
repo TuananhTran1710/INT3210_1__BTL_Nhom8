@@ -6,5 +6,8 @@ data class SignupState(
     val pass: String = "",
     val confirmPass: String = "",
     val isLoading: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isCheckingUsername: Boolean = false,
+    val usernameError: String? = null,
+    val isUsernameValid: Boolean = false
 )

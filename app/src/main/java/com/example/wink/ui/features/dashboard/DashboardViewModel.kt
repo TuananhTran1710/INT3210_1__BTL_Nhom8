@@ -116,6 +116,7 @@ class DashboardViewModel @Inject constructor(
         }
     }
 
+    /** Lắng nghe user từ AuthRepository và merge vào DashboardState */
     private fun observeUser() {
         viewModelScope.launch {
             authRepository.currentUser.collectLatest { user ->

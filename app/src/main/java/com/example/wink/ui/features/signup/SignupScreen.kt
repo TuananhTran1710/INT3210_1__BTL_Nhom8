@@ -5,6 +5,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -85,7 +88,58 @@ fun SignupScreen(
                 label = { Text("Tên hiển thị") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next)
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                isError = uiState.usernameError != null,
+                supportingText = {
+                    when {
+                        uiState.isCheckingUsername -> {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(12.dp),
+                                    strokeWidth = 2.dp
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Đang kiểm tra...")
+                            }
+                        }
+                        uiState.usernameError != null -> {
+                            Text(
+                                text = uiState.usernameError!!,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        uiState.isUsernameValid && uiState.username.isNotBlank() -> {
+                            Text(
+                                text = "✓ Tên hợp lệ",
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                },
+                trailingIcon = {
+                    when {
+                        uiState.isCheckingUsername -> {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                        uiState.usernameError != null -> {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Lỗi",
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        uiState.isUsernameValid && uiState.username.isNotBlank() -> {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = "Hợp lệ",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
             )
             Spacer(modifier = Modifier.height(16.dp))
 
@@ -136,7 +190,7 @@ fun SignupScreen(
             Button(
                 onClick = { viewModel.onEvent(SignupEvent.OnSignupClicked) },
                 modifier = Modifier.fillMaxWidth().height(50.dp),
-                enabled = !uiState.isLoading
+                enabled = !uiState.isLoading && !uiState.isCheckingUsername && uiState.usernameError == null
             ) {
                 if (uiState.isLoading) {
                     CircularProgressIndicator(color = MaterialTheme.colorScheme.onPrimary, modifier = Modifier.size(24.dp))
