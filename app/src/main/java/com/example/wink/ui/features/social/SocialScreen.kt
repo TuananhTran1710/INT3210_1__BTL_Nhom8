@@ -269,7 +269,7 @@ fun FeedList(
 ) {
     LazyColumn {
         // ITEM 1: Thanh nhập liệu luôn nằm trên cùng
-        item {
+        item(key = "create_post_input") {
             CreatePostInputBar(
                 currentUserAvatarUrl = currentUserAvatarUrl,
                 onClick = onCreatePostClick
@@ -279,7 +279,11 @@ fun FeedList(
         }
 
         // Các bài post bên dưới
-        items(posts, key = { it.id }) { post ->
+        items(
+            items = posts,
+            key = { post -> post.id },
+            contentType = { "social_post" }
+        ) { post ->
             FeedItem(
                 post,
                 onUserClick,
@@ -403,6 +407,7 @@ fun FeedItem(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(displayAvatarUrl)
                             .crossfade(true)
+                            .size(100, 100)
                             .diskCachePolicy(CachePolicy.ENABLED)
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
@@ -518,12 +523,12 @@ fun FeedItem(
                             .memoryCachePolicy(CachePolicy.ENABLED)
                             .build(),
                         contentDescription = "Post Image",
-                        contentScale = ContentScale.Crop, // Cắt ảnh thành hình vuông
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(250.dp) // Kích thước cố định hình vuông nhỏ
+                            .size(200.dp)
                             .clip(RoundedCornerShape(12.dp))
                             .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .clickable { onImageClick(imageUrl) } // Bấm vào để xem full
+                            .clickable { onImageClick(imageUrl) }
                     )
                 }
             }

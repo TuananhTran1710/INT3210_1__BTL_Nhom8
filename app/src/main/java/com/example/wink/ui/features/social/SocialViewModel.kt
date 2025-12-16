@@ -166,6 +166,7 @@ class SocialViewModel @Inject constructor(
 
                 // 2. QUAN TRỌNG: Gọi tải lại Feed ngay lập tức để bài mới hiện lên đầu
                 loadFeed(isRefresh = true)
+                taskRepository.updateTaskProgress("POST_FEED")
 
             } else {
                 // Nếu lỗi thì giữ nguyên Dialog để user thử lại
