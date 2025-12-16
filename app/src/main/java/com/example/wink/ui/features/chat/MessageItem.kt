@@ -43,6 +43,7 @@ import coil.request.ImageRequest
 import com.example.wink.R
 import com.example.wink.data.model.Message
 import com.example.wink.ui.common.DateUtils
+// ui/features/chat/MessageItem.kt
 
 @Composable
 fun MessageItem(
@@ -52,33 +53,54 @@ fun MessageItem(
     modifier: Modifier = Modifier,
     highlight: Boolean = false,
     insight: String? = null,
-    showTail: Boolean = true,
+    isGroupTop: Boolean = true,    // Tham số mới: Là tin đầu nhóm?
+    isGroupBottom: Boolean = true, // Tham số mới: Là tin cuối nhóm?
     onImageClick: (String) -> Unit
 ) {
-    // 1. Cấu hình căn lề: Tin mình -> Phải (End), Tin bạn -> Trái (Start)
     val horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
 
-    // Màu nền
     val backgroundColor = if (isMyMessage)
         MaterialTheme.colorScheme.primaryContainer
     else
         MaterialTheme.colorScheme.secondaryContainer
 
-    // Animation Highlight
     val targetColor = if (highlight) Color.Yellow.copy(alpha = 0.6f) else backgroundColor
     val animatedBackgroundColor by animateColorAsState(targetColor, label = "color")
 
-    // State Timestamp
     var isTimestampVisible by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
 
-    val cornerRadius = 18.dp
-    val smallCorner = 4.dp
+    // --- CẤU HÌNH BO GÓC (MAGIC HERE) ---
+    val largeRadius = 18.dp
+    val smallRadius = 3.dp // Góc nhọn (Messenger dùng khoảng 2-4dp)
 
-    // --- CẤU TRÚC CHÍNH ---
+    // Tạo Shape động dựa trên vị trí
+    val bubbleShape = if (isMyMessage) {
+        // TIN CỦA TÔI (Bên Phải)
+        RoundedCornerShape(
+            topStart = largeRadius, // Góc trên trái luôn tròn
+            bottomStart = largeRadius, // Góc dưới trái luôn tròn
+            // Góc trên phải: Nếu là Top thì tròn, nếu là Middle/Bottom thì nhọn
+            topEnd = if (isGroupTop) largeRadius else smallRadius,
+            // Góc dưới phải: Nếu là Bottom thì tròn, nếu là Top/Middle thì nhọn
+            bottomEnd = if (isGroupBottom) largeRadius else smallRadius
+        )
+    } else {
+        // TIN NGƯỜI KHÁC (Bên Trái)
+        RoundedCornerShape(
+            // Góc trên trái: Nếu là Top thì tròn, nếu là Middle/Bottom thì nhọn
+            topStart = if (isGroupTop) largeRadius else smallRadius,
+            topEnd = largeRadius, // Góc trên phải luôn tròn
+            // Góc dưới trái: Nếu là Bottom thì tròn, nếu là Top/Middle thì nhọn
+            bottomStart = if (isGroupBottom) largeRadius else smallRadius,
+            bottomEnd = largeRadius // Góc dưới phải luôn tròn
+        )
+    }
+
     Column(
         modifier = modifier
-            .fillMaxWidth() // Cột ngoài cùng phải full width
+            .fillMaxWidth()
+            // Padding cực nhỏ để tạo cảm giác liền khối cho nhóm
             .padding(vertical = 1.dp)
             .clickable(
                 interactionSource = interactionSource,
@@ -87,23 +109,21 @@ fun MessageItem(
     ) {
         Row(
             modifier = Modifier
-                .fillMaxWidth() // QUAN TRỌNG: Row phải full width thì Arrangement.End mới đẩy sang phải được
+                .fillMaxWidth()
                 .padding(horizontal = 8.dp),
-            horizontalArrangement = horizontalArrangement, // Áp dụng căn trái/phải tại đây
+            horizontalArrangement = horizontalArrangement,
             verticalAlignment = Alignment.Bottom
         ) {
-
-            // --- LOGIC AVATAR (Chỉ cho người nhận - Bên trái) ---
+            // --- AVATAR (Chỉ hiện khi là tin cuối nhóm của người khác) ---
             if (!isMyMessage) {
-                if (showTail) {
-                    // Tin cuối cùng trong chuỗi -> Hiện Avatar thật
+                if (isGroupBottom) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
                             .data(avatarUrl)
                             .crossfade(true)
                             .build(),
-                        placeholder = painterResource(R.drawable.ic_launcher_background), // Ảnh chờ (có thể thay bằng hình xám nhẹ)
-                        error = painterResource(R.drawable.ic_launcher_background),       // Ảnh lỗi
+                        placeholder = painterResource(R.drawable.ic_launcher_background),
+                        error = painterResource(R.drawable.ic_launcher_background),
                         contentDescription = "Avatar",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
@@ -111,10 +131,8 @@ fun MessageItem(
                             .clip(CircleShape)
                     )
                 } else {
-                    // Tin ở giữa chuỗi -> Hiện khoảng trống (Spacer) bằng kích thước Avatar để thẳng hàng
                     Spacer(modifier = Modifier.width(28.dp))
                 }
-                // Khoảng cách giữa Avatar và Tin nhắn
                 Spacer(modifier = Modifier.width(8.dp))
             }
 
@@ -125,20 +143,12 @@ fun MessageItem(
             ) {
                 Box(
                     modifier = Modifier
-                        .clip(
-                            RoundedCornerShape(
-                                topStart = cornerRadius,
-                                topEnd = cornerRadius,
-                                // Logic bo góc: Nhọn ở phía có Avatar (hoặc phía mình)
-                                bottomStart = if (!isMyMessage && showTail) smallCorner else cornerRadius,
-                                bottomEnd = if (isMyMessage && showTail) smallCorner else cornerRadius
-                            )
-                        )
+                        .clip(bubbleShape) // Áp dụng Shape đã tính toán
                         .background(animatedBackgroundColor)
                         .padding(4.dp)
                 ) {
                     Column {
-                        // A. HIỂN THỊ ẢNH
+                        // 1. Ảnh
                         if (!message.mediaUrl.isNullOrEmpty()) {
                             message.mediaUrl.forEach { imageUrl ->
                                 AsyncImage(
@@ -147,18 +157,18 @@ fun MessageItem(
                                         .crossfade(true)
                                         .build(),
                                     contentDescription = "Image",
-                                    // Dùng Fit để ảnh hiển thị trọn vẹn, không bị phóng to cắt mất
                                     contentScale = ContentScale.Fit,
                                     modifier = Modifier
                                         .heightIn(max = 300.dp)
-                                        .clip(RoundedCornerShape(12.dp))
+                                        // Bo góc ảnh cũng phải ăn theo bubbleShape một chút (tùy chọn)
+                                        .clip(RoundedCornerShape(14.dp))
                                         .padding(bottom = if (message.content.isNotBlank() && message.content != "Đã gửi một ảnh") 4.dp else 0.dp)
                                         .clickable { onImageClick(imageUrl) }
                                 )
                             }
                         }
 
-                        // B. HIỂN THỊ TEXT
+                        // 2. Text
                         if (message.content.isNotBlank() && message.content != "Đã gửi một ảnh") {
                             Text(
                                 text = message.content,
@@ -172,7 +182,7 @@ fun MessageItem(
             }
         }
 
-        // --- TIMESTAMP (Ẩn/Hiện bên dưới) ---
+        // --- TIMESTAMP ---
         AnimatedVisibility(
             visible = isTimestampVisible || highlight,
             enter = expandVertically() + fadeIn(),
@@ -181,7 +191,6 @@ fun MessageItem(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    // Căn chỉnh vị trí timestamp cho thẳng với bong bóng chat
                     .padding(top = 2.dp, start = if (!isMyMessage) 44.dp else 0.dp, end = if (isMyMessage) 8.dp else 0.dp),
                 horizontalAlignment = if (isMyMessage) Alignment.End else Alignment.Start
             ) {
@@ -193,7 +202,6 @@ fun MessageItem(
                         modifier = Modifier.padding(bottom = 2.dp)
                     )
                 }
-
                 Text(
                     text = DateUtils.formatMessageTime(message.timestamp),
                     style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
@@ -202,9 +210,9 @@ fun MessageItem(
             }
         }
 
-        // Tách nhóm tin nhắn
-        if (showTail) {
-            Spacer(modifier = Modifier.height(4.dp))
+        // Spacer lớn hơn để tách các nhóm chat khác nhau
+        if (isGroupBottom) {
+            Spacer(modifier = Modifier.height(8.dp))
         }
     }
 }
