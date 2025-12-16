@@ -153,8 +153,8 @@ fun DashboardScreen(
                 AnimatedDashboardItem(delay = 100) {
                     AIFeatureCard(
                         onClick = {
-
-                            viewModel.onEvent(DashboardEvent.OnStartAIChat) }
+                            navController.navigate("message/ai_chat")
+                        }
                     )
                 }
             }
