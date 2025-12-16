@@ -91,14 +91,14 @@ class SettingsViewModel @Inject constructor(
                     avatarUrl = finalAvatarUrl
                 ).getOrThrow()
 
-                // 3. Cập nhật Email (Nếu thay đổi)
-                if (state.email.isNotBlank() && state.email != authRepository.currentUser.toString()) {
-                    // Logic check email thay đổi ở đây chỉ là ví dụ, thực tế cần so sánh với email gốc
-                    authRepository.updateEmail(state.email).onFailure {
-                        _uiState.update { s -> s.copy(errorMessage = "Lưu thông tin OK, nhưng lỗi đổi email: ${it.message}") }
-                        // return@launch // Không return để vẫn báo thành công phần kia
-                    }
-                }
+//                // 3. Cập nhật Email (Nếu thay đổi)
+//                if (state.email.isNotBlank() && state.email != authRepository.currentUser.toString()) {
+//                    // Logic check email thay đổi ở đây chỉ là ví dụ, thực tế cần so sánh với email gốc
+//                    authRepository.updateEmail(state.email).onFailure {
+//                        _uiState.update { s -> s.copy(errorMessage = "Lưu thông tin OK, nhưng lỗi đổi email: ${it.message}") }
+//                        // return@launch // Không return để vẫn báo thành công phần kia
+//                    }
+//                }
 
                 _uiState.update { it.copy(isLoading = false, successMessage = "Cập nhật thành công!", selectedAvatarUri = null) }
             } catch (e: Exception) {
