@@ -37,7 +37,9 @@ fun MessageItem(
     avatarUrl: String? = null,
     modifier: Modifier = Modifier,
     highlight: Boolean = false,           // tin nhắn này có đang highlight không
-    insight: String? = null               // insight hiển thị khi highlight
+    insight: String? = null,               // insight hiển thị khi highlight
+    isDisplayTime: Boolean = true,
+    isDisplayAvatar: Boolean = true
 ) {
     val horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
     val backgroundColor =
@@ -61,7 +63,7 @@ fun MessageItem(
         horizontalArrangement = horizontalArrangement,
         verticalAlignment = Alignment.Bottom
     ) {
-        if (!isMyMessage) {
+        if (!isMyMessage && isDisplayAvatar) {
             AsyncImage(
                 model = finalAvatarUrl,
                 contentDescription = "Avatar",
@@ -106,12 +108,13 @@ fun MessageItem(
             }
 
             Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                // GIỮ NGUYÊN LỜI GỌI HÀM CỦA BẠN
-                text = formatTimestamp(message.timestamp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            if (isDisplayTime) {
+                Text(
+                    text = formatTimestamp(message.timestamp),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
 
         if (isMyMessage) {

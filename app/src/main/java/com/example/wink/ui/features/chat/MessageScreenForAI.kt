@@ -1,6 +1,7 @@
 package com.example.wink.ui.features.chat
 
 import android.util.Log
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -11,7 +12,10 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
@@ -40,70 +44,84 @@ fun MessageScreenForAI(
     val analysisSteps by viewModel.analysisSteps.collectAsState() // Kết quả phân tích
     val listState = rememberLazyListState()
 
+    Box(modifier = Modifier.fillMaxSize()) {
 
-    Scaffold(
-        topBar = {
-            MessageTopBar(
-                title = "Lan Anh",
-                avatarUrl = avatarUri, // Có thể thêm URL ảnh robot vào đây
-                onBackClick = { navController.popBackStack() },
-                onAnalyzeClick = {
-                    showAnalyzeDialog = true
-                    viewModel.analyzeConversation()
-                },
-                showAnalyzeButton = true
-            )
-        },
-        bottomBar = {
-            Surface(tonalElevation = 4.dp) {
-                Row(
-                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    IconButton(onClick = { /* TODO */ }) {
-                        Icon(Icons.Default.Photo, contentDescription = "Add image")
-                    }
-                    OutlinedTextField(
-                        value = messageText,
-                        onValueChange = { messageText = it },
-                        modifier = Modifier.weight(1f),
-                        placeholder = { Text("Hỏi Wink AI...") },
-                        shape = CircleShape,
-                        enabled = !isSending
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    IconButton(
-                        onClick = {
-                            if (messageText.isNotBlank()) {
-                                viewModel.sendMessage(messageText)
-                                messageText = ""
-                            }
-                        },
-                        enabled = messageText.isNotBlank() && !isSending
+        Image(
+            painter = painterResource(id = R.drawable.love_background), // Thay R.drawable.chat_background bằng tên file ảnh của bạn
+            contentDescription = "Chat background",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop // Đảm bảo ảnh nền lấp đầy màn hình
+        )
+
+        Scaffold(
+            containerColor = Color.Transparent, // Làm nền Scaffold trong suốt để thấy ảnh
+            topBar = {
+                MessageTopBar(
+                    title = "Lan Anh",
+                    avatarUrl = avatarUri, // Có thể thêm URL ảnh robot vào đây
+                    onBackClick = { navController.popBackStack() },
+                    onAnalyzeClick = {
+                        showAnalyzeDialog = true
+                        viewModel.analyzeConversation()
+                    },
+                    showAnalyzeButton = true,
+                    containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
+                )
+            },
+            bottomBar = {
+                Surface(
+                    tonalElevation = 4.dp,
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f)
                     ) {
-                        Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                    Row(
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(onClick = { /* TODO */ }) {
+                            Icon(Icons.Default.Photo, contentDescription = "Add image")
+                        }
+                        OutlinedTextField(
+                            value = messageText,
+                            onValueChange = { messageText = it },
+                            modifier = Modifier.weight(1f),
+                            placeholder = { Text("Hỏi Wink AI...") },
+                            shape = CircleShape,
+                            enabled = !isSending
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        IconButton(
+                            onClick = {
+                                if (messageText.isNotBlank()) {
+                                    viewModel.sendMessage(messageText)
+                                    messageText = ""
+                                }
+                            },
+                            enabled = messageText.isNotBlank() && !isSending
+                        ) {
+                            Icon(Icons.AutoMirrored.Filled.Send, contentDescription = "Send")
+                        }
                     }
                 }
             }
-        }
-    ) { paddingValues ->
-        if (isLoading) {
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
-            }
-        } else {
-            val currentHighlightMessageId = analysisSteps.getOrNull(currentStepIndex)?.messageId
-            val currentInsight = analysisSteps.getOrNull(currentStepIndex)?.insight
+        ) { paddingValues ->
+            if (isLoading) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator()
+                }
+            } else {
+                val currentHighlightMessageId = analysisSteps.getOrNull(currentStepIndex)?.messageId
+                val currentInsight = analysisSteps.getOrNull(currentStepIndex)?.insight
 
-            MessageContainer(
-                messages = messages,
-                currentUserId = currentUserId,
-                listState = listState,
-                modifier = Modifier.padding(paddingValues),
-                isTyping = isSending,
-                highlightMessageId = currentHighlightMessageId,
-                insightMessage = currentInsight
-            )
+                MessageContainer(
+                    messages = messages,
+                    currentUserId = currentUserId,
+                    listState = listState,
+                    modifier = Modifier.padding(paddingValues),
+                    isTyping = isSending,
+                    highlightMessageId = currentHighlightMessageId,
+                    insightMessage = currentInsight
+                )
+            }
         }
     }
 
@@ -121,14 +139,6 @@ fun MessageScreenForAI(
         // 2. Nếu đang ở một bước highlight hợp lệ (không phải -1)
         Log.d("ANALYSIS_DEBUG", "[UI] Effect(currentStepIndex) Triggered | currentStepIndex = $currentStepIndex")
         if (currentStepIndex >= 0 && currentStepIndex < analysisSteps.size) {
-            // Scroll tới item
-//            val msgId = analysisSteps[currentStepIndex].messageId
-//            Log.d("ANALYSIS_DEBUG", "[UI] ---> Step $currentStepIndex: Attempting to find message with ID: $msgId")
-//            val indexInList = messages.indexOfFirst { it.messageId == msgId }
-//            Log.d("ANALYSIS_DEBUG", "[UI] ---> Step $currentStepIndex: Search Result -> indexInList = $indexInList")
-//            if (indexInList != -1) {
-//                listState.animateScrollToItem(indexInList)
-//            }
 
             // 3. Đợi 1.5 giây
             delay(5500)

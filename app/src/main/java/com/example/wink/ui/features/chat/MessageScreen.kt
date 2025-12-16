@@ -1,9 +1,11 @@
 package com.example.wink.ui.features.chat
 
+import androidx.compose.animation.core.copy
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -52,6 +54,7 @@ import coil.request.ImageRequest
 import com.example.wink.R
 import com.example.wink.data.model.Message
 import com.example.wink.ui.features.chat.AnalyzeDialog
+import androidx.compose.foundation.lazy.itemsIndexed // <<< THÊM DÒNG NÀY
 
 @Composable
 fun MessageScreen(
@@ -113,6 +116,7 @@ fun MessageScreen(
         MessageContainer(
             messages = messages,
             currentUserId = viewModel.currentUserId,
+            chatAvatarUrl = chatAvatarUrl, // <<< THÊM DÒNG NÀY
             modifier = Modifier.padding(paddingValues)
         )
     }
@@ -134,6 +138,7 @@ fun MessageTopBar(
     onBackClick: () -> Unit,
     onAnalyzeClick: () -> Unit,
     showAnalyzeButton: Boolean = false,
+    containerColor: Color = MaterialTheme.colorScheme.surface
 ) {
     TopAppBar(
         // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
@@ -188,8 +193,9 @@ fun MessageTopBar(
             }
         },
         colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = MaterialTheme.colorScheme.surface,
-        )
+            containerColor = containerColor,
+        ),
+        windowInsets = WindowInsets(0.dp, 0.dp, 0.dp, 0.dp)
     )
 }
 
@@ -200,10 +206,10 @@ fun MessageContainer(
     modifier: Modifier = Modifier,
     isTyping: Boolean = false,
     listState: LazyListState = rememberLazyListState(),
-    highlightMessageId: String? = null,  // message đang highlight
-    insightMessage: String? = null
+    highlightMessageId: String? = null,
+    insightMessage: String? = null,
+    chatAvatarUrl: String? = null,
 ) {
-//    val listState = rememberLazyListState()
 
     LaunchedEffect(highlightMessageId) {
         highlightMessageId?.let { id ->
@@ -217,7 +223,7 @@ fun MessageContainer(
     LazyColumn(
         state = listState,
         modifier = modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp), // Thêm chút padding dưới cùng
+        contentPadding = PaddingValues(bottom = 16.dp),
         reverseLayout = true
     ) {
         // --- SỬ DỤNG MESSAGE ITEM MỚI TẠI ĐÂY ---
@@ -227,17 +233,10 @@ fun MessageContainer(
             MessageItem(
                 message = message,
                 isMyMessage = message.senderId == currentUserId,
+                avatarUrl = chatAvatarUrl,
                 highlight = highlight,
                 insight = if (highlight) insightMessage else null
             )
-
-//            if (highlight && insightMessage != null) {
-//                Text(
-//                    text = insightMessage,
-//                    color = Color.Yellow,
-//                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-//                )
-//            }
         }
 
         if (isTyping) {
@@ -248,7 +247,10 @@ fun MessageContainer(
     }
 }
 
-// Giữ lại TypingIndicator vì MessageItem.kt không có cái này
+
+
+
+
 @Composable
 fun TypingIndicator() {
     val backgroundColor = MaterialTheme.colorScheme.secondaryContainer
@@ -270,3 +272,6 @@ fun TypingIndicator() {
         }
     }
 }
+
+
+
