@@ -285,10 +285,10 @@ class HumanAiGameViewModel @Inject constructor(
     private suspend fun generateAiOpening(): String {
         return try {
             val request = ChatGptRequest(
-                model = "google/gemini-2.0-flash-exp:free",
+                model = "google/gemini-2.5-flash",
                 messages = listOf(
                     ChatGptMessage("system", systemPersona),
-                    ChatGptMessage("user", "Hãy mở lời chào một cách ngắn gọn, tự nhiên như một người trẻ.")
+                    ChatGptMessage("user", "Hãy mở lời chào một cách ngắn gọn, tự nhiên.")
                 ),
                 maxTokens = 20
             )

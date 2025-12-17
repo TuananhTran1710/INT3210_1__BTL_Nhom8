@@ -14,7 +14,7 @@ data class HumanAiGameState(
 
     // Chat state
     val messages: List<Message> = emptyList(),
-    val timeLeft: Int = 60, // 60 giây chat
+    val timeLeft: Int = 120, // giây chat
     val isOpponentTyping: Boolean = false,
 
     // Logic game

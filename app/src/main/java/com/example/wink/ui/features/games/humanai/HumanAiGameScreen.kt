@@ -71,6 +71,7 @@ fun HumanAiGameScreen(
             )
             GameStage.SEARCHING -> SearchingView(
                 time = state.searchTimeSeconds,
+                online = state.onlineUsers,
                 onCancel = viewModel::onCancelMatchmaking
             )
             GameStage.CHATTING -> ChattingScreenLayout( // Layout riêng cho Chat để xử lý bàn phím chuẩn
@@ -164,7 +165,7 @@ fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "Trò chuyện với ai đó trong 60 giây.\nHãy thử đoán xem bạn vừa nhắn với một người thật hay một AI.",
+                    text = "Trò chuyện với ai đó trong 2 phút.\nHãy thử đoán xem bạn vừa nhắn với một người thật hay một AI.",
                     style = MaterialTheme.typography.bodyMedium,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.padding(16.dp),
@@ -217,7 +218,7 @@ fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
 // 2. SEARCHING VIEW
 // ==========================================
 @Composable
-fun SearchingView(time: Int, onCancel: () -> Unit) {
+fun SearchingView(time: Int, online: Int, onCancel: () -> Unit) {
     val infiniteTransition = rememberInfiniteTransition(label = "pulse")
     val scale by infiniteTransition.animateFloat(
         initialValue = 1f, targetValue = 1.2f,
@@ -273,6 +274,27 @@ fun SearchingView(time: Int, onCancel: () -> Unit) {
             Text("Đang tìm đối thủ...", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Text(formattedTime, style = MaterialTheme.typography.displayMedium, fontWeight = FontWeight.Black, color = MaterialTheme.colorScheme.primary)
+
+            Spacer(Modifier.height(8.dp))
+            // Online count pill
+            Surface(
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                shape = RoundedCornerShape(50),
+                modifier = Modifier.height(32.dp)
+            ) {
+                Row(
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(8.dp).background(Color.Green, CircleShape))
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        "$online đang tìm trận",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+            }
 
             Spacer(Modifier.height(48.dp))
 
@@ -673,18 +695,18 @@ fun ResultView(state: HumanAiGameState, onPlayAgain: () -> Unit, onExit: () -> U
 
                 Spacer(Modifier.height(48.dp))
 
-                Button(
-                    onClick = onPlayAgain,
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
-                ) {
-                    Text("Chơi lại", fontSize = 18.sp, fontWeight = FontWeight.Bold)
-                }
-                Spacer(Modifier.height(16.dp))
+//                Button(
+//                    onClick = onPlayAgain,
+//                    modifier = Modifier.fillMaxWidth().height(56.dp),
+//                    shape = RoundedCornerShape(16.dp),
+//                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
+//                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+//                ) {
+//                    Text("Chơi lại", fontSize = 18.sp, fontWeight = FontWeight.Bold)
+//                }
+//                Spacer(Modifier.height(16.dp))
                 TextButton(onClick = onExit) {
-                    Text("Thoát ra", fontSize = 16.sp)
+                    Text("Quay lại", fontSize = 16.sp)
                 }
             }
 
