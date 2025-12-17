@@ -1,5 +1,8 @@
 package com.example.wink.ui.features.social
 
+//import android.R.attr.contentDescription
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
@@ -43,6 +46,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontStyle
@@ -137,7 +142,7 @@ fun SocialScreen(
     ) { padding ->
         Box(modifier = Modifier.padding(top = padding.calculateTopPadding()).fillMaxSize()) {
             if (state.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center).testTag("loading_indicator"))
             } else {
                 if (state.selectedTab == 0) {
                     FeedList(
@@ -213,6 +218,7 @@ fun CreatePostInputBar(currentUserAvatarUrl: String, onClick: () -> Unit) {
             .fillMaxWidth()
             .background(MaterialTheme.colorScheme.surface)
             .clickable { onClick() }
+            .semantics { contentDescription = "Create post" }
             .padding(16.dp)
     ) {
         Row(
@@ -502,6 +508,7 @@ fun FeedItemActionsBar(
             icon = if (post.isLikedByMe) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
             count = post.likes,
             tint = if (post.isLikedByMe) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            contentDescription = "Like button",
             onClick = onLikeClick
         )
         Spacer(modifier = Modifier.width(24.dp))
@@ -529,13 +536,14 @@ fun SocialActionButton(
     icon: androidx.compose.ui.graphics.vector.ImageVector,
     count: Int,
     tint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    contentDescription: String? = null,
     onClick: () -> Unit
 ) {
     Row(
         modifier = Modifier.clickable(onClick = onClick),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+        Icon(icon,contentDescription, tint = tint, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(6.dp))
         Text("$count", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -856,7 +864,8 @@ fun CreatePostDialog(
                     onValueChange = onContentChange,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(120.dp),
+                        .height(120.dp)
+                        .testTag("post_input"),
                     placeholder = { Text("Bạn đang nghĩ gì?") },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = Color.Transparent,
