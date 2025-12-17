@@ -177,7 +177,7 @@ fun QuizListContent(
             title = { Text("Tạo Quiz cho riêng bạn") },
             text = {
                 Column {
-                    Text("Nhập chủ đề bạn muốn.\nPhí tạo: 250 RIZZ.")
+                    Text("Nhập chủ đề bạn muốn.\nPhí tạo: 150 RIZZ.")
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = topicInput,
@@ -190,9 +190,9 @@ fun QuizListContent(
             confirmButton = {
                 Button(
                     onClick = { onGenerateQuiz(topicInput) },
-                    enabled = topicInput.isNotBlank() && state.currentRizzPoints >= 250
+                    enabled = topicInput.isNotBlank() && state.currentRizzPoints >= 150
                 ) {
-                    Text("Tạo ngay (-250 Rizz)")
+                    Text("Tạo ngay (-150 Rizz)")
                 }
             },
             dismissButton = {
@@ -277,7 +277,7 @@ fun QuizListContent(
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
-                text = { Text("Tạo Quiz (-250 RIZZ)") }
+                text = { Text("Tạo Quiz (-150 RIZZ)") }
             )
 
             TabRow(

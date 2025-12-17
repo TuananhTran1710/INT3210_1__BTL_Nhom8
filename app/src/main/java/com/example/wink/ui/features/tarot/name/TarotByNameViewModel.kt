@@ -28,7 +28,6 @@ sealed class TarotNameNav {
     data class ShowResult(val yourName: String, val crushName: String) : TarotNameNav()
 }
 
-
 @HiltViewModel
 class TarotNameViewModel @Inject constructor(
     private val openRouterApiService: OpenRouterApiService,
@@ -94,13 +93,17 @@ class TarotNameViewModel @Inject constructor(
             
             Output duy nhất JSON (không markdown):
             {
-              "score": (số nguyên 0-99),
-              "comment": (lời phán ngắn gọn khoảng 2 câu, hài hước, teencode nhẹ)
+              "score": (số nguyên 0-99
+                (nếu một trong hai người tên Trình thì hãy cho số nguyên đó là một số bất kỳ cao hơn 75)
+              ),
+              "comment": (lời phán ngắn gọn khoảng 2-3 câu, hài hước, teencode nhẹ)
             }
+            
+            Lưu ý: score tỉ lệ thuận với độ tương hợp, nên những comment phải phù hợp với score nhé!
         """.trimIndent()
 
         val request = ChatGptRequest(
-            model = "google/gemini-2.0-flash-exp:free", // Hoặc model bạn thích
+            model = "google/gemini-2.0-flash-exp:free",
             messages = listOf(ChatGptMessage("user", prompt)),
             maxTokens = 200
         )

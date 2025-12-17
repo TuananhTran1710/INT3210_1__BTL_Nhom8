@@ -3,16 +3,39 @@ package com.example.wink.ui.features.explore
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.outlined.*
-import androidx.compose.material.icons.rounded.Psychology
-import androidx.compose.material3.*
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Storefront
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -30,28 +53,46 @@ import androidx.navigation.NavController
 import androidx.navigation.compose.rememberNavController
 import com.example.wink.ui.navigation.Screen
 
-// Data Model
 data class CategoryItem(
     val id: String,
     val title: String,
     val subtitle: String,
     val icon: ImageVector,
-    val iconColor: Color // Màu chủ đạo của Icon
+    val iconColor: Color
 )
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExploreScreen(
     navController: NavController
 ) {
-    // List tiện ích (Bỏ Game ra để làm Hero)
     val categories = listOf(
-        CategoryItem("tips", "Bí kíp tán gái", "Thả thính & tâm lý", Icons.Default.MenuBook, Color(0xFFE91E63)), // Pink
-        CategoryItem("quiz", "Quiz EQ", "Đo chỉ số cảm xúc", Icons.Default.Psychology, Color(0xFF03A9F4)), // Blue
-        CategoryItem("tarot", "Bói Tình Yêu", "Giải mã tình duyên", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)), // Purple
-        CategoryItem("shop", "Cửa hàng", "Đổi điểm RIZZ", Icons.Default.Storefront, Color(0xFF4CAF50))  // Green
+        CategoryItem("tips", "Bí kíp tán gái", "Thả thính & tâm lý", Icons.Default.MenuBook, Color(0xFFE91E63)),
+        CategoryItem("quiz", "Quiz EQ", "Đo chỉ số cảm xúc", Icons.Default.Psychology, Color(0xFF03A9F4)),
+        CategoryItem("tarot", "Bói Tình Yêu", "Giải mã tình duyên", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)),
+        CategoryItem("shop", "Cửa hàng", "Đổi điểm RIZZ", Icons.Default.Storefront, Color(0xFF4CAF50))
     )
 
+    ExploreContent(
+        categories = categories,
+        onGameClick = { navController.navigate(Screen.HumanAiGame.route) },
+        onCategoryClick = { id ->
+            when (id) {
+                "tips" -> navController.navigate(Screen.Tips.route)
+                "quiz" -> navController.navigate(Screen.Quiz.route)
+                "tarot" -> navController.navigate(Screen.TarotHub.route)
+                "shop" -> navController.navigate(Screen.ChangeIcon.route)
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExploreContent(
+    categories: List<CategoryItem>,
+    onGameClick: () -> Unit,
+    onCategoryClick: (String) -> Unit
+) {
     Scaffold(
         containerColor = MaterialTheme.colorScheme.background,
         topBar = {
@@ -78,14 +119,10 @@ fun ExploreScreen(
                 .padding(horizontal = 20.dp),
             verticalArrangement = Arrangement.spacedBy(20.dp)
         ) {
-            // --- HERO SECTION: HUMAN VS AI (Poster Game) ---
             item {
-                HeroGameCard(
-                    onClick = { navController.navigate(Screen.HumanAiGame.route) }
-                )
+                HeroGameCard(onClick = onGameClick)
             }
 
-            // --- SECTION TITLE ---
             item {
                 Text(
                     text = "Tiện ích khác",
@@ -95,7 +132,6 @@ fun ExploreScreen(
                 )
             }
 
-            // --- GRID ITEMS (Adaptive Cards) ---
             items(categories.chunked(2)) { rowItems ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -105,14 +141,7 @@ fun ExploreScreen(
                         AdaptiveCategoryCard(
                             item = item,
                             modifier = Modifier.weight(1f),
-                            onClick = {
-                                when (item.id) {
-                                    "tips" -> navController.navigate(Screen.Tips.route)
-                                    "quiz" -> navController.navigate(Screen.Quiz.route)
-                                    "tarot" -> navController.navigate(Screen.TarotHub.route)
-                                    "shop"  -> navController.navigate(Screen.ChangeIcon.route)
-                                }
-                            }
+                            onClick = { onCategoryClick(item.id) }
                         )
                     }
                     if (rowItems.size == 1) {
@@ -126,8 +155,6 @@ fun ExploreScreen(
     }
 }
 
-// --- HERO CARD: Giữ nguyên vẻ "Gaming" (Dark Gradient) cho cả 2 chế độ ---
-// Lý do: Đây là Poster/Cover Art của game, nó cần nổi bật và ngầu.
 @Composable
 fun HeroGameCard(onClick: () -> Unit) {
     Card(
@@ -137,23 +164,21 @@ fun HeroGameCard(onClick: () -> Unit) {
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(24.dp),
         elevation = CardDefaults.cardElevation(defaultElevation = 6.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.Transparent) // Để gradient hiện ra
+        colors = CardDefaults.cardColors(containerColor = Color.Transparent)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Background Gradient (Luôn tối để chữ trắng nổi bật)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         brush = Brush.linearGradient(
-                            colors = listOf(Color(0xFF002A88), Color(0xFFC745A8)), // Deep Purple -> Black
+                            colors = listOf(Color(0xFF002A88), Color(0xFFC745A8)),
                             start = Offset(0f, 0f),
                             end = Offset(0f, Float.POSITIVE_INFINITY)
                         )
                     )
             )
 
-            // Decoration Icon
             Icon(
                 imageVector = Icons.Default.Psychology,
                 contentDescription = null,
@@ -164,14 +189,13 @@ fun HeroGameCard(onClick: () -> Unit) {
                     .offset(x = 40.dp, y = -20.dp)
             )
 
-            // Nội dung
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(20.dp)
             ) {
                 Surface(
-                    color = MaterialTheme.colorScheme.primary, // Dùng màu Primary của theme
+                    color = MaterialTheme.colorScheme.primary,
                     shape = RoundedCornerShape(8.dp),
                     modifier = Modifier.padding(bottom = 8.dp)
                 ) {
@@ -198,7 +222,6 @@ fun HeroGameCard(onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Nút hành động
                 Button(
                     onClick = onClick,
                     colors = ButtonDefaults.buttonColors(
@@ -219,7 +242,6 @@ fun HeroGameCard(onClick: () -> Unit) {
     }
 }
 
-// --- ADAPTIVE CARD: Tự đổi màu theo Light/Dark Mode ---
 @Composable
 fun AdaptiveCategoryCard(
     item: CategoryItem,
@@ -232,12 +254,9 @@ fun AdaptiveCategoryCard(
             .clickable(onClick = onClick),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(
-            // KEY CHANGE: Dùng token màu của Material Theme
-            // surfaceContainer: Màu nền chuẩn cho card trong M3 (Xám nhạt ở Light, Xám đậm ở Dark)
-            // Nếu bản compose cũ chưa có surfaceContainer, dùng surfaceVariant
             containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
         ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Flat style hiện đại
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
         Column(
             modifier = Modifier
@@ -246,35 +265,33 @@ fun AdaptiveCategoryCard(
             verticalArrangement = Arrangement.SpaceBetween,
             horizontalAlignment = Alignment.Start
         ) {
-            // Icon với nền dynamic
             Box(
                 modifier = Modifier
                     .size(42.dp)
                     .clip(CircleShape)
-                    .background(item.iconColor.copy(alpha = 0.15f)), // Nền icon theo màu chủ đạo pha loãng
+                    .background(item.iconColor.copy(alpha = 0.15f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
                     imageVector = item.icon,
                     contentDescription = null,
-                    tint = item.iconColor, // Icon giữ nguyên màu brand
+                    tint = item.iconColor,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // Text tự động đổi màu
             Column {
                 Text(
                     text = item.title,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
-                    color = MaterialTheme.colorScheme.onSurface, // Tự động Đen (Light) / Trắng (Dark)
+                    color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1
                 )
                 Spacer(modifier = Modifier.height(2.dp))
                 Text(
                     text = item.subtitle,
                     style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, // Màu phụ (Xám) tự thích ứng
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1
                 )
             }
@@ -282,12 +299,10 @@ fun AdaptiveCategoryCard(
     }
 }
 
-// --- PREVIEWS ---
-
 @Preview(name = "Light Mode", showBackground = true, backgroundColor = 0xFFFFFFFF)
 @Composable
 fun PreviewExploreLight() {
-    MaterialTheme(colorScheme = lightColorScheme()) { // Giả lập Light Theme
+    MaterialTheme {
         ExploreScreen(rememberNavController())
     }
 }
@@ -295,7 +310,7 @@ fun PreviewExploreLight() {
 @Preview(name = "Dark Mode", uiMode = Configuration.UI_MODE_NIGHT_YES, showBackground = true, backgroundColor = 0xFF000000)
 @Composable
 fun PreviewExploreDark() {
-    MaterialTheme(colorScheme = darkColorScheme()) { // Giả lập Dark Theme
+    MaterialTheme {
         ExploreScreen(rememberNavController())
     }
 }

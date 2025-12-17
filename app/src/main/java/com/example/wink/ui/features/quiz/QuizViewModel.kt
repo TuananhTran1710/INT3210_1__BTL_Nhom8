@@ -238,7 +238,7 @@ class QuizViewModel @Inject constructor(
                 return@launch
             }
 
-            val result = repository.generateQuizByAi(topic, user.uid, 250)
+            val result = repository.generateQuizByAi(topic, user.uid, 150)
 
             if (result.isSuccess) {
                 loadList()
