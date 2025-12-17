@@ -23,7 +23,13 @@ if (localPropertiesFile.exists()) {
 android {
     namespace = "com.example.wink"
     compileSdk = 36
-
+    packaging {
+        resources {
+            // Khi gặp file trùng lặp, chọn file đầu tiên tìm thấy thay vì báo lỗi
+            pickFirst("META-INF/LICENSE.md")
+            pickFirst("META-INF/LICENSE-notice.md")
+        }
+    }
     defaultConfig {
         applicationId = "com.example.wink"
         minSdk = 24
@@ -66,6 +72,23 @@ android {
 
 dependencies {
 
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.x") // Kiểm tra version mới nhất
+    testImplementation("io.mockk:mockk:1.13.x")
+    testImplementation("app.cash.turbine:turbine:1.0.0")
+    androidTestImplementation("io.mockk:mockk-android:1.13.10")
+    androidTestImplementation("io.mockk:mockk-agent:1.13.10")
+
+    // 2. Compose Testing (để sửa lỗi createComposeRule, onNodeWithText...)
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.8") // Kiểm tra version compose của bạn
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.8")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.x.x")
+    // Needed for createComposeRule, but not createAndroidComposeRule:
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.x.x")
+
+    // Mockk for Android
+    androidTestImplementation("io.mockk:mockk-android:1.13.x")
+    androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.x")
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.activity.compose)
@@ -99,10 +122,18 @@ dependencies {
     implementation("com.github.jeziellago:compose-markdown:0.5.7")
     implementation("nl.dionsegijn:konfetti-compose:2.0.4")
     testImplementation(libs.junit)
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.7.3")
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
     androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation("androidx.navigation:navigation-testing:2.7.1")
+    androidTestImplementation("io.mockk:mockk-android:1.13.10")
+    androidTestImplementation("io.mockk:mockk-agent:1.13.10")
+
+    // Các thư viện test khác cần thiết
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.6.8")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.6.8")
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 
