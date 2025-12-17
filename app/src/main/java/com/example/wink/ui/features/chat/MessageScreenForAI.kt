@@ -53,7 +53,9 @@ fun MessageScreenForAI(
     val analyzeResult by viewModel.analyzeResult.collectAsState()
     val isAnalyzing by viewModel.isAnalyzing.collectAsState()
     val context = LocalContext.current
-    val avatarUri = "android.resource://${context.packageName}/${R.drawable.ai_crush}"
+    val aiName by viewModel.aiName.collectAsState()
+    val aiAvatarUrl by viewModel.aiAvatarUrl.collectAsState()
+    val avatarUri = aiAvatarUrl ?: "android.resource://${context.packageName}/${R.drawable.ai_crush}"
     var currentStepIndex by remember { mutableStateOf(-1) } // Chỉ số message đang highlight
     val analysisSteps by viewModel.analysisSteps.collectAsState() // Kết quả phân tích
     val listState = rememberLazyListState()
@@ -99,7 +101,7 @@ fun MessageScreenForAI(
                     tonalElevation = 4.dp
                 ) {
                     MessageTopBar(
-                        title = "Lan Anh",
+                        title = aiName,
                         avatarUrl = avatarUri,
                         onBackClick = { navController.popBackStack() },
                         onAnalyzeClick = {

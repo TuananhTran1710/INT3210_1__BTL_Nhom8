@@ -1,5 +1,7 @@
 package com.example.wink.ui.features.chat
 
+import android.app.Application
+import android.content.Context
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -46,7 +48,10 @@ class MessageViewModelForAI @Inject constructor(
     private val chatGptApiService: ChatGptApiService,
     private val chatRepository: ChatRepository,
     private val auth: FirebaseAuth,
+    private val application: Application,
 ) : ViewModel() {
+
+    private val sharedPreferences = application.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages = _messages.asStateFlow()
@@ -56,6 +61,12 @@ class MessageViewModelForAI @Inject constructor(
 
     private val _isSending = MutableStateFlow(false)
     val isSending = _isSending.asStateFlow()
+
+    private val _aiName = MutableStateFlow("Lan Anh")
+    val aiName = _aiName.asStateFlow()
+
+    private val _aiAvatarUrl = MutableStateFlow<String?>(null)
+    val aiAvatarUrl = _aiAvatarUrl.asStateFlow()
 
     private val aiUserId = "wink-ai-assistant"
     private val currentUserId: String
@@ -94,7 +105,13 @@ class MessageViewModelForAI @Inject constructor(
     val isAnalyzing = _isAnalyzing.asStateFlow()
 
     init {
+        loadAiSettings()
         loadMessages()
+    }
+
+    private fun loadAiSettings() {
+        _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
     }
 
     private suspend fun getAiResponse() {
