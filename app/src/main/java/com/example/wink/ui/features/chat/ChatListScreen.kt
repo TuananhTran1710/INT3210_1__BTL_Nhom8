@@ -49,6 +49,7 @@ fun ChatListScreen(
     val isLoading by viewModel.isLoading.collectAsState()
     val aiName by viewModel.aiName.collectAsState()
     val aiAvatarUrl by viewModel.aiAvatarUrl.collectAsState()
+    val aiLastMessage by viewModel.aiLastMessage.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
@@ -160,7 +161,7 @@ fun ChatListScreen(
                             SpecialAIItem(
                                 name = aiName,
                                 avatarUrl = aiAvatarUrl,
-                                lastMessage = "Đừng làm tớ ngại chứ \uD83D\uDE33",
+                                lastMessage = aiLastMessage,
                                 onClick = { navController.navigate("message/ai_chat") }
                             )
                         }

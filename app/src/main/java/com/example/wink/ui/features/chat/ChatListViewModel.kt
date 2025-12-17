@@ -81,6 +81,9 @@ class ChatListViewModel @Inject constructor(
     private val _aiAvatarUrl = MutableStateFlow<String?>(null)
     val aiAvatarUrl = _aiAvatarUrl.asStateFlow()
 
+    private val _aiLastMessage = MutableStateFlow("...")
+    val aiLastMessage = _aiLastMessage.asStateFlow()
+
 
     // --- Channel điều hướng ---
     private val _effect = Channel<ChatListEffect>()
@@ -94,6 +97,7 @@ class ChatListViewModel @Inject constructor(
         sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
         loadChats()
         loadFriends()
+        loadAiLastMessage()
     }
 
     override fun onCleared() {
@@ -104,6 +108,18 @@ class ChatListViewModel @Inject constructor(
     private fun loadAiSettings() {
         _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
         _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
+    }
+
+    private fun loadAiLastMessage() {
+        val myId = currentUserId ?: return
+        viewModelScope.launch {
+            chatRepository.listenAiMessages(myId).collect { messages ->
+                val lastMessage = messages.firstOrNull()
+                val messageContent = lastMessage?.content ?: "Bắt đầu trò chuyện nào!"
+                val prefix = if (lastMessage?.senderId == myId) "Bạn: " else ""
+                _aiLastMessage.value = if (lastMessage?.mediaUrl?.isNotEmpty() == true) "Hình ảnh" else "$prefix$messageContent"
+            }
+        }
     }
 
     // --- Logic MỚI: Tải danh sách bạn bè ---
