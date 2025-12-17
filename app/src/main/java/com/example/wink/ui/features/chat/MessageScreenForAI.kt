@@ -19,6 +19,7 @@ import androidx.compose.foundation.lazy.LazyRow // Import LazyRow
 import androidx.compose.foundation.lazy.items // Import items
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -33,6 +34,7 @@ import androidx.navigation.NavController
 import coil.compose.AsyncImage
 import com.google.firebase.auth.FirebaseAuth
 import com.example.wink.R
+import com.example.wink.ui.navigation.Screen
 import kotlinx.coroutines.delay
 
 
@@ -105,6 +107,10 @@ fun MessageScreenForAI(
                             viewModel.analyzeConversation()
                         },
                         showAnalyzeButton = true,
+                        onSettingClick = {
+                            navController.navigate(Screen.AiSettings.route)
+                        },
+                        showSettingButton = true,
                     )
                 }
             },

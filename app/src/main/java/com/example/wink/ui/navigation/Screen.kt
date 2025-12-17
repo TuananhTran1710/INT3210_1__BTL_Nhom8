@@ -44,6 +44,7 @@ sealed class Screen(val route: String) {
     object Tarot : Screen("tarot")
     object Friends : Screen("friends")
     object Settings : Screen("settings")
+    object AiSettings : Screen("ai_settings")
 
     object HumanAiGame : Screen("human_ai_game")
     companion object {

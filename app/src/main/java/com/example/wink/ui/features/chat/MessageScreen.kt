@@ -29,6 +29,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Photo
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -65,6 +66,7 @@ import com.example.wink.R
 import com.example.wink.data.model.Message
 import com.example.wink.ui.common.DateUtils
 import com.example.wink.ui.features.chat.AnalyzeDialog
+import com.example.wink.ui.navigation.Screen
 
 @Composable
 fun MessageScreen(
@@ -94,7 +96,9 @@ fun MessageScreen(
                 title = chatTitle,
                 avatarUrl = chatAvatarUrl,
                 onBackClick = { navController.popBackStack() },
-                onAnalyzeClick = { /* TODO: Handle analyze click */ }
+                onAnalyzeClick = { /* TODO: Handle analyze click */ },
+                onSettingClick = { },
+                showSettingButton = false,
             )
         },
         bottomBar = {
@@ -238,6 +242,8 @@ fun MessageTopBar(
     onBackClick: () -> Unit,
     onAnalyzeClick: () -> Unit,
     showAnalyzeButton: Boolean = false,
+    onSettingClick: () -> Unit,
+    showSettingButton: Boolean = false,
 ) {
     TopAppBar(
         // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
@@ -287,6 +293,14 @@ fun MessageTopBar(
                     Icon(
                         imageVector = Icons.Default.Analytics,
                         contentDescription = "Analyze"
+                    )
+                }
+            }
+            if (showSettingButton) {   // ✅ condition
+                IconButton(onClick = onSettingClick) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Setting"
                     )
                 }
             }
