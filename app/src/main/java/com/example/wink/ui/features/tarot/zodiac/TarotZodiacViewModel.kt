@@ -77,9 +77,11 @@ class TarotZodiacViewModel @Inject constructor(
             
             Output duy nhất JSON (không markdown):
             {
-              "score": (số nguyên 0-100),
+              "score": (số nguyên 0-99),
               "comment": (lời phán khoảng 2-3 câu)
             }
+            
+            Lưu ý: score tỉ lệ thuận với độ tương hợp, nên những comment phải phù hợp với score nhé!
         """.trimIndent()
 
         val request = ChatGptRequest(

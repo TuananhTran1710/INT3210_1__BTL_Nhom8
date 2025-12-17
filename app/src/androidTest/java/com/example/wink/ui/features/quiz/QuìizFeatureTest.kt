@@ -182,7 +182,7 @@ class QuizFeatureTest {
 
         composeTestRule.onNodeWithText("Tạo Quiz cho riêng bạn").assertIsDisplayed()
         composeTestRule.onNodeWithText("Chủ đề").performTextInput("Test Topic")
-        composeTestRule.onNodeWithText("Tạo ngay (-250 Rizz)").performClick()
+        composeTestRule.onNodeWithText("Tạo ngay (-150 Rizz)").performClick()
 
         assert(generatedTopic == "Test Topic")
     }

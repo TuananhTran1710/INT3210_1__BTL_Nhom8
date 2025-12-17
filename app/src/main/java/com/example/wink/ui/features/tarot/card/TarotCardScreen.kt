@@ -394,12 +394,13 @@ fun TarotMeaningCard(card: TarotCardInfo) {
             modifier = Modifier.padding(20.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
+            // Đã chỉnh sửa phần này cho to và rõ hơn
             Text(
-                text = "Lời Tiên Tri",
-                style = MaterialTheme.typography.labelMedium,
-                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
-                fontWeight = FontWeight.Bold,
-                letterSpacing = 1.sp
+                text = "LỜI TIÊN TRI",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.primary, // Bỏ alpha để rõ hơn
+                fontWeight = FontWeight.ExtraBold,
+                letterSpacing = 1.5.sp
             )
 
             Spacer(Modifier.height(8.dp))

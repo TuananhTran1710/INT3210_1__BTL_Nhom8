@@ -3,18 +3,36 @@ package com.example.wink.ui.features.iconshop
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.rounded.Star // 1. Import icon ngôi sao
-import androidx.compose.material3.*
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -38,6 +56,25 @@ fun IconShopScreen(
     viewModel: IconShopViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+
+    IconShopContent(
+        state = state,
+        onBackClick = { navController.popBackStack() },
+        onIconClick = viewModel::onIconClicked,
+        onConfirmChange = viewModel::confirmChangeIcon,
+        onCancelChange = viewModel::cancelChangeIcon
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun IconShopContent(
+    state: IconShopState,
+    onBackClick: () -> Unit,
+    onIconClick: (String) -> Unit,
+    onConfirmChange: () -> Unit,
+    onCancelChange: () -> Unit
+) {
     val colorScheme = MaterialTheme.colorScheme
 
     Scaffold(
@@ -45,7 +82,7 @@ fun IconShopScreen(
             TopAppBar(
                 title = { Text("Đổi icon", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại"
@@ -65,7 +102,7 @@ fun IconShopScreen(
                             Icon(
                                 imageVector = Icons.Rounded.Star,
                                 contentDescription = null,
-                                tint = Color(0xFFFFD700), // Màu vàng gold
+                                tint = Color(0xFFFFD700),
                                 modifier = Modifier.size(18.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
@@ -77,8 +114,7 @@ fun IconShopScreen(
                             )
                         }
                     }
-                },
-                windowInsets = WindowInsets(0.dp)
+                }
             )
         }
     ) { padding ->
@@ -90,9 +126,6 @@ fun IconShopScreen(
                 .padding(padding)
                 .padding(16.dp)
         ) {
-            // 3. Đã XÓA Card hiển thị RIZZ to ở đây
-
-            // Thông báo lỗi (nếu có)
             state.errorMessage?.let { msg ->
                 Text(
                     text = msg,
@@ -104,7 +137,6 @@ fun IconShopScreen(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // Lưới icon 4 cột
             LazyVerticalGrid(
                 columns = GridCells.Fixed(4),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -114,31 +146,26 @@ fun IconShopScreen(
                 items(state.icons) { icon ->
                     IconItem(
                         item = icon,
-                        onClick = { viewModel.onIconClicked(icon.id) }
+                        onClick = { onIconClick(icon.id) }
                     )
                 }
             }
         }
 
-        // Dialog xác nhận khởi động lại
         if (state.showRestartDialog) {
             AlertDialog(
-                onDismissRequest = { viewModel.cancelChangeIcon() },
+                onDismissRequest = onCancelChange,
                 title = { Text(text = "Thay đổi biểu tượng") },
                 text = {
                     Text("Hiệu ứng sẽ chỉ áp dụng trong lần chạy sau. Bạn có muốn thoát ngay bây giờ không?")
                 },
                 confirmButton = {
-                    TextButton(
-                        onClick = { viewModel.confirmChangeIcon() }
-                    ) {
+                    TextButton(onClick = onConfirmChange) {
                         Text("Đồng ý", fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
-                    TextButton(
-                        onClick = { viewModel.cancelChangeIcon() }
-                    ) {
+                    TextButton(onClick = onCancelChange) {
                         Text("Để sau")
                     }
                 }
@@ -165,7 +192,6 @@ private fun IconItem(
                 .clickable { onClick() },
             contentAlignment = Alignment.Center
         ) {
-            // 1. HIỂN THỊ ẢNH ICON
             Image(
                 painter = painterResource(id = item.iconResId),
                 contentDescription = null,
@@ -173,7 +199,6 @@ private fun IconItem(
                 modifier = Modifier.matchParentSize()
             )
 
-            // 2. LỚP PHỦ KHI ĐƯỢC CHỌN (Overlay)
             if (item.isSelected) {
                 Box(
                     modifier = Modifier
@@ -183,13 +208,12 @@ private fun IconItem(
 
                 Icon(
                     imageVector = Icons.Default.Check,
-                    contentDescription = null,
+                    contentDescription = "Đang chọn",
                     tint = Color.White,
                     modifier = Modifier.size(24.dp)
                 )
             }
 
-            // 3. TRẠNG THÁI KHÓA (CHƯA SỞ HỮU)
             if (!item.isOwned) {
                 Box(
                     modifier = Modifier
@@ -199,7 +223,7 @@ private fun IconItem(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Lock,
-                        contentDescription = null,
+                        contentDescription = "Bị khóa",
                         tint = Color.White,
                         modifier = Modifier.size(20.dp)
                     )
