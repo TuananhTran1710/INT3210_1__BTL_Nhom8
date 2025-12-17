@@ -35,7 +35,8 @@ fun MockM3Screen() {
                     IconButton(onClick = { }) {
                         Icon(Icons.Filled.Favorite, contentDescription = "Yêu thích")
                     }
-                }
+                },
+                windowInsets = WindowInsets(0.dp)
             )
         },
         floatingActionButton = {

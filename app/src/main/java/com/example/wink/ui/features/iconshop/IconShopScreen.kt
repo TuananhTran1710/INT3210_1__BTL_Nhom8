@@ -52,7 +52,6 @@ fun IconShopScreen(
                         )
                     }
                 },
-                // 2. Thêm phần hiển thị điểm RIZZ vào Action Bar (Giống TipsScreen)
                 actions = {
                     Surface(
                         shape = RoundedCornerShape(50),
@@ -78,7 +77,8 @@ fun IconShopScreen(
                             )
                         }
                     }
-                }
+                },
+                windowInsets = WindowInsets(0.dp)
             )
         }
     ) { padding ->

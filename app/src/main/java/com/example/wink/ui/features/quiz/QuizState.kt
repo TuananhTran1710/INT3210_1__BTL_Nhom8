@@ -15,7 +15,7 @@ sealed interface QuizUiState {
     ) : QuizUiState
     data class QuizDetail(
         val quiz: Quiz,
-        val selectedAnswers: Map<String, Int>,   // questionId -> selectedIndex
+        val selectedAnswers: Map<String, Int>,
         val isSubmitted: Boolean,
         val score: Int?,
         val currentQuestionIndex: Int

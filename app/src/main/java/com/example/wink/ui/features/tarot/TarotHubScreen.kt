@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -115,7 +116,8 @@ fun TarotHubScreen(
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = MaterialTheme.colorScheme.background,
                     scrolledContainerColor = MaterialTheme.colorScheme.background
-                )
+                ),
+                windowInsets = WindowInsets(0.dp)
             )
         }
     ) { padding ->
@@ -177,16 +179,24 @@ private fun LoveFortuneItemVibrant(
     feature: TarotSubFeatureUi,
     onClick: () -> Unit
 ) {
-    // 1. Định nghĩa màu Gradient ĐẬM và NỔI BẬT cho từng loại
     val gradientBrush = when (feature.type) {
         LoveFortuneType.BY_NAME -> Brush.linearGradient(
-            listOf(Color(0xFFD81B60), Color(0xFF8E24AA)) // Hồng đậm -> Tím
+            listOf(
+                Color(0xFFEC407A),
+                Color(0xFFAB47BC)
+            )
         )
         LoveFortuneType.ZODIAC -> Brush.linearGradient(
-            listOf(Color(0xFF1E88E5), Color(0xFF004D40)) // Xanh dương -> Xanh rêu đậm
+            listOf(
+                Color(0xFF42A5F5),
+                Color(0xFF26A69A)
+            )
         )
         LoveFortuneType.TAROT_CARD -> Brush.linearGradient(
-            listOf(Color(0xFFFF6F00), Color(0xFFBF360C)) // Cam hổ phách -> Cam cháy
+            listOf(
+                Color(0xFFFFA726),
+                Color(0xFFFF7043)
+            )
         )
     }
 
@@ -201,10 +211,10 @@ private fun LoveFortuneItemVibrant(
         modifier = Modifier
             .fillMaxWidth()
             .height(130.dp),
-        shape = MaterialTheme.shapes.large, // Bo góc lớn hơn chút (Large thay vì Medium)
-        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp), // Tăng độ nổi
+        shape = MaterialTheme.shapes.large,
+        elevation = CardDefaults.elevatedCardElevation(defaultElevation = 8.dp),
         colors = CardDefaults.elevatedCardColors(
-            containerColor = Color.Transparent // Để gradient hiển thị
+            containerColor = Color.Transparent
         )
     ) {
         Box(
@@ -218,7 +228,6 @@ private fun LoveFortuneItemVibrant(
                     .padding(16.dp),
                 verticalAlignment = Alignment.Top
             ) {
-                // Icon Container - Nền trắng mờ để nổi trên background đậm
                 Surface(
                     shape = CircleShape,
                     color = Color.White.copy(alpha = 0.2f),
@@ -236,7 +245,6 @@ private fun LoveFortuneItemVibrant(
 
                 Spacer(modifier = Modifier.width(16.dp))
 
-                // Text Content - Màu trắng để tương phản
                 Column(
                     modifier = Modifier
                         .weight(1f)
@@ -245,21 +253,20 @@ private fun LoveFortuneItemVibrant(
                     Text(
                         text = feature.title,
                         style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold, // Chữ đậm hơn
+                        fontWeight = FontWeight.Bold,
                         color = Color.White
                     )
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
                         text = feature.description,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = Color.White.copy(alpha = 0.9f), // Màu trắng hơi mờ
+                        color = Color.White.copy(alpha = 0.9f),
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis
                     )
                 }
             }
 
-            // Nút trạng thái (Free/Locked) - Góc dưới phải
             Box(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
@@ -268,12 +275,11 @@ private fun LoveFortuneItemVibrant(
                 StatusBadgeVibrant(isLocked = feature.usedFreeToday, price = feature.price)
             }
 
-            // Lớp phủ khi bị khóa (Overlay tối)
             if (feature.usedFreeToday) {
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.3f)) // Phủ tối hơn chút để rõ trạng thái khóa
+                        .background(Color.Black.copy(alpha = 0.3f))
                 )
             }
         }
@@ -282,16 +288,15 @@ private fun LoveFortuneItemVibrant(
 
 @Composable
 fun StatusBadgeVibrant(isLocked: Boolean, price: Int) {
-    // Màu badge tương phản với nền gradient
     val containerColor = if (isLocked)
-        Color.Black.copy(alpha = 0.6f) // Nền đen mờ cho trạng thái khóa
+        Color.Black.copy(alpha = 0.6f)
     else
-        Color.White // Nền trắng cho trạng thái Free
+        Color.White
 
     val contentColor = if (isLocked)
-        Color(0xFFFF5252) // Chữ đỏ cam
+        Color(0xFFFF5252)
     else
-        Color(0xFF2E7D32) // Chữ xanh lá đậm (Hoặc dùng màu chính của app)
+        Color(0xFF2E7D32)
 
     Surface(
         shape = MaterialTheme.shapes.small,
@@ -311,17 +316,17 @@ fun StatusBadgeVibrant(isLocked: Boolean, price: Int) {
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    text = "$price Rizz", // Rút gọn text
+                    text = "$price Rizz",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.ExtraBold,
                     color = contentColor
                 )
             } else {
                 Text(
-                    text = "MIỄN PHÍ", // Chữ in hoa
+                    text = "MIỄN PHÍ",
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.ExtraBold,
-                    color = contentColor // Hoặc dùng màu Brand của bạn
+                    color = contentColor
                 )
             }
         }

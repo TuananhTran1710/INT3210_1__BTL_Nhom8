@@ -240,7 +240,6 @@ fun MessageTopBar(
     showAnalyzeButton: Boolean = false,
 ) {
     TopAppBar(
-        // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
         navigationIcon = {
             IconButton(onClick = onBackClick) {
                 Icon(
@@ -249,7 +248,6 @@ fun MessageTopBar(
                 )
             }
         },
-        // 2. Avatar và Tên nằm ở title (ngay sau nút Back)
         title = {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

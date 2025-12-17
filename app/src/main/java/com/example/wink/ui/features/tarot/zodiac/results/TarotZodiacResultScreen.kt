@@ -5,16 +5,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -23,25 +14,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Refresh
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Divider
-import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
@@ -51,24 +25,21 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.example.wink.ui.navigation.Screen
-import com.example.wink.ui.theme.WinkTheme
 import kotlinx.coroutines.flow.collectLatest
 
-@OptIn(ExperimentalMaterial3Api::class)
+// --- CONTAINER ---
 @Composable
 fun TarotZodiacResultScreen(
     navController: NavController,
     viewModel: TarotZodiacResultViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val scrollState = rememberScrollState()
 
     LaunchedEffect(Unit) {
         viewModel.events.collectLatest { event ->
@@ -85,17 +56,38 @@ fun TarotZodiacResultScreen(
         }
     }
 
-    // Dialogs logic remains the same
+    TarotZodiacResultScreenContent(
+        state = state,
+        onBackClick = { viewModel.onBackClicked() },
+        onRetryClick = { viewModel.onRetryClicked() },
+        onConfirmUseRizz = { viewModel.onConfirmUseRizz() },
+        onDismissDialogs = { viewModel.onDismissDialogs() },
+        onNotEnoughOk = { viewModel.onNotEnoughOk() }
+    )
+}
+
+// --- CONTENT ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TarotZodiacResultScreenContent(
+    state: TarotZodiacResultState,
+    onBackClick: () -> Unit,
+    onRetryClick: () -> Unit,
+    onConfirmUseRizz: () -> Unit,
+    onDismissDialogs: () -> Unit,
+    onNotEnoughOk: () -> Unit
+) {
+    // Dialogs
     if (state.showConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { viewModel.onDismissDialogs() },
+            onDismissRequest = onDismissDialogs,
             title = { Text("Thử lại lần nữa?") },
-            text = { Text("Dùng 50 Rizz để bói lại cho cặp đôi khác nhé?") },
+            text = { Text("Dùng 5 Rizz để bói lại cho cặp đôi khác nhé?") },
             confirmButton = {
-                Button(onClick = { viewModel.onConfirmUseRizz() }) { Text("Chốt đơn") }
+                Button(onClick = onConfirmUseRizz) { Text("Chốt đơn") }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.onDismissDialogs() }) { Text("Thôi") }
+                TextButton(onClick = onDismissDialogs) { Text("Thôi") }
             },
             icon = { Icon(Icons.Default.Refresh, contentDescription = null) }
         )
@@ -103,16 +95,15 @@ fun TarotZodiacResultScreen(
 
     if (state.showNotEnoughDialog) {
         AlertDialog(
-            onDismissRequest = { /* */ },
+            onDismissRequest = {},
             title = { Text("Không đủ Rizz") },
             text = { Text("Bạn không đủ điểm Rizz để chơi tiếp. Hẹn bạn lần sau nhé!") },
             confirmButton = {
-                Button(onClick = { viewModel.onNotEnoughOk() }) { Text("Quay về hub") }
+                Button(onClick = onNotEnoughOk) { Text("Quay về hub") }
             }
         )
     }
 
-    // Gradient Background (Consistent with Zodiac Theme)
     val backgroundBrush = Brush.verticalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.surface,
@@ -131,7 +122,7 @@ fun TarotZodiacResultScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { viewModel.onBackClicked() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại"
@@ -153,13 +144,12 @@ fun TarotZodiacResultScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState)
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 1. Animated Score Section
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn(tween(1000)) + slideInVertically(tween(1000))
@@ -168,7 +158,6 @@ fun TarotZodiacResultScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         modifier = Modifier.padding(bottom = 32.dp)
                     ) {
-                        // Styled Name Text
                         Text(
                             text = buildAnnotatedString {
                                 withStyle(SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.secondary)) {
@@ -185,7 +174,6 @@ fun TarotZodiacResultScreen(
 
                         Spacer(modifier = Modifier.height(24.dp))
 
-                        // Score Display
                         Box(contentAlignment = Alignment.Center) {
                             Surface(
                                 shape = CircleShape,
@@ -199,13 +187,12 @@ fun TarotZodiacResultScreen(
                                     fontWeight = FontWeight.ExtraBold,
                                     fontSize = 64.sp
                                 ),
-                                color = MaterialTheme.colorScheme.secondary // Consistent with secondary theme color
+                                color = MaterialTheme.colorScheme.secondary
                             )
                         }
                     }
                 }
 
-                // 2. Advice Card
                 AnimatedVisibility(
                     visible = true,
                     enter = fadeIn(tween(1500)) + slideInVertically(tween(1500), initialOffsetY = { 50 })
@@ -259,9 +246,8 @@ fun TarotZodiacResultScreen(
 
                 Spacer(modifier = Modifier.height(40.dp))
 
-                // 3. Action Buttons
                 Button(
-                    onClick = { viewModel.onRetryClicked() },
+                    onClick = onBackClick,
                     modifier = Modifier
                         .fillMaxWidth(0.8f)
                         .height(56.dp),
@@ -273,13 +259,13 @@ fun TarotZodiacResultScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Thử lại",
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Quay về",
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            "Thử cặp đôi khác",
+                            "Quay về trang chủ",
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -289,96 +275,3 @@ fun TarotZodiacResultScreen(
         }
     }
 }
-
-// #region PREVIEW IMPLEMENTATION
-
-private data class PreviewTarotZodiacResultState(
-    val score: Int = 0,
-    val yourSignName: String = "Bạch Dương",
-    val crushSignName: String = "Thiên Yết",
-    val message: String = "Kết quả bói cho thấy đây là một mối quan hệ đầy đam mê và thử thách. Cả hai đều có cá tính mạnh mẽ, cần học cách thỏa hiệp để tránh xung đột.",
-    val showConfirmDialog: Boolean = false,
-    val showNotEnoughDialog: Boolean = false,
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun PreviewTarotZodiacResultContent(
-    state: PreviewTarotZodiacResultState,
-) {
-    // Replicating the main composable structure for preview
-    val backgroundBrush = Brush.verticalGradient(
-        colors = listOf(
-            MaterialTheme.colorScheme.surface,
-            MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.2f),
-            MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.3f)
-        )
-    )
-
-    Scaffold(
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Kết quả Cung Hoàng Đạo", fontWeight = FontWeight.Bold) },
-                navigationIcon = {
-                    IconButton(onClick = { }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
-                    }
-                }
-            )
-        }
-    ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(backgroundBrush)
-                .padding(padding)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 24.dp, vertical = 16.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Spacer(modifier = Modifier.height(16.dp))
-                Column(
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    modifier = Modifier.padding(bottom = 32.dp)
-                ) {
-                    Text(
-                        text = "${state.yourSignName} & ${state.crushSignName}",
-                        style = MaterialTheme.typography.headlineSmall,
-                        textAlign = TextAlign.Center
-                    )
-                    Spacer(modifier = Modifier.height(24.dp))
-                    Box(contentAlignment = Alignment.Center) {
-                        Surface(
-                            shape = CircleShape,
-                            color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
-                            modifier = Modifier.size(160.dp)
-                        ) {}
-                        Text(
-                            text = "${state.score}%",
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontWeight = FontWeight.ExtraBold,
-                                fontSize = 64.sp
-                            ),
-                            color = MaterialTheme.colorScheme.secondary
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-
-@Preview(showBackground = true)
-@Composable
-fun TarotZodiacResultScreenPreview() {
-    WinkTheme {
-        PreviewTarotZodiacResultContent(
-            state = PreviewTarotZodiacResultState(score = 75)
-        )
-    }
-}
-// #endregion PREVIEW IMPLEMENTATION

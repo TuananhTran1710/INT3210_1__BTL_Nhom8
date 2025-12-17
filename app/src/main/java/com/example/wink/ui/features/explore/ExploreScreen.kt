@@ -48,7 +48,7 @@ fun ExploreScreen(
     val categories = listOf(
         CategoryItem("tips", "Bí kíp tán gái", "Thả thính & tâm lý", Icons.Default.MenuBook, Color(0xFFE91E63)), // Pink
         CategoryItem("quiz", "Quiz EQ", "Đo chỉ số cảm xúc", Icons.Default.Psychology, Color(0xFF03A9F4)), // Blue
-        CategoryItem("tarot", "Bói Tarot", "Thông điệp vũ trụ", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)), // Purple
+        CategoryItem("tarot", "Bói Tình Yêu", "Giải mã tình duyên", Icons.Outlined.AutoAwesome, Color(0xFF9C27B0)), // Purple
         CategoryItem("shop", "Cửa hàng", "Đổi điểm RIZZ", Icons.Default.Storefront, Color(0xFF4CAF50))  // Green
     )
 

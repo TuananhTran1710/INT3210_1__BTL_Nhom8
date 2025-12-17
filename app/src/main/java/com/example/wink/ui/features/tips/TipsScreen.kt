@@ -2,31 +2,55 @@ package com.example.wink.ui.features.tips
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.LockOpen
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.rounded.Star
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -41,31 +65,41 @@ fun TipsScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
 
-    // Lắng nghe sự kiện điều hướng (Khi mở bí kíp thành công)
     LaunchedEffect(true) {
         viewModel.navigationEvent.collect { tipId ->
-            // Tìm object Tip tương ứng với ID (ViewModel chỉ gửi ID, ta cần tìm object đầy đủ)
-            // Tuy nhiên, để nhanh gọn, ta sửa ViewModel gửi nguyên object Tip luôn (Xem Bước 2 phụ bên dưới)
-            // HOẶC tìm trong list hiện tại:
             val selectedTip = state.tips.find { it.id == tipId }
-
             if (selectedTip != null) {
-                // 1. Nhét dữ liệu vào túi
                 navController.currentBackStackEntry?.savedStateHandle?.set("selectedTip", selectedTip)
-                // 2. Đi tới màn chi tiết
                 navController.navigate("tip_detail_screen")
             }
         }
     }
 
-    // --- DIALOG XÁC NHẬN MỞ KHÓA ---
+    TipsContent(
+        state = state,
+        onTipClick = viewModel::onTipClick,
+        onConfirmUnlock = viewModel::confirmUnlock,
+        onDismissDialog = viewModel::dismissDialog,
+        onBackClick = { navController.popBackStack() }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TipsContent(
+    state: TipsState,
+    onTipClick: (Tip) -> Unit,
+    onConfirmUnlock: () -> Unit,
+    onDismissDialog: () -> Unit,
+    onBackClick: () -> Unit
+) {
     if (state.selectedTipToUnlock != null) {
         UnlockDialog(
-            tip = state.selectedTipToUnlock!!,
+            tip = state.selectedTipToUnlock,
             userPoints = state.userRizzPoints,
             error = state.unlockError,
-            onConfirm = { viewModel.confirmUnlock() },
-            onDismiss = { viewModel.dismissDialog() }
+            onConfirm = onConfirmUnlock,
+            onDismiss = onDismissDialog
         )
     }
 
@@ -74,7 +108,7 @@ fun TipsScreen(
             TopAppBar(
                 title = { Text("Kho Bí Kíp", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại"
@@ -82,7 +116,6 @@ fun TipsScreen(
                     }
                 },
                 actions = {
-                    // Hiển thị điểm RIZZ hiện tại
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.primaryContainer,
@@ -113,7 +146,7 @@ fun TipsScreen(
             modifier = Modifier.padding(padding)
         ) {
             items(state.tips) { tip ->
-                TipCard(tip = tip, onClick = { viewModel.onTipClick(tip) })
+                TipCard(tip = tip, onClick = { onTipClick(tip) })
             }
         }
     }
@@ -124,7 +157,6 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(16.dp),
-        // Nếu khóa thì nền xám, mở thì nền trắng/surface
         colors = CardDefaults.cardColors(
             containerColor = if (tip.isLocked) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
             else MaterialTheme.colorScheme.surface
@@ -132,13 +164,12 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
         modifier = Modifier
             .fillMaxWidth()
-            .height(IntrinsicSize.Min) // Để chiều cao Row tự co giãn đều
+            .height(IntrinsicSize.Min)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // --- 1. THUMBNAIL AREA ---
             Box(
                 modifier = Modifier
                     .width(100.dp)
@@ -146,7 +177,6 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
                     .background(MaterialTheme.colorScheme.surfaceVariant),
                 contentAlignment = Alignment.Center
             ) {
-                // Hiển thị ảnh nếu có URL
                 if (!tip.imageUrl.isNullOrBlank()) {
                     AsyncImage(
                         model = ImageRequest.Builder(LocalContext.current)
@@ -159,12 +189,11 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
                     )
                 }
 
-                // Nếu KHÓA -> Phủ lớp đen mờ + Icon Khóa
                 if (tip.isLocked) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .background(Color.Black.copy(alpha = 0.4f)) // Mờ đen
+                            .background(Color.Black.copy(alpha = 0.4f))
                     )
                     Icon(
                         imageVector = Icons.Default.Lock,
@@ -173,9 +202,8 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
                         modifier = Modifier.size(32.dp)
                     )
                 } else if (tip.imageUrl.isNullOrBlank()) {
-                    // Nếu không có ảnh và đã mở khóa -> Hiện icon sách mặc định
                     Icon(
-                        imageVector = Icons.Default.MenuBook, // Hoặc icon nào đó
+                        imageVector = Icons.Default.MenuBook,
                         contentDescription = null,
                         tint = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.size(32.dp)
@@ -183,7 +211,6 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
                 }
             }
 
-            // --- 2. TEXT CONTENT AREA ---
             Column(
                 modifier = Modifier
                     .weight(1f)
@@ -210,7 +237,6 @@ fun TipCard(tip: Tip, onClick: () -> Unit) {
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Footer: Giá tiền hoặc Mũi tên
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (tip.isLocked) {
                         Text(

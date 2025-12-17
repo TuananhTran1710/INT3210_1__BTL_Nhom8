@@ -1,3 +1,5 @@
+package com.example.wink.ui.features.quiz
+
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.BorderStroke
@@ -47,7 +49,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.wink.ui.features.quiz.QuizUiState
 import nl.dionsegijn.konfetti.compose.KonfettiView
 import nl.dionsegijn.konfetti.core.Party
 import nl.dionsegijn.konfetti.core.Position
@@ -211,7 +212,6 @@ fun AnswerCard(text: String, isSelected: Boolean, isSubmitted: Boolean, isCorrec
     }
 }
 
-// --- 3. PHÁO HOA KHI KẾT QUẢ ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun QuizResultScreen(
@@ -219,7 +219,6 @@ fun QuizResultScreen(
     onBackToList: () -> Unit,
     onTryAgain: (String) -> Unit
 ) {
-    // Cấu hình pháo hoa
     val party = remember {
         Party(
             speed = 0f,
@@ -255,7 +254,6 @@ fun QuizResultScreen(
 
                 Spacer(Modifier.height(16.dp))
 
-                // Điểm số Card
                 Card(
                     colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
                     modifier = Modifier.fillMaxWidth()
@@ -279,7 +277,7 @@ fun QuizResultScreen(
                     Text(
                         text = "+${state.rizzPointsEarned} RIZZ",
                         style = MaterialTheme.typography.headlineMedium,
-                        color = Color(0xFFFFD700), // Gold
+                        color = Color(0xFFFFD700),
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(Modifier.height(32.dp))
@@ -306,8 +304,7 @@ fun QuizResultScreen(
             }
         }
 
-        // Hiệu ứng pháo hoa đè lên trên cùng (chỉ hiện khi hoàn thành)
-        if (state.isPerfectScore || state.score > 0) { // Điều kiện nổ pháo
+        if (state.isPerfectScore || state.score > 0) {
             KonfettiView(
                 modifier = Modifier.fillMaxSize(),
                 parties = listOf(party),

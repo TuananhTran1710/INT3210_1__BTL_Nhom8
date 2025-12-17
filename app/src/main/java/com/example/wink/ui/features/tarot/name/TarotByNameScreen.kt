@@ -7,7 +7,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -65,6 +64,7 @@ import androidx.navigation.NavController
 import com.example.wink.ui.navigation.Screen
 import kotlinx.coroutines.flow.collectLatest
 
+// --- PHẦN 1: CONTAINER (Stateful) ---
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TarotNameScreen(
@@ -72,8 +72,6 @@ fun TarotNameScreen(
     viewModel: TarotNameViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val scrollState = rememberScrollState()
-    val focusManager = LocalFocusManager.current
 
     LaunchedEffect(Unit) {
         viewModel.navEvents.collectLatest { event ->
@@ -90,7 +88,29 @@ fun TarotNameScreen(
         }
     }
 
-    // Gradient Background nhẹ nhàng (Hồng nhạt -> Tím nhạt)
+    TarotNameScreenContent(
+        state = state,
+        onYourNameChange = viewModel::onYourNameChange,
+        onCrushNameChange = viewModel::onCrushNameChange,
+        onAnalyzeClick = viewModel::onAnalyze,
+        onBackClick = { navController.popBackStack() }
+    )
+}
+
+// --- PHẦN 2: CONTENT (Stateless - Dễ test) ---
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TarotNameScreenContent(
+    state: TarotNameState,
+    onYourNameChange: (String) -> Unit,
+    onCrushNameChange: (String) -> Unit,
+    onAnalyzeClick: () -> Unit,
+    onBackClick: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    val focusManager = LocalFocusManager.current
+
+    // Gradient Background nhẹ nhàng
     val backgroundBrush = Brush.verticalGradient(
         colors = listOf(
             MaterialTheme.colorScheme.surface,
@@ -99,6 +119,7 @@ fun TarotNameScreen(
     )
 
     Scaffold(
+        containerColor = Color.Transparent,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -108,7 +129,7 @@ fun TarotNameScreen(
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { navController.popBackStack() }) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = "Quay lại"
@@ -131,7 +152,7 @@ fun TarotNameScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState) // Cho phép cuộn trên màn hình nhỏ
+                    .verticalScroll(scrollState)
                     .padding(horizontal = 24.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -160,7 +181,7 @@ fun TarotNameScreen(
                         // Input: Tên bạn
                         CustomNameTextField(
                             value = state.yourName,
-                            onValueChange = viewModel::onYourNameChange,
+                            onValueChange = onYourNameChange,
                             label = "Tên của bạn",
                             placeholder = "Ví dụ: Nguyễn Văn A",
                             icon = Icons.Default.Person,
@@ -174,14 +195,14 @@ fun TarotNameScreen(
                         // Input: Tên Crush
                         CustomNameTextField(
                             value = state.crushName,
-                            onValueChange = viewModel::onCrushNameChange,
+                            onValueChange = onCrushNameChange,
                             label = "Tên người ấy",
                             placeholder = "Ví dụ: Trần Thị B",
                             icon = Icons.Default.Favorite,
                             imeAction = ImeAction.Done,
                             onAction = {
                                 focusManager.clearFocus()
-                                viewModel.onAnalyze()
+                                onAnalyzeClick()
                             }
                         )
                     }
@@ -202,7 +223,7 @@ fun TarotNameScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Icon(
-                                imageVector = Icons.Default.AutoAwesome, // Hoặc icon Warning
+                                imageVector = Icons.Default.AutoAwesome,
                                 contentDescription = null,
                                 tint = MaterialTheme.colorScheme.onErrorContainer,
                                 modifier = Modifier.size(16.dp)
@@ -224,7 +245,7 @@ fun TarotNameScreen(
                 Button(
                     onClick = {
                         focusManager.clearFocus()
-                        viewModel.onAnalyze()
+                        onAnalyzeClick()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -260,6 +281,7 @@ fun TarotNameScreen(
     }
 }
 
+// --- CÁC COMPOSABLE CON GIỮ NGUYÊN ---
 @Composable
 private fun HeartDivider() {
     Row(
@@ -267,51 +289,15 @@ private fun HeartDivider() {
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        // Line trái
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(1.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            Color.Transparent,
-                            MaterialTheme.colorScheme.outlineVariant
-                        )
-                    )
-                )
-        )
-
-        // Heart Icon Container
+        Box(modifier = Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(Color.Transparent, MaterialTheme.colorScheme.outlineVariant))))
         Surface(
             shape = CircleShape,
             color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
             modifier = Modifier.padding(horizontal = 12.dp)
         ) {
-            Icon(
-                imageVector = Icons.Default.Favorite,
-                contentDescription = "Love",
-                tint = MaterialTheme.colorScheme.primary, // Màu trái tim nổi bật
-                modifier = Modifier
-                    .padding(8.dp)
-                    .size(24.dp)
-            )
+            Icon(Icons.Default.Favorite, "Love", tint = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(8.dp).size(24.dp))
         }
-
-        // Line phải
-        Box(
-            modifier = Modifier
-                .weight(1f)
-                .height(1.dp)
-                .background(
-                    Brush.horizontalGradient(
-                        colors = listOf(
-                            MaterialTheme.colorScheme.outlineVariant,
-                            Color.Transparent
-                        )
-                    )
-                )
-        )
+        Box(modifier = Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(MaterialTheme.colorScheme.outlineVariant, Color.Transparent))))
     }
 }
 
@@ -330,13 +316,7 @@ private fun CustomNameTextField(
         onValueChange = onValueChange,
         label = { Text(label) },
         placeholder = { Text(placeholder, color = Color.Gray) },
-        leadingIcon = {
-            Icon(
-                imageVector = icon,
-                contentDescription = label,
-                tint = MaterialTheme.colorScheme.primary
-            )
-        },
+        leadingIcon = { Icon(imageVector = icon, contentDescription = label, tint = MaterialTheme.colorScheme.primary) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         colors = OutlinedTextFieldDefaults.colors(
@@ -347,13 +327,7 @@ private fun CustomNameTextField(
             unfocusedContainerColor = MaterialTheme.colorScheme.surface
         ),
         shape = RoundedCornerShape(12.dp),
-        keyboardOptions = KeyboardOptions(
-            capitalization = KeyboardCapitalization.Words, // Tự động viết hoa chữ cái đầu
-            imeAction = imeAction
-        ),
-        keyboardActions = KeyboardActions(
-            onNext = { onAction() },
-            onDone = { onAction() }
-        )
+        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words, imeAction = imeAction),
+        keyboardActions = KeyboardActions(onNext = { onAction() }, onDone = { onAction() })
     )
 }

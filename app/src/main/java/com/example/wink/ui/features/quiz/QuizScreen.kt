@@ -3,7 +3,19 @@ package com.example.wink.ui.features.quiz
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -14,13 +26,38 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Lock
-import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material.icons.filled.Timer
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ElevatedCard
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -31,28 +68,51 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.wink.data.model.Quiz
+
+@Composable
+fun QuizListScreen(
+    onOpen: (String) -> Unit,
+    onBack: () -> Unit,
+    viewModel: QuizViewModel = hiltViewModel()
+) {
+    val state by viewModel.uiState.collectAsState()
+
+    if (state is QuizUiState.QuizList) {
+        val listState = state as QuizUiState.QuizList
+        QuizListContent(
+            state = listState,
+            onOpen = onOpen,
+            onUnlock = { id, cost -> viewModel.onEvent(QuizEvent.UnlockQuiz(id, cost)) },
+            onBack = onBack,
+            onGenerateQuiz = { topic -> viewModel.onEvent(QuizEvent.GenerateQuiz(topic)) },
+            onShowGenerateDialog = { viewModel.onEvent(QuizEvent.ShowGenerateDialog) },
+            onDismissGenerateDialog = { viewModel.onEvent(QuizEvent.DismissGenerateDialog) }
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun QuizListScreen(
+fun QuizListContent(
     state: QuizUiState.QuizList,
     onOpen: (String) -> Unit,
     onUnlock: (String, Int) -> Unit,
     onBack: () -> Unit,
-    viewModel: QuizViewModel = androidx.lifecycle.viewmodel.compose.viewModel()
+    onGenerateQuiz: (String) -> Unit,
+    onShowGenerateDialog: () -> Unit,
+    onDismissGenerateDialog: () -> Unit
 ) {
     val quizzes = state.quizzes
     val finishedIds = state.finishedQuizIds
     val unlockedIds = state.quizzesUnlocked
     val currentRizz = state.currentRizzPoints
 
-    // 1. SỬA TAB: Chỉ còn "Chưa hoàn thành" và "Đã hoàn thành"
     var selectedCategoryIndex by remember { mutableIntStateOf(0) }
     val categories = listOf("Chưa hoàn thành", "Đã hoàn thành")
     var searchQuery by remember { mutableStateOf("") }
 
-    // State cho Popup xác nhận mua
     var quizToUnlock by remember { mutableStateOf<Quiz?>(null) }
 
     val filteredQuizzes = remember(quizzes, finishedIds, searchQuery, selectedCategoryIndex) {
@@ -60,8 +120,8 @@ fun QuizListScreen(
             .filter { quiz ->
                 val isFinished = finishedIds.contains(quiz.id)
                 when (selectedCategoryIndex) {
-                    0 -> !isFinished // Tab 0: Chưa làm xong (bao gồm cả chưa unlock)
-                    1 -> isFinished  // Tab 1: Đã xong
+                    0 -> !isFinished
+                    1 -> isFinished
                     else -> true
                 }
             }
@@ -71,7 +131,6 @@ fun QuizListScreen(
             }
     }
 
-    // --- POPUP XÁC NHẬN MỞ KHÓA ---
     if (quizToUnlock != null) {
         val quiz = quizToUnlock!!
         val canAfford = currentRizz >= quiz.rizzUnlockCost
@@ -114,11 +173,11 @@ fun QuizListScreen(
         var topicInput by remember { mutableStateOf("") }
 
         AlertDialog(
-            onDismissRequest = { viewModel.onEvent(QuizEvent.DismissGenerateDialog) },
-            title = { Text("Tạo Quiz bằng AI") },
+            onDismissRequest = onDismissGenerateDialog,
+            title = { Text("Tạo Quiz cho riêng bạn") },
             text = {
                 Column {
-                    Text("Nhập chủ đề bạn muốn (VD: Bóng đá, Tình yêu, Lịch sử...).\nPhí tạo: 250 RIZZ.")
+                    Text("Nhập chủ đề bạn muốn.\nPhí tạo: 250 RIZZ.")
                     Spacer(Modifier.height(8.dp))
                     OutlinedTextField(
                         value = topicInput,
@@ -130,21 +189,20 @@ fun QuizListScreen(
             },
             confirmButton = {
                 Button(
-                    onClick = { viewModel.onEvent(QuizEvent.GenerateQuiz(topicInput)) },
+                    onClick = { onGenerateQuiz(topicInput) },
                     enabled = topicInput.isNotBlank() && state.currentRizzPoints >= 250
                 ) {
                     Text("Tạo ngay (-250 Rizz)")
                 }
             },
             dismissButton = {
-                TextButton(onClick = { viewModel.onEvent(QuizEvent.DismissGenerateDialog) }) {
+                TextButton(onClick = onDismissGenerateDialog) {
                     Text("Hủy")
                 }
             }
         )
     }
 
-    // -- THÊM: LOADING OVERLAY KHI ĐANG GENERATE --
     if (state.isGenerating) {
         Dialog(onDismissRequest = {}) {
             Card(shape = RoundedCornerShape(16.dp)) {
@@ -154,7 +212,7 @@ fun QuizListScreen(
                 ) {
                     CircularProgressIndicator()
                     Spacer(Modifier.height(16.dp))
-                    Text("AI đang soạn câu hỏi...", fontWeight = FontWeight.Bold)
+                    Text("Đang soạn câu hỏi...", fontWeight = FontWeight.Bold)
                     Text("Vui lòng đợi giây lát", fontSize = 12.sp, color = Color.Gray)
                 }
             }
@@ -163,8 +221,6 @@ fun QuizListScreen(
 
     LaunchedEffect(state.generateError) {
         state.generateError?.let {
-            // Có thể dùng Toast hoặc Snackbar ở đây
-            // Log.e("Quiz", it)
         }
     }
 
@@ -208,24 +264,22 @@ fun QuizListScreen(
                 .padding(top = padding.calculateTopPadding())
                 .fillMaxSize()
         ) {
-            // 1. Search Bar Compact
             SearchBarCompact(
                 searchQuery = searchQuery,
                 onSearchQueryChange = { searchQuery = it }
             )
 
             ExtendedFloatingActionButton(
-                onClick = { viewModel.onEvent(QuizEvent.ShowGenerateDialog) },
+                onClick = onShowGenerateDialog,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp), // Thêm padding để cách lề
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
                 containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = MaterialTheme.colorScheme.onPrimary,
                 icon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
-                text = { Text("Tạo Quiz AI (-250 RIZZ)") } // Thêm chi phí vào text
+                text = { Text("Tạo Quiz (-250 RIZZ)") }
             )
 
-            // 2. Filter Tabs
             TabRow(
                 selectedTabIndex = selectedCategoryIndex,
                 containerColor = Color.Transparent,
@@ -243,7 +297,6 @@ fun QuizListScreen(
                 }
             }
 
-            // 3. Quiz List
             LazyColumn(
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -257,7 +310,6 @@ fun QuizListScreen(
                 }
                 items(filteredQuizzes) { quiz ->
                     val isFinished = finishedIds.contains(quiz.id)
-                    // Logic check unlock: đã mở nếu user đã mua HOẶC giá = 0
                     val isUnlocked = unlockedIds.contains(quiz.id) || quiz.rizzUnlockCost == 0
 
                     QuizCard(
@@ -266,7 +318,7 @@ fun QuizListScreen(
                         isUnlocked = isUnlocked,
                         onClick = {
                             if (isUnlocked || isFinished) onOpen(quiz.id)
-                            else quizToUnlock = quiz // Hiện popup thay vì gọi trực tiếp
+                            else quizToUnlock = quiz
                         }
                     )
                 }
@@ -275,7 +327,6 @@ fun QuizListScreen(
     }
 }
 
-// --- 1. SEARCH BAR COMPACT (Nhỏ gọn hơn) ---
 @Composable
 fun SearchBarCompact(
     searchQuery: String,
@@ -285,7 +336,7 @@ fun SearchBarCompact(
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 8.dp)
-            .height(42.dp), // Chiều cao cố định nhỏ hơn
+            .height(42.dp),
         shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.1f))
@@ -321,7 +372,6 @@ fun SearchBarCompact(
     }
 }
 
-// --- 2. QUIZ CARD MỚI (Đẹp hơn cho Locked Item) ---
 @Composable
 fun QuizCard(
     quiz: Quiz,
@@ -342,14 +392,12 @@ fun QuizCard(
         )
     ) {
         Box {
-            // Nội dung chính
             Row(
                 modifier = Modifier
                     .padding(16.dp)
                     .fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Icon trạng thái
                 Surface(
                     modifier = Modifier.size(40.dp),
                     shape = CircleShape,
@@ -400,16 +448,14 @@ fun QuizCard(
                 }
             }
 
-            // --- LỚP PHỦ CHO QUIZ BỊ KHÓA ---
             if (isLocked) {
                 Box(
                     modifier = Modifier
-                        .matchParentSize() // Phủ kín card
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)) // Làm mờ nội dung bên dưới
-                        .clickable { onClick() }, // Bắt sự kiện click để hiện popup
+                        .matchParentSize()
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                        .clickable { onClick() },
                     contentAlignment = Alignment.Center
                 ) {
-                    // Nút Mở khóa nằm giữa
                     Surface(
                         shape = RoundedCornerShape(50),
                         color = MaterialTheme.colorScheme.primary,

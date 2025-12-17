@@ -1,11 +1,24 @@
 package com.example.wink.ui.features.tips
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -47,7 +60,6 @@ fun TipDetailScreen(
                 .padding(top = padding.calculateTopPadding())
                 .verticalScroll(rememberScrollState())
         ) {
-            // 1. Ảnh Cover to đẹp ở đầu trang (Nếu có)
             if (!tip.imageUrl.isNullOrBlank()) {
                 AsyncImage(
                     model = ImageRequest.Builder(LocalContext.current)
@@ -63,7 +75,6 @@ fun TipDetailScreen(
             }
 
             Column(modifier = Modifier.padding(16.dp)) {
-                // 2. Tiêu đề
                 Text(
                     text = tip.title,
                     style = MaterialTheme.typography.headlineMedium,
@@ -71,7 +82,6 @@ fun TipDetailScreen(
                     color = MaterialTheme.colorScheme.primary
                 )
 
-                // 3. Mô tả ngắn (Subtitle)
                 Text(
                     text = tip.description,
                     style = MaterialTheme.typography.titleSmall,
@@ -82,15 +92,12 @@ fun TipDetailScreen(
                 HorizontalDivider()
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 4. NỘI DUNG MARKDOWN
-                // MarkdownText sẽ tự động parse **bold**, *italic*, # Header, v.v.
                 MarkdownText(
                     markdown = tip.content,
                     style = MaterialTheme.typography.bodyLarge.copy(
                         lineHeight = 28.sp,
                         color = MaterialTheme.colorScheme.onSurface
                     ),
-                    // Tùy chỉnh màu link nếu cần
                     linkColor = MaterialTheme.colorScheme.primary
                 )
 

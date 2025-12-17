@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-private const val CARD_RETRY_COST = 50
+private const val CARD_RETRY_COST = 5
 
 @HiltViewModel
 class TarotCardViewModel @Inject constructor(
@@ -206,7 +206,7 @@ class TarotCardViewModel @Inject constructor(
 
     /** Rút (hoặc rút lại) lá bài.
      *  - Nếu chưa có currentCard -> rút miễn phí
-     *  - Nếu đã có rồi -> show dialog hỏi dùng 50 Rizz (onDrawAgainClicked())
+     *  - Nếu đã có rồi -> show dialog hỏi dùng 5 Rizz (onDrawAgainClicked())
      */
     fun drawCardInternal() {
         viewModelScope.launch {
@@ -247,7 +247,7 @@ class TarotCardViewModel @Inject constructor(
         }
     }
 
-    /** User bấm "Chốt đơn" -> trừ 50 Rizz, nếu thành công thì rút lại bài */
+    /** User bấm "Chốt đơn" -> trừ 5 Rizz, nếu thành công thì rút lại bài */
     fun onConfirmUseRizz() {
         viewModelScope.launch {
             val success = userRepository.spendRizz(CARD_RETRY_COST)
