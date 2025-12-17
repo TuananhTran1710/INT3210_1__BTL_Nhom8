@@ -264,38 +264,20 @@ fun MessageScreenForAI(
         }
     }
 
-    LaunchedEffect(isAnalyzing) {
-        // Chỉ kích hoạt khi việc phân tích VỪA MỚI KẾT THÚC
-        Log.d("ANALYSIS_DEBUG", "[UI] Effect(isAnalyzing) Triggered | isAnalyzing = $isAnalyzing | analysisSteps.size = ${analysisSteps.size}")
-        if (!isAnalyzing && analysisSteps.isNotEmpty()) {
-            // Bắt đầu chuỗi highlight bằng cách đặt index về 0
-            Log.d("ANALYSIS_DEBUG", "[UI] --> Condition MET. Starting sequence by setting currentStepIndex = 0.")
-            currentStepIndex = 0
-        }
-    }
-
-//    LaunchedEffect(currentStepIndex) {
-//        Log.d("ANALYSIS_DEBUG", "[UI] Effect(currentStepIndex) Triggered | currentStepIndex = $currentStepIndex")
-//        if (currentStepIndex >= 0 && currentStepIndex < analysisSteps.size) {
-//            // 3. Đợi 1.5 giây
-//            delay(5500)
-//            Log.d("ANALYSIS_DEBUG", "[UI] ---> Step $currentStepIndex: Delay finished. Incrementing index to ${currentStepIndex + 1}")
-//
-//            currentStepIndex++
-//        }
-//        else if (currentStepIndex >= analysisSteps.size && analysisSteps.isNotEmpty()) {
-//            delay(500) // Đợi chút trước khi tắt highlight cuối cùng
-//            currentStepIndex = -1 // Kết thúc chuỗi, xóa mọi highlight
-//        }
-//    }
-
     if (showAnalyzeDialog) {
         AnalyzeDialog(
             isLoading = isAnalyzing,
-//            result = analyzeResult,
+            score = analyzeResult?.score,
             onDismiss = {
                 showAnalyzeDialog = false
-                onFinish()
+                onFinish() // onFinish resets the step index
+            },
+            onStartAnalysis = {
+                showAnalyzeDialog = false
+                // Start the analysis sequence
+                if (analysisSteps.isNotEmpty()) {
+                    currentStepIndex = 0
+                }
             }
         )
     }
