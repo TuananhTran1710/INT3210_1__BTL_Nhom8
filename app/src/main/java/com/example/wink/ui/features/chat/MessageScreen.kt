@@ -30,6 +30,7 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Analytics
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Photo
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -94,7 +95,8 @@ fun MessageScreen(
                 title = chatTitle,
                 avatarUrl = chatAvatarUrl,
                 onBackClick = { navController.popBackStack() },
-                onAnalyzeClick = { /* TODO: Handle analyze click */ }
+                onAnalyzeClick = { /* TODO: Handle analyze click */ },
+                onSettingsClick = {}
             )
         },
         bottomBar = {
@@ -238,6 +240,8 @@ fun MessageTopBar(
     onBackClick: () -> Unit,
     onAnalyzeClick: () -> Unit,
     showAnalyzeButton: Boolean = false,
+    onSettingsClick: () -> Unit,
+    showSettingsButton: Boolean = false,
 ) {
     TopAppBar(
         // 1. Nút Back nằm ở navigationIcon (bên trái cùng)
@@ -287,6 +291,14 @@ fun MessageTopBar(
                     Icon(
                         imageVector = Icons.Default.Analytics,
                         contentDescription = "Analyze"
+                    )
+                }
+            }
+            if (showSettingsButton) {
+                IconButton(onClick = onSettingsClick) {
+                    Icon(
+                        imageVector = Icons.Default.Settings,
+                        contentDescription = "Settings"
                     )
                 }
             }

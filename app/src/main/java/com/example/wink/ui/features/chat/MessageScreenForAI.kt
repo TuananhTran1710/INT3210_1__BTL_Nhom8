@@ -105,6 +105,10 @@ fun MessageScreenForAI(
                             viewModel.analyzeConversation()
                         },
                         showAnalyzeButton = true,
+                        onSettingsClick = {
+                            navController.navigate("ai_settings")
+                        },
+                        showSettingsButton = true,
                     )
                 }
             },

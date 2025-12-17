@@ -37,6 +37,7 @@ import com.example.wink.ui.features.tarot.zodiac.results.TarotZodiacResultScreen
 import com.example.wink.ui.features.tips.TipDetailScreen
 import com.example.wink.ui.features.tips.TipsScreen
 import com.example.wink.ui.navigation.Screen
+import com.example.wink.ui.features.ai.settings.AiSettingsScreen
 
 @Composable
 fun MainNavHost(
@@ -181,6 +182,9 @@ fun MainNavHost(
 
         composable(Screen.HumanAiGame.route) {
             HumanAiGameScreen(navController = navController)
+        }
+        composable(Screen.AiSettings.route) {
+            AiSettingsScreen()
         }
     }
 }
