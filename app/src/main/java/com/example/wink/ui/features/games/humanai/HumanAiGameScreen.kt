@@ -30,6 +30,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TileMode
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
@@ -110,7 +111,7 @@ fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                FilledTonalIconButton(onClick = onBack) {
+                FilledTonalIconButton(onClick = onBack,modifier = Modifier.testTag("lobby_back_button")) {
                     Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Back")
                 }
                 Spacer(Modifier.weight(1f))
@@ -200,6 +201,7 @@ fun LobbyView(rizz: Int, online: Int, onStart: () -> Unit, onBack: () -> Unit) {
             Button(
                 onClick = onStart,
                 modifier = Modifier
+                    .testTag("start_game_button")
                     .fillMaxWidth()
                     .height(70.dp),
                 shape = RoundedCornerShape(16.dp),
@@ -414,6 +416,7 @@ fun ChatInputBar(
                 onClick = onSend,
                 modifier = Modifier
                     .size(48.dp)
+                    .testTag("send_button")
                     .background(
                         if (canSend) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
                         CircleShape

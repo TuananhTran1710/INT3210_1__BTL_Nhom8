@@ -13,19 +13,19 @@
         </DropdownSelection>
         <DialogSelection />
       </SelectionState>
-      <SelectionState runConfigName="SocialScreenTest">
+      <SelectionState runConfigName="HumanAiGameScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="create_post_dialog_interaction()">
+      <SelectionState runConfigName="chat_screen_displays_messages_and_input()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="ProfileScreenTest">
+      <SelectionState runConfigName="SignupScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="tab_switching_shows_correct_content()">
+      <SelectionState runConfigName="LoginScreenTest">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
-      <SelectionState runConfigName="scrolling_through_posts_works()">
+      <SelectionState runConfigName="login_screen_displays_form_when_session_check_fails()">
         <option name="selectionMode" value="DROPDOWN" />
       </SelectionState>
     </selectionStates>
