@@ -2,8 +2,10 @@ package com.example.wink.ui.features.quiz
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.wink.data.model.DailyTask
 import com.example.wink.data.repository.AuthRepository
 import com.example.wink.data.repository.QuizRepository
+import com.example.wink.data.repository.TaskRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class QuizViewModel @Inject constructor(
     private val repository: QuizRepository,
-    private val authRepository: AuthRepository
+    private val authRepository: AuthRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<QuizUiState>(QuizUiState.Loading)
@@ -128,6 +131,7 @@ class QuizViewModel @Inject constructor(
             val isPerfectScore = score == maxScore
 
             viewModelScope.launch {
+                taskRepository.updateTaskProgress("COMPLETE_QUIZ")
                 var rizzPointsAwarded = 0
 
                 try {

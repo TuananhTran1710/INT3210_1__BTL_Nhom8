@@ -191,14 +191,11 @@ class SocialViewModel @Inject constructor(
                     post
                 }
             }
+
             state.copy(feedList = updatedList)
         }
 
         viewModelScope.launch {
-            // Gọi API thật, truyền vào mảng likedBy hiện tại để biết đường thêm/xóa
-            // Lưu ý: Logic toggleLike trong Repo cần danh sách likedBy hoặc userId
-            // Ở đây ta truyền rỗng tạm, nhưng đúng ra nên truyền list like cũ
-            // Để đơn giản, repository sẽ tự xử lý logic arrayUnion/arrayRemove
             socialRepository.toggleLike(postId, user.uid, if(post.isLikedByMe) listOf(user.uid) else emptyList())
             taskRepository.updateTaskProgress("LIKE_POST")
         }
