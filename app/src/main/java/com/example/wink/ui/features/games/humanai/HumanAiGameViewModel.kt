@@ -417,12 +417,12 @@ class HumanAiGameViewModel @Inject constructor(
     fun onGuess(isAi: Boolean) {
         viewModelScope.launch {
             val isCorrect = isAi == _uiState.value.isOpponentActuallyAi
-            val points = if (isCorrect) 50 else -25
+            val points = if (isCorrect) 10 else -5
 
             if (isCorrect) {
-                userRepository.spendRizz(-50) // Hack: Trừ số âm = Cộng tiền :)) Hoặc viết hàm addRizz riêng
+                userRepository.spendRizz(-10) // Hack: Trừ số âm = Cộng tiền :)) Hoặc viết hàm addRizz riêng
             } else {
-                userRepository.spendRizz(25)
+                userRepository.spendRizz(5)
             }
 
             // Reload điểm mới
