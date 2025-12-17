@@ -2,6 +2,7 @@ package com.example.wink.ui.features.chat
 
 import android.app.Application
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -52,6 +53,17 @@ class MessageViewModelForAI @Inject constructor(
 ) : ViewModel() {
 
     private val sharedPreferences = application.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            "ai_name" -> {
+                _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+            }
+            "ai_avatar_uri" -> {
+                _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
+            }
+        }
+    }
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages = _messages.asStateFlow()
@@ -107,6 +119,12 @@ class MessageViewModelForAI @Inject constructor(
     init {
         loadAiSettings()
         loadMessages()
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    override fun onCleared() {
+        super.onCleared()
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
     private fun loadAiSettings() {
