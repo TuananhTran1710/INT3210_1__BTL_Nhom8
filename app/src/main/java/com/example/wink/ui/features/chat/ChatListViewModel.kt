@@ -1,5 +1,8 @@
 package com.example.wink.ui.features.chat
 
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.wink.data.model.Chat
@@ -50,8 +53,18 @@ class ChatListViewModel @Inject constructor(
     private val chatRepository: ChatRepository,
     private val authRepository: AuthRepository,
     private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore // Inject thêm Firestore để lấy info user
+    private val firestore: FirebaseFirestore, // Inject thêm Firestore để lấy info user
+    private val application: Application,
 ) : ViewModel() {
+
+    private val sharedPreferences = application.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            "ai_name" -> _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+            "ai_avatar_uri" -> _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
+        }
+    }
 
     private val _chats = MutableStateFlow<List<UiChat>>(emptyList())
     val chats: StateFlow<List<UiChat>> = _chats.asStateFlow()
@@ -62,6 +75,13 @@ class ChatListViewModel @Inject constructor(
     private val _friends = MutableStateFlow<List<SearchFriendUi>>(emptyList())
     val friends: StateFlow<List<SearchFriendUi>> = _friends.asStateFlow()
 
+    private val _aiName = MutableStateFlow("Lan Anh")
+    val aiName = _aiName.asStateFlow()
+
+    private val _aiAvatarUrl = MutableStateFlow<String?>(null)
+    val aiAvatarUrl = _aiAvatarUrl.asStateFlow()
+
+
     // --- Channel điều hướng ---
     private val _effect = Channel<ChatListEffect>()
     val effect = _effect.receiveAsFlow()
@@ -70,9 +90,22 @@ class ChatListViewModel @Inject constructor(
         get() = auth.currentUser?.uid
 
     init {
+        loadAiSettings()
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
         loadChats()
         loadFriends()
     }
+
+    override fun onCleared() {
+        super.onCleared()
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    private fun loadAiSettings() {
+        _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
+    }
+
     // --- Logic MỚI: Tải danh sách bạn bè ---
     private fun loadFriends() {
         val myId = currentUserId ?: return

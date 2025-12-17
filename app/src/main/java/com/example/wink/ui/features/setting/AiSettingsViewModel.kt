@@ -6,9 +6,13 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.io.FileOutputStream
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,10 +50,37 @@ class AiSettingsViewModel @Inject constructor(
 
     fun saveAiSettings() {
         viewModelScope.launch {
+            val currentAvatarUri = _uiState.value.aiAvatarUri
+            var permanentUri: Uri? = currentAvatarUri
+
+            if (currentAvatarUri != null && currentAvatarUri.scheme == "content") {
+                permanentUri = copyUriToInternalStorage(currentAvatarUri)
+            }
+
             sharedPreferences.edit()
                 .putString("ai_name", _uiState.value.aiName)
-                .putString("ai_avatar_uri", _uiState.value.aiAvatarUri?.toString())
+                .putString("ai_avatar_uri", permanentUri?.toString())
                 .apply()
+        }
+    }
+
+    private suspend fun copyUriToInternalStorage(uri: Uri): Uri? {
+        return withContext(Dispatchers.IO) {
+            try {
+                val inputStream = application.contentResolver.openInputStream(uri)
+                val destinationFile = File(application.filesDir, "ai_avatar.jpg")
+                val outputStream = FileOutputStream(destinationFile)
+
+                inputStream?.use { input ->
+                    outputStream.use { output ->
+                        input.copyTo(output)
+                    }
+                }
+                Uri.fromFile(destinationFile)
+            } catch (e: Exception) {
+                e.printStackTrace()
+                null
+            }
         }
     }
 }
