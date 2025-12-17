@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -297,6 +298,8 @@ fun MessageTopBar(
 }
 // ui/features/chat/MessageScreen.kt
 
+// ui/features/chat/MessageScreen.kt
+
 @Composable
 fun MessageContainer(
     messages: List<Message>,
@@ -320,61 +323,61 @@ fun MessageContainer(
         state = listState,
         modifier = modifier.fillMaxSize(),
         contentPadding = PaddingValues(bottom = 16.dp, top = 8.dp),
-        reverseLayout = true
+        reverseLayout = true // List chạy từ dưới lên
     ) {
         if (isTyping) {
             item { TypingIndicator() }
         }
 
-        itemsIndexed(messages) { index, message ->
-            // 1. Lấy tin nhắn CŨ HƠN (Visually Above - index + 1)
-            val olderMessage = messages.getOrNull(index + 1)
+        itemsIndexed(
+            items = messages,
+            key = { _, msg -> msg.messageId } // 1. Luôn thêm Key để tránh lỗi UI nhảy lung tung
+        ) { index, message ->
 
-            // 2. Lấy tin nhắn MỚI HƠN (Visually Below - index - 1)
+            // --- Logic cũ của bạn (giữ nguyên) ---
+            val olderMessage = messages.getOrNull(index + 1)
             val newerMessage = messages.getOrNull(index - 1)
 
-            // --- LOGIC XÁC ĐỊNH VỊ TRÍ TRONG NHÓM ---
+            val showTimeSeparator = olderMessage == null ||
+                    DateUtils.shouldShowTimeSeparator(message.timestamp, olderMessage.timestamp)
 
-            // Là tin ĐẦU TIÊN của nhóm (Về mặt hiển thị là trên cùng)
-            // Điều kiện: Tin cũ hơn là của người khác HOẶC cách xa thời gian
-            val isGroupTop = if (olderMessage != null) {
-                olderMessage.senderId != message.senderId ||
-                        DateUtils.shouldShowTimeSeparator(message.timestamp, olderMessage.timestamp)
-            } else {
-                true // Không có tin cũ hơn -> Nó là Top
+            val isGroupTop = olderMessage == null ||
+                    olderMessage.senderId != message.senderId ||
+                    showTimeSeparator
+
+            val isGroupBottom = newerMessage == null ||
+                    newerMessage.senderId != message.senderId ||
+                    DateUtils.shouldShowTimeSeparator(newerMessage.timestamp, message.timestamp)
+
+
+            // --- FIX QUAN TRỌNG TẠI ĐÂY ---
+            // Phải bọc tất cả trong 1 Column duy nhất.
+            // Trong Column này, cái gì viết trước sẽ nằm TRÊN, cái gì viết sau sẽ nằm DƯỚI.
+            Column(
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                // A. Mốc thời gian (Viết trước -> Nằm trên đầu message)
+                if (showTimeSeparator) {
+                    TimeSeparator(timestamp = message.timestamp)
+                }
+
+                // B. Tin nhắn (Viết sau -> Nằm bên dưới timestamp)
+                MessageItem(
+                    message = message,
+                    isMyMessage = message.senderId == currentUserId,
+                    avatarUrl = avatarUrl,
+                    highlight = message.messageId == highlightMessageId,
+                    insight = if (message.messageId == highlightMessageId) insightMessage else null,
+                    isGroupTop = isGroupTop,
+                    isGroupBottom = isGroupBottom,
+                    onImageClick = onImageClick
+                )
+
+                // Spacer nhỏ (nằm dưới cùng của cụm message này)
+                if (!isGroupTop) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                }
             }
-
-            // Là tin CUỐI CÙNG của nhóm (Về mặt hiển thị là dưới cùng - Có Avatar)
-            // Điều kiện: Tin mới hơn là của người khác HOẶC cách xa thời gian
-            val isGroupBottom = if (newerMessage != null) {
-                newerMessage.senderId != message.senderId ||
-                        DateUtils.shouldShowTimeSeparator(newerMessage.timestamp, message.timestamp)
-            } else {
-                true // Không có tin mới hơn -> Nó là Bottom
-            }
-
-            // --- RENDER ---
-
-            // Time Separator (Dựa trên tin cũ hơn)
-            if (olderMessage != null && DateUtils.shouldShowTimeSeparator(message.timestamp, olderMessage.timestamp)) {
-                TimeSeparator(timestamp = message.timestamp)
-            } else if (index == messages.lastIndex) {
-                // Luôn hiện giờ cho tin nhắn đầu tiên của cả cuộc hội thoại
-                TimeSeparator(timestamp = message.timestamp)
-            }
-
-            val highlight = message.messageId == highlightMessageId
-
-            MessageItem(
-                message = message,
-                isMyMessage = message.senderId == currentUserId,
-                avatarUrl = avatarUrl,
-                highlight = highlight,
-                insight = if (highlight) insightMessage else null,
-                isGroupTop = isGroupTop,       // <--- TRUYỀN PARAM MỚI
-                isGroupBottom = isGroupBottom, // <--- TRUYỀN PARAM MỚI
-                onImageClick = onImageClick
-            )
         }
     }
 }
