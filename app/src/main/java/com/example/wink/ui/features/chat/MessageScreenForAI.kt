@@ -273,21 +273,43 @@ fun MessageScreenForAI(
     }
 
     if (showAnalyzeDialog) {
-        AnalyzeDialog(
-            isLoading = isAnalyzing,
-            score = analyzeResult?.score,
-            onDismiss = {
-                showAnalyzeDialog = false
-                onFinish() // onFinish resets the step index
-            },
-            onStartAnalysis = {
-                showAnalyzeDialog = false
-                // Start the analysis sequence
-                if (analysisSteps.isNotEmpty()) {
-                    currentStepIndex = 0
+        // Lấy trạng thái loading từ ViewModel (bạn cần đảm bảo ViewModel có biến này)
+        val isAnalyzing by viewModel.isAnalyzing.collectAsState()
+        val analysisSteps by viewModel.analysisSteps.collectAsState()
+
+        if (isAnalyzing) {
+            // HIỂN THỊ LOADING KHI ĐANG CHỜ AI
+            AlertDialog(
+                onDismissRequest = { /* Không cho tắt khi đang load */ },
+                text = {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        CircularProgressIndicator()
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("AI đang đọc tin nhắn của bạn...")
+                    }
+                },
+                confirmButton = {}
+            )
+        } else {
+            AnalyzeDialog(
+                isLoading = isAnalyzing,
+                score = analyzeResult?.score,
+                onDismiss = {
+                    showAnalyzeDialog = false
+                    onFinish() // onFinish resets the step index
+                },
+                onStartAnalysis = {
+                    showAnalyzeDialog = false
+                    // Start the analysis sequence
+                    if (analysisSteps.isNotEmpty()) {
+                        currentStepIndex = 0
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 
     // --- HIỂN THỊ ẢNH FULL MÀN HÌNH ---
