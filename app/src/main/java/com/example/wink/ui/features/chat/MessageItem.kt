@@ -70,28 +70,20 @@ fun MessageItem(
     var isTimestampVisible by remember { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
 
-    // --- CẤU HÌNH BO GÓC (MAGIC HERE) ---
     val largeRadius = 18.dp
     val smallRadius = 3.dp // Góc nhọn (Messenger dùng khoảng 2-4dp)
 
-    // Tạo Shape động dựa trên vị trí
     val bubbleShape = if (isMyMessage) {
-        // TIN CỦA TÔI (Bên Phải)
         RoundedCornerShape(
             topStart = largeRadius, // Góc trên trái luôn tròn
             bottomStart = largeRadius, // Góc dưới trái luôn tròn
-            // Góc trên phải: Nếu là Top thì tròn, nếu là Middle/Bottom thì nhọn
             topEnd = if (isGroupTop) largeRadius else smallRadius,
-            // Góc dưới phải: Nếu là Bottom thì tròn, nếu là Top/Middle thì nhọn
             bottomEnd = if (isGroupBottom) largeRadius else smallRadius
         )
     } else {
-        // TIN NGƯỜI KHÁC (Bên Trái)
         RoundedCornerShape(
-            // Góc trên trái: Nếu là Top thì tròn, nếu là Middle/Bottom thì nhọn
             topStart = if (isGroupTop) largeRadius else smallRadius,
             topEnd = largeRadius, // Góc trên phải luôn tròn
-            // Góc dưới trái: Nếu là Bottom thì tròn, nếu là Top/Middle thì nhọn
             bottomStart = if (isGroupBottom) largeRadius else smallRadius,
             bottomEnd = largeRadius // Góc dưới phải luôn tròn
         )
@@ -100,7 +92,6 @@ fun MessageItem(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            // Padding cực nhỏ để tạo cảm giác liền khối cho nhóm
             .padding(vertical = 1.dp)
             .clickable(
                 interactionSource = interactionSource,

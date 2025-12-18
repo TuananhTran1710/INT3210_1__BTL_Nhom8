@@ -47,6 +47,9 @@ fun ChatListScreen(
     val chats by viewModel.chats.collectAsState()
     val friends by viewModel.friends.collectAsState()
     val isLoading by viewModel.isLoading.collectAsState()
+    val aiName by viewModel.aiName.collectAsState()
+    val aiAvatarUrl by viewModel.aiAvatarUrl.collectAsState()
+    val aiLastMessage by viewModel.aiLastMessage.collectAsState()
 
     var searchQuery by remember { mutableStateOf("") }
     var active by remember { mutableStateOf(false) }
@@ -156,6 +159,9 @@ fun ChatListScreen(
 
                         item {
                             SpecialAIItem(
+                                name = aiName,
+                                avatarUrl = aiAvatarUrl,
+                                lastMessage = aiLastMessage,
                                 onClick = { navController.navigate("message/ai_chat") }
                             )
                         }
@@ -343,7 +349,12 @@ fun UserAvatar(
 
 
 @Composable
-private fun SpecialAIItem(onClick: () -> Unit) {
+private fun SpecialAIItem(
+    name: String,
+    avatarUrl: String?,
+    lastMessage: String,
+    onClick: () -> Unit,
+) {
     // Màu sắc dựa trên image_2.png (Nền tím tối, viền hồng rực)
     val cardBackgroundColor = Color(0xFF311133) // Màu nền tối từ ảnh mẫu
     val avatarBorderColor = Color(0xFFFF4081) // Màu hồng rực cho viền
@@ -362,11 +373,15 @@ private fun SpecialAIItem(onClick: () -> Unit) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             // Avatar AI với viền đậm
-            AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data(R.drawable.ai_crush) // Sử dụng đúng resource ảnh AI
+            val context = LocalContext.current
+            val imageRequest = remember(avatarUrl) {
+                ImageRequest.Builder(context)
+                    .data(avatarUrl ?: R.drawable.ai_crush)
                     .crossfade(true)
-                    .build(),
+                    .build()
+            }
+            AsyncImage(
+                model = imageRequest,
                 contentDescription = "AI Avatar",
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
@@ -379,13 +394,13 @@ private fun SpecialAIItem(onClick: () -> Unit) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = "Lan Anh",
+                    text = name,
                     style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                     color = Color.White // Chữ màu trắng cho nổi trên nền tối
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Đừng làm tớ ngại chứ \uD83D\uDE33",
+                    text = lastMessage,
                     style = MaterialTheme.typography.bodyMedium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,

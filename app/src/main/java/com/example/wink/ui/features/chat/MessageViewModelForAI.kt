@@ -1,5 +1,8 @@
 package com.example.wink.ui.features.chat
 
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -18,13 +21,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.util.UUID
 import javax.inject.Inject
-import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.joinAll
-import kotlinx.coroutines.launch
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+
+@Serializable
+data class LoveAnalysisResponse(
+    val score: Int,
+    val comment: String
+)
 
 @Serializable
 data class UserMessageAnalysis(
@@ -40,7 +49,21 @@ class MessageViewModelForAI @Inject constructor(
     private val chatGptApiService: ChatGptApiService,
     private val chatRepository: ChatRepository,
     private val auth: FirebaseAuth,
+    private val application: Application,
 ) : ViewModel() {
+
+    private val sharedPreferences = application.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
+
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        when (key) {
+            "ai_name" -> {
+                _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+            }
+            "ai_avatar_uri" -> {
+                _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
+            }
+        }
+    }
 
     private val _messages = MutableStateFlow<List<Message>>(emptyList())
     val messages = _messages.asStateFlow()
@@ -50,6 +73,12 @@ class MessageViewModelForAI @Inject constructor(
 
     private val _isSending = MutableStateFlow(false)
     val isSending = _isSending.asStateFlow()
+
+    private val _aiName = MutableStateFlow("Lan Anh")
+    val aiName = _aiName.asStateFlow()
+
+    private val _aiAvatarUrl = MutableStateFlow<String?>(null)
+    val aiAvatarUrl = _aiAvatarUrl.asStateFlow()
 
     private val aiUserId = "wink-ai-assistant"
     private val currentUserId: String
@@ -81,27 +110,34 @@ class MessageViewModelForAI @Inject constructor(
     """.trimIndent()
     )
 
-    private val _analyzeResult = MutableStateFlow<String?>(null)
+    private val _analyzeResult = MutableStateFlow<LoveAnalysisResponse?>(null)
     val analyzeResult = _analyzeResult.asStateFlow()
 
     private val _isAnalyzing = MutableStateFlow(false)
     val isAnalyzing = _isAnalyzing.asStateFlow()
 
     init {
+        loadAiSettings()
         loadMessages()
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
-    // --- THÊM HÀM MỚI: sendImage ---
 
-    // Tách logic gọi API ra hàm riêng để tái sử dụng cho cả sendMessage và sendImage
+    override fun onCleared() {
+        super.onCleared()
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    private fun loadAiSettings() {
+        _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
+    }
+
     private suspend fun getAiResponse() {
         try {
             val chatHistory = _messages.value.reversed().mapNotNull { msg ->
                 if (msg.content.startsWith("Rất tiếc")) null
                 else {
                     val role = if (msg.senderId == aiUserId) "assistant" else "user"
-                    // Lưu ý: GPT-4o-mini text-only chỉ đọc được text.
-                    // Nếu muốn AI "nhìn" thấy ảnh, cần update API request phức tạp hơn.
-                    // Ở đây AI sẽ chỉ thấy text "Đã gửi một ảnh" và phản hồi dựa trên đó.
                     ChatGptMessage(role = role, content = msg.content)
                 }
             }
@@ -157,14 +193,11 @@ class MessageViewModelForAI @Inject constructor(
         }
     }
 
-    // HÀM CHÍNH: Đã sửa lại logic Batching
     fun sendMessage(content: String, imageUris: List<Uri>) {
         viewModelScope.launch {
             _isSending.value = true
             val sendingJobs = mutableListOf<Job>()
 
-            // 1. BẮN JOB GỬI TEXT (Nếu có)
-            // Lưu ý: Chỉ lưu vào DB, KHÔNG gọi AI ở đây
             if (content.isNotBlank()) {
                 val textJob = launch {
                     saveTextMessageToDb(content)
@@ -172,8 +205,6 @@ class MessageViewModelForAI @Inject constructor(
                 sendingJobs.add(textJob)
             }
 
-            // 2. BẮN CÁC JOB GỬI ẢNH (Nếu có)
-            // Mỗi ảnh là 1 luồng upload riêng, chạy song song với nhau và với text
             imageUris.forEach { uri ->
                 val imageJob = launch {
                     uploadAndSaveImageToDb(uri)
@@ -181,19 +212,11 @@ class MessageViewModelForAI @Inject constructor(
                 sendingJobs.add(imageJob)
             }
 
-            // 3. CHỜ TẤT CẢ HOÀN THÀNH (Magic Step)
-            // joinAll sẽ treo hàm này lại cho đến khi tất cả text và ảnh đã được xử lý xong
-            // (đã hiện lên UI và đã lưu vào Firebase)
             sendingJobs.joinAll()
-
-            // 4. GỌI AI MỘT LẦN DUY NHẤT
-            // Lúc này, _messages.value đã chứa đủ cả Text và Ảnh vừa gửi
             getAiResponse()
-
             _isSending.value = false
         }
     }
-// --- CÁC HÀM CON (Chỉ làm nhiệm vụ lưu DB, không gọi AI) ---
 
     private suspend fun saveTextMessageToDb(content: String) {
         try {
@@ -204,9 +227,7 @@ class MessageViewModelForAI @Inject constructor(
                 timestamp = System.currentTimeMillis(),
                 mediaUrl = null
             )
-            // Update UI ngay lập tức
             _messages.value = listOf(userMessage) + _messages.value
-            // Lưu Firebase
             chatRepository.sendAiMessage(currentUserId, userMessage)
         } catch (e: Exception) {
             e.printStackTrace()
@@ -215,20 +236,17 @@ class MessageViewModelForAI @Inject constructor(
 
     private suspend fun uploadAndSaveImageToDb(uri: Uri) {
         try {
-            // Upload ảnh
             val uploadResult = chatRepository.uploadImage(uri)
 
             uploadResult.onSuccess { imageUrl ->
                 val userMessage = Message(
                     messageId = UUID.randomUUID().toString(),
                     senderId = currentUserId,
-                    content = "Đã gửi một ảnh", // Nội dung để AI nhận biết context
+                    content = "Đã gửi một ảnh",
                     timestamp = System.currentTimeMillis(),
-                    mediaUrl = listOf(imageUrl) // Tin nhắn riêng cho ảnh
+                    mediaUrl = listOf(imageUrl)
                 )
-                // Update UI ngay khi ảnh này upload xong (không cần chờ ảnh khác)
                 _messages.value = listOf(userMessage) + _messages.value
-                // Lưu Firebase
                 chatRepository.sendAiMessage(currentUserId, userMessage)
             }.onFailure {
                 it.printStackTrace()
@@ -237,186 +255,97 @@ class MessageViewModelForAI @Inject constructor(
             e.printStackTrace()
         }
     }
-    // Hàm con: Gửi Text
-    private suspend fun sendTextMessage(content: String) {
-        _isSending.value = true
-        try {
-            val userMessage = Message(
-                messageId = UUID.randomUUID().toString(),
-                senderId = currentUserId,
-                content = content,
-                timestamp = System.currentTimeMillis(),
-                mediaUrl = null // Tin nhắn text không có ảnh
-            )
 
-            // Update UI & Save DB
-            _messages.value = listOf(userMessage) + _messages.value
-            chatRepository.sendAiMessage(currentUserId, userMessage)
-
-            // Gọi AI trả lời cho tin nhắn text này
-            getAiResponse()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        } finally {
-            // Lưu ý: Logic loading có thể cần tinh chỉnh nếu muốn chờ tất cả xong mới tắt
-            // Nhưng với yêu cầu bất đồng bộ, ta có thể tắt loading của input ngay
-            _isSending.value = false
-        }
-    }
-
-    // Hàm con: Gửi Ảnh (Upload -> Gửi tin)
-    private suspend fun sendImageMessage(uri: Uri) {
-        // Không set _isSending = true ở đây để không chặn UI nhập liệu tiếp
-
-        // 1. Upload ảnh
-        val uploadResult = chatRepository.uploadImage(uri)
-
-        uploadResult.onSuccess { imageUrl ->
-            val userMessage = Message(
-                messageId = UUID.randomUUID().toString(),
-                senderId = currentUserId,
-                content = "Đã gửi một ảnh", // Nội dung placeholder
-                timestamp = System.currentTimeMillis(),
-                mediaUrl = listOf(imageUrl) // Tin nhắn ảnh
-            )
-
-            // 2. Update UI & Save DB (Độc lập với các tin khác)
-            _messages.value = listOf(userMessage) + _messages.value
-            chatRepository.sendAiMessage(currentUserId, userMessage)
-
-            // 3. Gọi AI (Tùy chọn: Bạn có thể muốn AI bình luận về bức ảnh này)
-            getAiResponse()
-
-        }.onFailure {
-            it.printStackTrace()
-        }
-    }
-
-//    fun analyzeConversation() {
-//        viewModelScope.launch {
-//            if (_messages.value.isEmpty()) return@launch
-//
-//            _isAnalyzing.value = true
-//            _analyzeResult.value = null
-//
-//            try {
-//                val lastMessages = _messages.value
-//                    .filter { !it.content.startsWith("Xin chào") }
-//                    .take(10)
-//                    .reversed()
-//
-//                val chatHistory = lastMessages.map { msg ->
-//                    val role = if (msg.senderId == aiUserId) "assistant" else "user"
-//                    ChatGptMessage(role = role, content = msg.content)
-//                }
-//
-//                val analyzePrompt = ChatGptMessage(
-//                    role = "system",
-//                    content = """
-//                    Bạn là AI chuyên phân tích hội thoại.
-//                    Hãy:
-//                    - Tóm tắt nội dung
-//                    - Nhận xét cảm xúc người dùng
-//                    - Đưa ra insight
-//                    Trả lời ngắn gọn, gạch đầu dòng.
-//                """.trimIndent()
-//                )
-//
-//                val request = ChatGptRequest(
-//                    model = "gpt-4o-mini",
-//                    messages = listOf(analyzePrompt) + chatHistory
-//                )
-//
-//                val apiKey = "Bearer ${BuildConfig.OPENAI_API_KEY}"
-//                val response = chatGptApiService.createChatCompletion(apiKey, request)
-//
-//                _analyzeResult.value =
-//                    response.choices.firstOrNull()?.message?.content
-//                        ?: "Không có kết quả phân tích."
-//
-//            } catch (e: Exception) {
-//                _analyzeResult.value = "Không thể phân tích lúc này."
-//            } finally {
-//                _isAnalyzing.value = false
-//            }
-//        }
-//    }
     fun analyzeConversation() {
         viewModelScope.launch {
             if (_messages.value.isEmpty()) return@launch
 
             _isAnalyzing.value = true
             _analyzeResult.value = null
-            _analysisSteps.value = emptyList() // reset trước khi chạy
+            _analysisSteps.value = emptyList() // reset
+
+            val jsonFormat = Json { ignoreUnknownKeys = true }
 
             try {
-                // 1️⃣ Lấy 10 tin nhắn gần nhất
-                val lastMessages = _messages.value
+                val last10Messages = _messages.value
                     .filter { !it.content.startsWith("Xin chào") }
                     .take(10)
                     .reversed()
 
-                // 2️⃣ Lọc chỉ tin nhắn user
-                val userMessages = lastMessages.filter { it.senderId != aiUserId }
+                coroutineScope {
+                    val stepsAnalysisJob = async {
+                        val userMessagesWithId = last10Messages.filter { it.senderId != aiUserId }
+                        if (userMessagesWithId.isEmpty()) return@async emptyList<UserMessageAnalysis>()
 
-                val chatHistory = userMessages.map { msg ->
-                    ChatGptMessage(
-                        role = "user",
-                        // Định dạng lại content để AI có thể đọc được cả ID
-                        content = """{"id": "${msg.messageId}", "content": "${msg.content}"}"""
-                    )
-                }
-                val analyzePrompt = ChatGptMessage(
-                    role = "system",
-                    content = """
-                    Bạn là AI chuyên phân tích hội thoại.
-                    Dựa vào danh sách tin nhắn của người dùng sau đây, mỗi tin nhắn có một "id" và "content":
-                    Hãy đánh giá từng tin nhắn và trả về một MẢNG JSON.
-                    Mỗi object trong mảng phải có định dạng:
-                    {
-                      "messageId": "<id gốc của tin nhắn đã được cung cấp>",
-                      "summary": "<tóm tắt ngắn>",
-                      "sentiment": "<tích cực / trung lập / tiêu cực>",
-                      "insight": "<gợi ý hữu ích>"
+                        val chatHistoryForSteps = userMessagesWithId.map {
+                            ChatGptMessage(
+                                role = "user",
+                                content = """{"id": "${it.messageId}", "content": "${it.content}"}"""
+                            )
+                        }
+                        val analyzePrompt = ChatGptMessage(
+                            role = "system",
+                            content = """
+                            Bạn là AI chuyên phân tích hội thoại.
+                            Dựa vào danh sách tin nhắn của người dùng sau đây, mỗi tin nhắn có một "id" và "content":
+                            Hãy đánh giá từng tin nhắn và trả về một MẢNG JSON.
+                            Mỗi object trong mảng phải có định dạng:
+                            {
+                              "messageId": "<id gốc của tin nhắn đã được cung cấp>",
+                              "summary": "<tóm tắt ngắn>",
+                              "sentiment": "<tích cực / trung lập / tiêu cực>",
+                              "insight": "<gợi ý hữu ích>"
+                            }
+                            TUYỆT ĐỐI chỉ trả về mảng JSON, không có văn bản giải thích nào khác.
+                            """.trimIndent()
+                        )
+                        val request = ChatGptRequest("gpt-4o-mini", listOf(analyzePrompt) + chatHistoryForSteps)
+                        val response = chatGptApiService.createChatCompletion("Bearer ${BuildConfig.OPENAI_API_KEY}", request)
+                        val rawJson = response.choices.firstOrNull()?.message?.content ?: "[]"
+                        Log.d("ANALYSIS_DEBUG", "--- AI Raw Steps Result ---: $rawJson")
+                        jsonFormat.decodeFromString<List<UserMessageAnalysis>>(rawJson)
                     }
-                    TUYỆT ĐỐI chỉ trả về mảng JSON, không có văn bản giải thích nào khác.
-                """.trimIndent()
-                )
 
-                val request = ChatGptRequest(
-                    model = "gpt-4o-mini",
-                    messages = listOf(analyzePrompt) + chatHistory
-                )
+                    val scoreJob = async {
+                        val conversationText = last10Messages.joinToString("\n") {
+                            val prefix = if (it.senderId == aiUserId) "Em: " else "Anh: "
+                            prefix + it.content
+                        }
+                        if (conversationText.isBlank()) return@async null
 
-                val apiKey = "Bearer ${BuildConfig.OPENAI_API_KEY}"
-                val response = chatGptApiService.createChatCompletion(apiKey, request)
-                val aiContent = response.choices.firstOrNull()?.message?.content
-                // ✅ DEBUG 1: IN KẾT QUẢ THÔ TỪ AI
-                Log.d("ANALYSIS_DEBUG", "--- AI Raw Result ---: $aiContent")
+                        val scorePrompt = ChatGptMessage(
+                            role = "system",
+                            content = """
+                            Bạn là AI chuyên gia phân tích tình cảm.
+                            Dựa vào đoạn hội thoại sau, hãy đưa ra đánh giá tổng quan về mức độ thấu hiểu giữa hai người.
+                            Hãy trả về một object JSON DUY NHẤT với định dạng sau:
+                            {
+                              "score": <một số nguyên từ 0 đến 100>,
+                              "comment": "<một bình luận ngắn gọn, hài hước về điểm số này>"
+                            }
+                            TUYỆT ĐỐI chỉ trả về object JSON, không có văn bản giải thích nào khác.
+                            """.trimIndent()
+                        )
+                        val request = ChatGptRequest("gpt-4o-mini", listOf(scorePrompt, ChatGptMessage("user", conversationText)))
+                        val response = chatGptApiService.createChatCompletion("Bearer ${BuildConfig.OPENAI_API_KEY}", request)
+                        val rawJson = response.choices.firstOrNull()?.message?.content
+                        Log.d("ANALYSIS_DEBUG", "--- AI Raw Score Result ---: $rawJson")
+                        rawJson?.let { jsonFormat.decodeFromString<LoveAnalysisResponse>(it) }
+                    }
 
-                _analyzeResult.value = aiContent
+                    _analysisSteps.value = stepsAnalysisJob.await()
+                    _analyzeResult.value = scoreJob.await()
 
-                // 5️⃣ Parse JSON thành List<UserMessageAnalysis>
-                val format = Json { ignoreUnknownKeys = true }
-                val analysisList: List<UserMessageAnalysis> = try {
-                    if (!aiContent.isNullOrEmpty()) {
-                        format.decodeFromString(aiContent)
-                    } else emptyList()
-                } catch (e: Exception) {
-                    emptyList()
+                    Log.d("ANALYSIS_DEBUG", "--- Finished ---: Steps=${_analysisSteps.value.size}, Score=${_analyzeResult.value?.score}")
                 }
-                Log.d("ANALYSIS_DEBUG", "--- Parsed List ---: $analysisList")
-
-                // 6️⃣ Cập nhật state để UI highlight từng message
-                _analysisSteps.value = analysisList
-
             } catch (e: Exception) {
-                _analyzeResult.value = "Không thể phân tích lúc này."
+                Log.e("ANALYSIS_DEBUG", "Phân tích thất bại", e)
+                _analyzeResult.value = null
                 _analysisSteps.value = emptyList()
-                e.printStackTrace()
             } finally {
                 _isAnalyzing.value = false
             }
         }
     }
 }
+

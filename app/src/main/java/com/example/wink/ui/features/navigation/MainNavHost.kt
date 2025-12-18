@@ -27,6 +27,7 @@ import com.example.wink.ui.features.iconshop.IconShopScreen
 import com.example.wink.ui.features.profile.ProfileScreen
 import com.example.wink.ui.features.profile.SettingsScreen
 import com.example.wink.ui.features.profile.UserDetailScreen
+import com.example.wink.ui.features.setting.AiSettingsScreen
 import com.example.wink.ui.features.social.SocialScreen
 import com.example.wink.ui.features.tarot.TarotHubScreen
 import com.example.wink.ui.features.tarot.card.TarotCardScreen
@@ -181,6 +182,10 @@ fun MainNavHost(
 
         composable(Screen.HumanAiGame.route) {
             HumanAiGameScreen(navController = navController)
+        }
+
+        composable(Screen.AiSettings.route) {
+            AiSettingsScreen(navController = navController)
         }
     }
 }
