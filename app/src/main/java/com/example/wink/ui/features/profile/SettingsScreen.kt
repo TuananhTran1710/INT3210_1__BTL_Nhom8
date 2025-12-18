@@ -12,6 +12,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.Logout
 import androidx.compose.material.icons.filled.Person
@@ -76,7 +78,7 @@ fun SettingsScreen(
                     }
                 },
                 actions = {
-                    TextButton(onClick = { viewModel.onSaveProfile() }, enabled = !state.isLoading) {
+                    TextButton(onClick = { viewModel.onSaveProfile() }, enabled = !state.isLoading && !state.isCheckingUsername && state.isUsernameValid) {
                         if (state.isLoading) {
                             CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                         } else {
@@ -147,6 +149,7 @@ fun SettingsScreen(
 
             // 2. FORM NHẬP LIỆU
             SettingsGroup(title = "Thông tin cá nhân") {
+                // Trong SettingsScreen, tìm đoạn OutlinedTextField của username
                 OutlinedTextField(
                     value = state.username,
                     onValueChange = { viewModel.onUsernameChange(it) },
@@ -154,7 +157,42 @@ fun SettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
-                    leadingIcon = { Icon(Icons.Outlined.Person, null) }
+                    leadingIcon = { Icon(Icons.Outlined.Person, null) },
+                    isError = state.usernameError != null,
+
+                    // Phần hiển thị thông báo dưới ô nhập
+                    supportingText = {
+                        when {
+                            state.isCheckingUsername -> {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    CircularProgressIndicator(modifier = Modifier.size(12.dp), strokeWidth = 2.dp)
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Đang kiểm tra...")
+                                }
+                            }
+                            state.usernameError != null -> {
+                                Text(text = state.usernameError!!, color = MaterialTheme.colorScheme.error)
+                            }
+                            state.isUsernameValid && state.username != state.originalUsername -> {
+                                Text(text = "✓ Tên hợp lệ", color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    },
+
+                    // Phần hiển thị Icon bên phải
+                    trailingIcon = {
+                        when {
+                            state.isCheckingUsername -> {
+                                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            }
+                            state.usernameError != null -> {
+                                Icon(Icons.Default.Close, null, tint = MaterialTheme.colorScheme.error)
+                            }
+                            state.isUsernameValid && state.username != state.originalUsername -> {
+                                Icon(Icons.Default.Check, null, tint = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
