@@ -434,8 +434,8 @@ fun FriendListItem(friend: FriendUi,
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Surface(shape = CircleShape, modifier = Modifier.size(50.dp), color = MaterialTheme.colorScheme.tertiaryContainer) {
-            if (friend.avatarUrl != null) {
+        Surface(shape = CircleShape, modifier = Modifier.size(50.dp), color = MaterialTheme.colorScheme.primaryContainer) {
+            if (!friend.avatarUrl.isNullOrBlank()) {
                 AsyncImage(model = friend.avatarUrl, contentDescription = null, contentScale = ContentScale.Crop)
             } else {
                 Box(contentAlignment = Alignment.Center) {
