@@ -59,6 +59,8 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.wink.data.model.DailyTask
 import kotlinx.coroutines.delay
 
@@ -152,6 +154,8 @@ fun DashboardScreen(
             item {
                 AnimatedDashboardItem(delay = 100) {
                     AIFeatureCard(
+                        crushName = uiState.aiCrushName, // Truyền tên
+                        crushAvatar = uiState.aiCrushAvatar, // Truyền avatar
                         onClick = {
                             navController.navigate("message/ai_chat")
                         }
@@ -468,6 +472,8 @@ private fun StatCardItem(
 
 @Composable
 private fun AIFeatureCard(
+    crushName: String,
+    crushAvatar: String?,
     onClick: () -> Unit
 ) {
     var isPressed by remember { mutableStateOf(false) }
@@ -550,7 +556,7 @@ private fun AIFeatureCard(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Lan Anh",
+                        text = crushName,
                         style = MaterialTheme.typography.headlineLarge,
                         color = Color.White,
                         fontWeight = FontWeight.ExtraBold,
@@ -582,8 +588,11 @@ private fun AIFeatureCard(
                         .border(2.dp, Color.White.copy(alpha = 0.5f), RoundedCornerShape(20.dp))
                 ) {
                     // Placeholder for Image
-                    Image(
-                        painter = painterResource(id = R.drawable.ai_crush),
+                    AsyncImage(
+                        model = ImageRequest.Builder(LocalContext.current)
+                            .data(crushAvatar ?: R.drawable.ai_crush) // Nếu null thì dùng ảnh mặc định
+                            .crossfade(true)
+                            .build(),
                         contentDescription = "AI Avatar",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier.fillMaxSize()
@@ -735,13 +744,13 @@ private fun DashboardTopBarPreview() {
     DashboardTopBar(username = "duattrandang")
 }
 
-@Preview(showBackground = true)
-@Composable
-private fun AIFeatureCardPreview() {
-    AIFeatureCard(
-        onClick = { }
-    )
-}
+//@Preview(showBackground = true)
+//@Composable
+//private fun AIFeatureCardPreview() {
+//    AIFeatureCard(
+//        onClick = { }
+//    )
+//}
 
 @Preview(showBackground = true)
 @Composable

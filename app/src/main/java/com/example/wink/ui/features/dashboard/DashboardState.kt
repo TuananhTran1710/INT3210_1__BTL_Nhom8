@@ -4,22 +4,6 @@ import com.example.wink.data.model.DailyTask
 import com.example.wink.data.model.FriendRequest
 import com.example.wink.data.model.Notification
 
-data class DashboardTask(
-    val id: String,
-    val title: String,
-    val description: String,
-    val reward: Int,
-    val isCompleted: Boolean = false
-)
-
-data class DashboardReward(
-    val id: String,
-    val title: String,
-    val description: String,
-    val points: Int,
-    val icon: String
-)
-
 data class DashboardState(
     val userEmail: String = "Đang tải...",
     val username: String = "",
@@ -51,5 +35,8 @@ data class DashboardState(
     // Accepted friend request notification
     val acceptedFriendNotification: String? = null,
 
-    val completedTaskNotification: String? = null
+    val completedTaskNotification: String? = null,
+
+    val aiCrushName: String = "Lan Anh",
+    val aiCrushAvatar: String? = null,
 )

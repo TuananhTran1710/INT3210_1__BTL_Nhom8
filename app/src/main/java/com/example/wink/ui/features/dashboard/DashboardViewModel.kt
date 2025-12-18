@@ -1,5 +1,8 @@
 package com.example.wink.ui.features.dashboard
 
+import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import android.util.Log
 import androidx.compose.animation.core.snap
 import androidx.lifecycle.viewModelScope
@@ -25,9 +28,18 @@ import javax.inject.Inject
 class DashboardViewModel @Inject constructor(
     private val authRepository: AuthRepository,
     private val friendRequestRepository: FriendRequestRepository,
-    private val taskRepository: TaskRepository
+    private val taskRepository: TaskRepository,
+    private val application: Application
 ) : BaseViewModel<DashboardState, DashboardEvent>() {
 
+    private val sharedPreferences = application.getSharedPreferences("ai_settings", Context.MODE_PRIVATE)
+
+    // Listener để lắng nghe thay đổi từ SharedPreferences (tên/avatar mới)
+    private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+        if (key == "ai_name" || key == "ai_avatar_uri") {
+            loadAiSettings()
+        }
+    }
     // Cho UI dùng
     override val uiState: StateFlow<DashboardState>
         get() = _uiState
@@ -52,6 +64,23 @@ class DashboardViewModel @Inject constructor(
         observeFriendRequests()
         observeAcceptedFriendRequests()
         initializeDailyTasks()
+        sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
+    }
+
+    private fun loadAiSettings() {
+        val name = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        val avatar = sharedPreferences.getString("ai_avatar_uri", null)
+
+        _uiState.update { it.copy(
+            aiCrushName = name,
+            aiCrushAvatar = avatar
+        )}
+    }
+
+    // Đừng quên hủy đăng ký listener
+    override fun onCleared() {
+        super.onCleared()
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
     }
 
     private fun initializeDailyTasks() {
