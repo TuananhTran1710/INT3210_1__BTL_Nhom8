@@ -13,6 +13,7 @@ import com.example.wink.data.remote.ChatGptApiService
 import com.example.wink.data.remote.ChatGptMessage
 import com.example.wink.data.remote.ChatGptRequest
 import com.example.wink.data.repository.ChatRepository
+import com.example.wink.data.repository.TaskRepository
 import com.example.wink.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -49,6 +50,7 @@ data class UserMessageAnalysis(
 class MessageViewModelForAI @Inject constructor(
     private val chatGptApiService: ChatGptApiService,
     private val chatRepository: ChatRepository,
+    private val taskRepository: TaskRepository,
     private val auth: FirebaseAuth,
     private val application: Application,
 ) : ViewModel() {
@@ -192,6 +194,7 @@ Tạo cảm giác đang chat với một crush gen Z ngoài đời.
 
     fun sendMessage(content: String, imageUris: List<Uri>) {
         viewModelScope.launch {
+            taskRepository.updateTaskProgress("CHAT_AI")
             _isSending.value = true
             val sendingJobs = mutableListOf<Job>()
 
