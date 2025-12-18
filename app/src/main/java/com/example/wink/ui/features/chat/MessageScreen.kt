@@ -323,7 +323,8 @@ fun MessageContainer(
     listState: LazyListState = rememberLazyListState(),
     highlightMessageId: String? = null,
     insightMessage: String? = null,
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    isChattingWithAi: Boolean = false
 ) {
     LaunchedEffect(highlightMessageId) {
         highlightMessageId?.let { id ->
@@ -384,7 +385,8 @@ fun MessageContainer(
                     isGroupTop = isGroupTop,
                     senderName = chatTitle,
                     isGroupBottom = isGroupBottom,
-                    onImageClick = onImageClick
+                    onImageClick = onImageClick,
+                    isChattingWithAi = isChattingWithAi
                 )
 
                 // Spacer nhỏ (nằm dưới cùng của cụm message này)

@@ -37,6 +37,6 @@ data class DashboardState(
 
     val completedTaskNotification: String? = null,
 
-    val aiCrushName: String = "Lan Anh",
+    val aiCrushName: String = "Trần Hà Linh",
     val aiCrushAvatar: String? = null,
 )

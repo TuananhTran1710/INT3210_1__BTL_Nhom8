@@ -68,7 +68,7 @@ class DashboardViewModel @Inject constructor(
     }
 
     private fun loadAiSettings() {
-        val name = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        val name = sharedPreferences.getString("ai_name", "Trần Hà Linh") ?: "Trần Hà Linh"
         val avatar = sharedPreferences.getString("ai_avatar_uri", null)
 
         _uiState.update { it.copy(

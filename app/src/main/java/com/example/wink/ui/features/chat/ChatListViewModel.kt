@@ -62,7 +62,7 @@ class ChatListViewModel @Inject constructor(
 
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
-            "ai_name" -> _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+            "ai_name" -> _aiName.value = sharedPreferences.getString("ai_name", "Trần Hà Linh") ?: "Trần Hà Linh"
             "ai_avatar_uri" -> _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
         }
     }
@@ -76,7 +76,7 @@ class ChatListViewModel @Inject constructor(
     private val _friends = MutableStateFlow<List<SearchFriendUi>>(emptyList())
     val friends: StateFlow<List<SearchFriendUi>> = _friends.asStateFlow()
 
-    private val _aiName = MutableStateFlow("Lan Anh")
+    private val _aiName = MutableStateFlow("Trần Hà Linh")
     val aiName = _aiName.asStateFlow()
 
     private val _aiAvatarUrl = MutableStateFlow<String?>(null)
@@ -107,7 +107,7 @@ class ChatListViewModel @Inject constructor(
     }
 
     private fun loadAiSettings() {
-        _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        _aiName.value = sharedPreferences.getString("ai_name", "Trần Hà Linh") ?: "Trần Hà Linh"
         _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
     }
 

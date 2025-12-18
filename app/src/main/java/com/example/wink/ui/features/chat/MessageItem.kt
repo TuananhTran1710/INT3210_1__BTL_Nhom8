@@ -57,16 +57,17 @@ fun MessageItem(
     insight: String? = null,
     isGroupTop: Boolean = true,    // Tham số mới: Là tin đầu nhóm?
     isGroupBottom: Boolean = true, // Tham số mới: Là tin cuối nhóm?
-    onImageClick: (String) -> Unit
+    onImageClick: (String) -> Unit,
+    isChattingWithAi: Boolean = false
 ) {
     val horizontalArrangement = if (isMyMessage) Arrangement.End else Arrangement.Start
 
     val backgroundColor = if (isMyMessage)
-        MaterialTheme.colorScheme.primaryContainer
+        if (isChattingWithAi) Color(0xFFFCE4E3) else MaterialTheme.colorScheme.primaryContainer
     else
-        MaterialTheme.colorScheme.secondaryContainer
+        if (isChattingWithAi) Color(0xFF671A27) else MaterialTheme.colorScheme.secondaryContainer
 
-    val targetColor = if (highlight) Color.Yellow.copy(alpha = 0.6f) else backgroundColor
+    val targetColor = if (highlight) Color.Yellow.copy(alpha = 0.7f) else backgroundColor
     val animatedBackgroundColor by animateColorAsState(targetColor, label = "color")
 
     var isTimestampVisible by remember { mutableStateOf(false) }
@@ -160,7 +161,7 @@ fun MessageItem(
                             Text(
                                 text = message.content,
                                 style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurface,
+                                color = if (highlight || (isMyMessage && isChattingWithAi)) Color.Black else MaterialTheme.colorScheme.onSurface,
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                             )
                         }

@@ -70,8 +70,8 @@ class ChatListScreenTest {
         composeTestRule.onNodeWithText("Tin nhắn").assertIsDisplayed()
         composeTestRule.onNodeWithText("ĐẶC BIỆT").assertIsDisplayed()
 
-        // --- SỬA Ở ĐÂY: UI hiển thị "Lan Anh" chứ không phải "Wink AI" ---
-        composeTestRule.onNodeWithText("Lan Anh").assertIsDisplayed()
+        // --- SỬA Ở ĐÂY: UI hiển thị "Trần Hà Linh" chứ không phải "Wink AI" ---
+        composeTestRule.onNodeWithText("Trần Hà Linh").assertIsDisplayed()
 
         // Kiểm tra item chat thường
         composeTestRule.onNodeWithText("User Test").assertIsDisplayed()

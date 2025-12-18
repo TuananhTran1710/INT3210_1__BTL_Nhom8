@@ -31,7 +31,7 @@ class AiSettingsViewModel @Inject constructor(
 
     private fun loadAiSettings() {
         viewModelScope.launch {
-            val aiName = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+            val aiName = sharedPreferences.getString("ai_name", "Trần Hà Linh") ?: "Trần Hà Linh"
             val aiAvatarUri = sharedPreferences.getString("ai_avatar_uri", null)
             _uiState.value = AiSettingsUiState(
                 aiName = aiName,
@@ -86,6 +86,6 @@ class AiSettingsViewModel @Inject constructor(
 }
 
 data class AiSettingsUiState(
-    val aiName: String = "Lan Anh",
+    val aiName: String = "Trần Hà Linh",
     val aiAvatarUri: Uri? = null,
 )

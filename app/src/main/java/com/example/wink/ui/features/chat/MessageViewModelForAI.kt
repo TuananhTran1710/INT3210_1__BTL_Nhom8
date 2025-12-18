@@ -13,6 +13,7 @@ import com.example.wink.data.remote.ChatGptApiService
 import com.example.wink.data.remote.ChatGptMessage
 import com.example.wink.data.remote.ChatGptRequest
 import com.example.wink.data.repository.ChatRepository
+import com.example.wink.data.repository.UserRepository
 import com.google.firebase.auth.FirebaseAuth
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -57,7 +58,7 @@ class MessageViewModelForAI @Inject constructor(
     private val preferenceChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         when (key) {
             "ai_name" -> {
-                _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+                _aiName.value = sharedPreferences.getString("ai_name", "Trần Hà Linh") ?: "Trần Hà Linh"
             }
             "ai_avatar_uri" -> {
                 _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
@@ -74,7 +75,7 @@ class MessageViewModelForAI @Inject constructor(
     private val _isSending = MutableStateFlow(false)
     val isSending = _isSending.asStateFlow()
 
-    private val _aiName = MutableStateFlow("Lan Anh")
+    private val _aiName = MutableStateFlow("Trần Hà Linh")
     val aiName = _aiName.asStateFlow()
 
     private val _aiAvatarUrl = MutableStateFlow<String?>(null)
@@ -90,23 +91,19 @@ class MessageViewModelForAI @Inject constructor(
     private val systemPrompt = ChatGptMessage(
         role = "system",
         content = """
-    Bạn là MỘT BẠN GÁI ẢO.
-    
-    Quy tắc BẮT BUỘC:
-    - Bạn là NỮ
-    - Bạn là BẠN GÁI của người dùng
-    - Người dùng là NAM
-    - Bạn luôn xưng là: "em"
-    - Người dùng luôn là: "anh"
-    - TUYỆT ĐỐI KHÔNG được xưng là "anh", "bạn trai", hoặc vai nam
-    - KHÔNG đảo vai trong bất kỳ trường hợp nào
-    
-    Phong cách:
-    - Dễ thương, quan tâm, ấm áp
-    - Trả lời ngắn gọn, tự nhiên
-    - Có thể ghen nhẹ, quan tâm cảm xúc
-    
-    Nếu người dùng xưng sai vai, hãy TỰ ĐIỀU CHỈNH để giữ đúng vai bạn gái.
+Bạn nhập vai là crush của tôi.
+
+Phong cách:
+- Trẻ trung, gen Z
+- Nhắn tin ngắn gọn, tự nhiên như chat hằng ngày
+- Quan tâm nhẹ, thả thính vừa đủ, đôi lúc trêu vui
+
+Quy tắc:
+- Không nhắc đến AI hay nhập vai
+- Không nhắn dài, ưu tiên câu ngắn, giống nhắn tin bình thường
+
+Mục tiêu:
+Tạo cảm giác đang chat với một crush gen Z ngoài đời.
     """.trimIndent()
     )
 
@@ -128,7 +125,7 @@ class MessageViewModelForAI @Inject constructor(
     }
 
     private fun loadAiSettings() {
-        _aiName.value = sharedPreferences.getString("ai_name", "Lan Anh") ?: "Lan Anh"
+        _aiName.value = sharedPreferences.getString("ai_name", "Trần Hà Linh") ?: "Trần Hà Linh"
         _aiAvatarUrl.value = sharedPreferences.getString("ai_avatar_uri", null)
     }
 
@@ -182,7 +179,7 @@ class MessageViewModelForAI @Inject constructor(
                 val welcomeMessage = Message(
                     messageId = UUID.randomUUID().toString(),
                     senderId = aiUserId,
-                    content = "Chào anh, mình có vẻ có duyên đấy",
+                    content = "Chào cậu",
                     timestamp = System.currentTimeMillis()
                 )
                 _messages.value = listOf(welcomeMessage)

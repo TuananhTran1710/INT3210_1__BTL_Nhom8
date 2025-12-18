@@ -88,7 +88,7 @@ fun MessageScreenForAI(
     }
     Box(modifier = Modifier.fillMaxSize()) {
         AsyncImage(
-            model = "android.resource://${context.packageName}/${R.drawable.love_background}", // << THAY TÊN ẢNH Ở ĐÂY
+            model = "android.resource://${context.packageName}/${R.drawable.bg1}", // << THAY TÊN ẢNH Ở ĐÂY
             contentDescription = "Background Image",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
@@ -268,7 +268,8 @@ fun MessageScreenForAI(
                     // --- TRUYỀN CALLBACK VÀO ĐÂY ---
                     onImageClick = { url ->
                         clickedImageUrl = url
-                    }
+                    },
+                    isChattingWithAi = true
                 )
             }
         }
