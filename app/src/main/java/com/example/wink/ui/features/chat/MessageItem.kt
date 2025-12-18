@@ -50,7 +50,9 @@ fun MessageItem(
     message: Message,
     isMyMessage: Boolean,
     avatarUrl: String? = null,
+    senderName: String = "",
     modifier: Modifier = Modifier,
+
     highlight: Boolean = false,
     insight: String? = null,
     isGroupTop: Boolean = true,    // Tham số mới: Là tin đầu nhóm?
@@ -108,21 +110,15 @@ fun MessageItem(
             // --- AVATAR (Chỉ hiện khi là tin cuối nhóm của người khác) ---
             if (!isMyMessage) {
                 if (isGroupBottom) {
-                    AsyncImage(
-                        model = ImageRequest.Builder(LocalContext.current)
-                            .data(avatarUrl)
-                            .crossfade(true)
-                            .build(),
-                        placeholder = painterResource(R.drawable.ic_launcher_background),
-                        error = painterResource(R.drawable.ic_launcher_background),
-                        contentDescription = "Avatar",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(28.dp)
-                            .clip(CircleShape)
+                    // --- THAY THẾ ĐOẠN ASYNCIMAGE BẰNG USERAVATAR ---
+                    UserAvatar(
+                        imageUrl = avatarUrl,
+                        userName = senderName, // Dùng tên được truyền vào
+                        modifier = Modifier.size(28.dp),
+                        textSize = 12.sp // Chữ nhỏ hơn vì avatar nhỏ
                     )
                 } else {
-                    Spacer(modifier = Modifier.width(28.dp))
+                    Spacer(modifier = Modifier.width(28.dp)) // Giữ khoảng trống bằng size avatar
                 }
                 Spacer(modifier = Modifier.width(8.dp))
             }

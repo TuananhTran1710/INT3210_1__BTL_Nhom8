@@ -263,6 +263,8 @@ fun MessageScreenForAI(
                     highlightMessageId = currentHighlightMessageId,
                     insightMessage = currentInsight,
                     avatarUrl = avatarUri,
+                    chatTitle = aiName,
+
                     // --- TRUYỀN CALLBACK VÀO ĐÂY ---
                     onImageClick = { url ->
                         clickedImageUrl = url

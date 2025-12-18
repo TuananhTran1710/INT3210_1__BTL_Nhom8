@@ -3,6 +3,7 @@ package com.example.wink.ui.features.chat
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -57,8 +58,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavController
 import coil.compose.AsyncImage
@@ -210,6 +214,7 @@ fun MessageScreen(
             messages = messages,
             currentUserId = viewModel.currentUserId,
             avatarUrl = chatAvatarUrl,
+            chatTitle = chatTitle,
             modifier = Modifier.padding(paddingValues),
             // 2. TRUYỀN CALLBACK XỬ LÝ CLICK ẢNH
             onImageClick = { url ->
@@ -260,29 +265,22 @@ fun MessageTopBar(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                // Avatar
-                AsyncImage(
-                    model = ImageRequest.Builder(LocalContext.current)
-                        .data(avatarUrl)
-                        .crossfade(true)
-                        .build(),
-                    placeholder = painterResource(R.drawable.ic_launcher_background), // Ảnh mặc định khi đang load
-                    error = painterResource(R.drawable.ic_launcher_background),       // Ảnh mặc định khi lỗi/null
-                    contentDescription = "User Avatar",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(40.dp)          // Kích thước chuẩn avatar topbar
-                        .clip(CircleShape)    // Bo tròn
+                // --- THAY THẾ ĐOẠN NÀY ---
+                UserAvatar(
+                    imageUrl = avatarUrl,
+                    userName = title, // Truyền tên vào để lấy chữ cái đầu
+                    modifier = Modifier.size(40.dp),
+                    textSize = 18.sp
                 )
+                // --------------------------
 
-                Spacer(modifier = Modifier.width(12.dp)) // Khoảng cách giữa ảnh và tên
+                Spacer(modifier = Modifier.width(12.dp))
 
-                // Tên người dùng
                 Text(
                     text = title,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1,
-                    overflow = TextOverflow.Ellipsis // Nếu tên dài quá sẽ hiện dấu ...
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         },
@@ -319,6 +317,7 @@ fun MessageContainer(
     messages: List<Message>,
     currentUserId: String,
     avatarUrl: String?,
+    chatTitle: String,
     modifier: Modifier = Modifier,
     isTyping: Boolean = false,
     listState: LazyListState = rememberLazyListState(),
@@ -383,6 +382,7 @@ fun MessageContainer(
                     highlight = message.messageId == highlightMessageId,
                     insight = if (message.messageId == highlightMessageId) insightMessage else null,
                     isGroupTop = isGroupTop,
+                    senderName = chatTitle,
                     isGroupBottom = isGroupBottom,
                     onImageClick = onImageClick
                 )
@@ -433,5 +433,46 @@ fun TypingIndicator() {
                 modifier = Modifier.padding(12.dp)
             )
         }
+    }
+}
+
+// Đặt cái này ở ngoài cùng file hoặc trong file Common
+@Composable
+fun UserAvatar(
+    imageUrl: String?,
+    userName: String,
+    modifier: Modifier = Modifier,
+    backgroundColor: Color = MaterialTheme.colorScheme.primaryContainer,
+    textColor: Color = MaterialTheme.colorScheme.onPrimaryContainer,
+    textSize: TextUnit = 18.sp // Thêm size chữ để tùy chỉnh
+) {
+    if (imageUrl.isNullOrBlank()) {
+        // Hiển thị chữ cái đầu
+        Box(
+            modifier = modifier
+                .clip(CircleShape)
+                .background(backgroundColor),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = if (userName.isNotBlank()) userName.take(1).uppercase() else "?",
+                style = MaterialTheme.typography.titleMedium.copy(fontSize = textSize),
+                fontWeight = FontWeight.Bold,
+                color = textColor
+            )
+        }
+    } else {
+        // Hiển thị ảnh
+        AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data(imageUrl)
+                .crossfade(true)
+                .build(),
+            placeholder = painterResource(R.drawable.ic_launcher_background), // Hoặc null
+            error = painterResource(R.drawable.ic_launcher_background),       // Hoặc null
+            contentDescription = "Avatar of $userName",
+            contentScale = ContentScale.Crop,
+            modifier = modifier.clip(CircleShape)
+        )
     }
 }
