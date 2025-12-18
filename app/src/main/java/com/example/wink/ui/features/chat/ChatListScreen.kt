@@ -422,8 +422,7 @@ private fun ChatRowItem(
     // --- LOGIC CHECK UNREAD ---
     val isUnread = uiChat.isUnread && !uiChat.isAiChat // AI Chat thì ko cần check unread kiểu này (tuỳ logic)
 
-    // 1. Cấu hình Font chữ: Đậm (Chưa đọc) vs Thường (Đã đọc)
-    val nameWeight = if (isUnread) FontWeight.ExtraBold else FontWeight.SemiBold
+    val nameWeight = if (isUnread) FontWeight.Bold else FontWeight.Medium
     val messageWeight = if (isUnread) FontWeight.Bold else FontWeight.Normal
 
     // 2. Cấu hình Màu sắc: Đen rõ (Chưa đọc) vs Xám (Đã đọc)
