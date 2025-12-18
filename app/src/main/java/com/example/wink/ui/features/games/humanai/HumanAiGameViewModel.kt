@@ -101,7 +101,7 @@ class HumanAiGameViewModel @Inject constructor(
         _uiState.update { it.copy(stage = GameStage.SEARCHING, searchTimeSeconds = 0) }
 
         // 1. Random match với AI hoặc người
-        val forceAi = Random.nextFloat() < 0.5
+        val forceAi = Random.nextFloat() < 0.3
 
         if (forceAi) {
             fakeSearchingDelayThenStartAi()
