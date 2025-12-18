@@ -24,6 +24,7 @@ import javax.inject.Inject
 import androidx.compose.material.icons.filled.MoreVert // Icon 3 chấm
 import androidx.compose.material.icons.filled.PushPin // Icon ghim (filled)
 import androidx.compose.material.icons.outlined.PushPin
+import kotlinx.coroutines.flow.combine
 
 // Cập nhật UiChat để UI biết trạng thái pin
 data class UiChat(
@@ -160,16 +161,18 @@ class ChatListViewModel @Inject constructor(
         }
     }
 
+    // --- SỬA LẠI LOGIC HÀM NÀY ---
     private fun loadChats() {
         val myId = currentUserId ?: return
 
         viewModelScope.launch {
             _isLoading.value = true
 
-            // Lắng nghe Realtime - Code chạy ĐỒNG BỘ, không có async/await chặn luồng
-            chatRepository.listenChats(myId).collect { rawChats ->
+            combine(
+                chatRepository.listenChats(myId),
+                _friends
+            ) { rawChats, friendList ->
 
-                // Danh sách các chat cũ bị thiếu thông tin cần fix
                 val chatsNeedsFixing = mutableListOf<Chat>()
 
                 val processedChats = rawChats.map { chat ->
@@ -178,32 +181,50 @@ class ChatListViewModel @Inject constructor(
                         !chat.lastReadBy.contains(myId)
                     } else false
 
-                    // 2. Logic Tên & Avatar
+                    // 2. Logic Tên & Avatar (LÀM LẠI CHO CHẮC CHẮN)
                     var displayName = chat.name
                     var displayAvatar = chat.avatarUrl
 
-                    if (chat.name.isBlank()) { // Chat 1-1
-                        val otherUserId = chat.participants.find { it != myId }
+                    // Xác định chat 1-1: Nếu tên rỗng HOẶC chỉ có 2 người tham gia
+                    val otherUserId = chat.participants.find { it != myId }
+                    val isPrivateChat = otherUserId != null && chat.participants.size == 2
 
-                        if (otherUserId != null) {
-                            // Lấy từ Cache
-                            val cachedInfo = chat.participantInfo[otherUserId]
+                    // Chỉ xử lý override nếu là chat 1-1
+                    if (isPrivateChat && otherUserId != null) {
+                        // Lấy thông tin từ các nguồn
+                        val cachedInfo = chat.participantInfo[otherUserId]
+                        val friendInfo = friendList.find { it.uid == otherUserId }
 
-                            if (cachedInfo != null && !cachedInfo["name"].isNullOrBlank()) {
-                                // CASE 1: Đã có cache (Chat mới hoặc đã fix) -> Hiển thị ngay
-                                displayName = cachedInfo["name"] ?: "Người dùng"
-                                displayAvatar = cachedInfo["avatar"]
-                            } else {
-                                // CASE 2: Dữ liệu cũ (Chưa có cache)
-                                // -> Tạm thời hiển thị placeholder hoặc "Đang tải..."
-                                // -> Đẩy vào danh sách cần fix
-                                displayName = "..."
-                                chatsNeedsFixing.add(chat)
+                        // --- BƯỚC A: Xử lý Tên hiển thị ---
+                        if (displayName.isBlank()) {
+                            // Ưu tiên Cache -> Friend -> "Người dùng"
+                            displayName = cachedInfo?.get("name")
+                                ?: friendInfo?.username
+                                        ?: "Người dùng"
+                        }
+
+                        // --- BƯỚC B: Xử lý Avatar (BUG CŨ NẰM Ở ĐÂY) ---
+                        // Nếu avatar gốc rỗng -> Tìm trong Cache -> Tìm trong Friend
+                        if (displayAvatar.isNullOrBlank()) {
+                            displayAvatar = cachedInfo?.get("avatar") // Thử lấy từ cache
+
+                            // Nếu cache vẫn null/rỗng -> Lấy từ Friend
+                            if (displayAvatar.isNullOrBlank() && friendInfo != null) {
+                                displayAvatar = friendInfo.avatarUrl
                             }
+                        }
+
+                        // --- BƯỚC C: Kiểm tra xem có cần fix data không ---
+                        // Nếu Cache thiếu Tên HOẶC thiếu Avatar mà Friend lại có -> Cần update Cache
+                        val isCacheMissing = cachedInfo == null || cachedInfo["name"].isNullOrBlank() || cachedInfo["avatar"].isNullOrBlank()
+
+                        // Chỉ fix nếu cache thiếu, để lần sau load cho nhanh
+                        if (isCacheMissing) {
+                            chatsNeedsFixing.add(chat)
                         }
                     }
 
-                    // 3. Logic nội dung tin nhắn
+                    // 3. Logic nội dung
                     val prefix = if (chat.lastSenderId == myId) "Bạn: " else ""
                     val finalContent = if (chat.lastMessage.isNotBlank()) "$prefix${chat.lastMessage}" else "Bắt đầu trò chuyện"
 
@@ -218,7 +239,9 @@ class ChatListViewModel @Inject constructor(
                     )
                 }
 
-                // 4. Update UI ngay lập tức (Không chờ fix)
+                Pair(processedChats, chatsNeedsFixing)
+
+            }.collect { (processedChats, chatsToFix) ->
                 _chats.value = processedChats.sortedWith(
                     compareBy<UiChat> { !it.isPinned }
                         .thenBy { it.chat.pinnedBy[myId] }
@@ -226,9 +249,8 @@ class ChatListViewModel @Inject constructor(
                 )
                 _isLoading.value = false
 
-                // 5. Kích hoạt luồng chạy ngầm để sửa dữ liệu cũ (Background Auto-Fix)
-                if (chatsNeedsFixing.isNotEmpty()) {
-                    fixOldChatsInBackground(chatsNeedsFixing, myId)
+                if (chatsToFix.isNotEmpty()) {
+                    fixOldChatsInBackground(chatsToFix, myId)
                 }
             }
         }
